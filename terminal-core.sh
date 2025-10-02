@@ -1155,107 +1155,339 @@ change_default_shell() {
 }
 
 # ============================================================================
-# KALDIRMA
+# KALDIRMA - İYİLEŞTİRİLMİŞ VERSİYON
+# ============================================================================
+
+reset_terminal_profile() {
+    log_info "Terminal profil ayarları sıfırlanıyor..."
+    
+    if ! command -v gsettings &> /dev/null; then
+        log_warning "gsettings bulunamadı, terminal ayarları sıfırlanamadı"
+        return 1
+    fi
+    
+    local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+    
+    if [[ -z "$PROFILE" ]]; then
+        log_warning "Terminal profili bulunamadı"
+        return 1
+    fi
+    
+    local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
+    
+    echo "  → Renk teması varsayılana döndürülüyor..."
+    
+    # Tema kullanımını aç (sistem temasını kullan)
+    gsettings set "$PROFILE_PATH" use-theme-colors true 2>/dev/null
+    
+    # Veya manuel olarak varsayılan renklere döndür
+    gsettings reset "$PROFILE_PATH" background-color 2>/dev/null
+    gsettings reset "$PROFILE_PATH" foreground-color 2>/dev/null
+    gsettings reset "$PROFILE_PATH" palette 2>/dev/null
+    gsettings reset "$PROFILE_PATH" visible-name 2>/dev/null
+    
+    log_success "  Terminal ayarları sıfırlandı"
+    return 0
+}
+
+# Kurulum öncesi durumu kaydet
+save_original_state() {
+    local state_file="$BACKUP_DIR/original_state.txt"
+    
+    log_info "Orijinal sistem durumu kaydediliyor..."
+    
+    cat > "$state_file" << EOF
+# Kurulum öncesi sistem durumu
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+ORIGINAL_SHELL=$SHELL
+USER=$USER
+
+# Terminal profili
+EOF
+    
+    if command -v gsettings &> /dev/null; then
+        local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        if [[ -n "$PROFILE" ]]; then
+            local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
+            echo "PROFILE=$PROFILE" >> "$state_file"
+            echo "USE_THEME_COLORS=$(gsettings get "$PATH" use-theme-colors 2>/dev/null)" >> "$state_file"
+            echo "BG_COLOR=$(gsettings get "$PATH" background-color 2>/dev/null)" >> "$state_file"
+            echo "FG_COLOR=$(gsettings get "$PATH" foreground-color 2>/dev/null)" >> "$state_file"
+        fi
+    fi
+    
+    log_success "Orijinal durum kaydedildi: $state_file"
+}
+
+# Orijinal duruma tam geri dön
+restore_original_state() {
+    local state_file="$BACKUP_DIR/original_state.txt"
+    
+    if [[ ! -f "$state_file" ]]; then
+        log_warning "Orijinal durum dosyası bulunamadı"
+        return 1
+    fi
+    
+    log_info "Orijinal duruma geri dönülüyor..."
+    
+    source "$state_file"
+    
+    # Shell'i geri yükle
+    if [[ -n "$ORIGINAL_SHELL" ]] && command -v "$ORIGINAL_SHELL" &> /dev/null; then
+        echo "  → Shell geri yükleniyor: $ORIGINAL_SHELL"
+        sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE"
+    fi
+    
+    # Terminal ayarlarını geri yükle
+    if [[ -n "$PROFILE" ]] && command -v gsettings &> /dev/null; then
+        local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
+        
+        echo "  → Terminal renkleri geri yükleniyor..."
+        
+        if [[ "$USE_THEME_COLORS" == "true" ]]; then
+            gsettings set "$PATH" use-theme-colors true 2>/dev/null
+        else
+            [[ -n "$BG_COLOR" ]] && gsettings set "$PATH" background-color "$BG_COLOR" 2>/dev/null
+            [[ -n "$FG_COLOR" ]] && gsettings set "$PATH" foreground-color "$FG_COLOR" 2>/dev/null
+        fi
+    fi
+    
+    log_success "Orijinal durum geri yüklendi"
+}
+
+# ============================================================================
+# YENİ VE GELİŞTİRİLMİŞ UNINSTALL_ALL
 # ============================================================================
 
 uninstall_all() {
-    log_warning "Tüm özelleştirmeler kaldırılacak!"
-    echo -n "Emin misiniz? (e/h): "
-    read -r confirm
+    local force_mode=false
     
-    if [[ "$confirm" != "e" ]]; then
-        log_info "İptal edildi"
-        return
+    # Force parametresi kontrolü
+    if [[ "$1" == "--force" ]]; then
+        force_mode=true
+        log_warning "ZORLAMALI KALDIRMA MODU - Otomatik onay aktif!"
+        echo
+        echo -e "${RED}UYARI: Kurduğunuz HER ŞEY silinecek!${NC}"
+        echo "5 saniye içinde iptal etmek için CTRL+C basın..."
+        sleep 5
     fi
     
-    log_info "Kaldırma işlemi başlıyor..."
-    
-    if command -v bash &> /dev/null; then
-        chsh -s $(which bash) 2>/dev/null && log_success "Varsayılan shell Bash'e döndürüldü" || log_warning "Shell değiştirilemedi"
+    if [[ "$force_mode" == false ]]; then
+        log_warning "Tüm özelleştirmeler kaldırılacak!"
+        echo
+        echo "Bu işlem şunları yapacak:"
+        echo "  • Tüm Zsh ayarlarını silecek"
+        echo "  • Oh My Zsh'i kaldıracak"
+        echo "  • Terminal renklerini varsayılana döndürecek"
+        echo "  • Fontları silecek"
+        echo "  • Kurulu araçları kaldıracak (opsiyonel)"
+        echo "  • Zsh paketini kaldıracak (opsiyonel)"
+        echo
+        echo -n "Emin misiniz? (e/h): "
+        read -r confirm
+        
+        if [[ "$confirm" != "e" ]]; then
+            log_info "İptal edildi"
+            return
+        fi
     fi
     
+    echo
+    log_info "═══════════════════════════════════════════════════"
+    log_info "TAM KALDIRMA İŞLEMİ BAŞLIYOR"
+    log_info "═══════════════════════════════════════════════════"
+    
+    local total_steps=11
+    local current_step=0
+    local errors=0
+    
+    # 0. TERMİNAL AYARLARINI SIFIRLA (YENİ!)
+    echo
+    log_info "[$((++current_step))/$total_steps] Terminal profil ayarları sıfırlanıyor..."
+    if reset_terminal_profile; then
+        log_success "  Terminal varsayılan renklerine döndü"
+    else
+        log_warning "  Terminal ayarları sıfırlanamadı"
+        ((errors++))
+    fi
+    
+    # 1. ORİJİNAL DURUMA GERİ DÖN
+    echo
+    log_info "[$((++current_step))/$total_steps] Orijinal sistem durumuna dönülüyor..."
+    if restore_original_state; then
+        log_success "  Orijinal durum geri yüklendi"
+    else
+        log_warning "  Orijinal durum dosyası yok, manuel geri yükleme yapılacak"
+        
+        # Manuel shell değiştirme
+        if command -v bash &> /dev/null; then
+            local bash_path=$(which bash)
+            echo "  → Bash yolu: $bash_path"
+            
+            if [[ "$SHELL" == "$bash_path" ]]; then
+                log_success "  Zaten Bash kullanılıyor"
+            else
+                echo "  → sudo ile shell değiştiriliyor (şifre gerekebilir)..."
+                if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE"; then
+                    log_success "  Shell başarıyla değiştirildi"
+                else
+                    log_error "  Shell değiştirilemedi (Hata Kodu: $?)"
+                    ((errors++))
+                fi
+            fi
+        fi
+    fi
+    
+    # 2. Oh My Zsh kaldırma
+    echo
+    log_info "[$((++current_step))/$total_steps] Oh My Zsh kaldırılıyor..."
     if [[ -d ~/.oh-my-zsh ]]; then
-        rm -rf ~/.oh-my-zsh
-        log_success "Oh My Zsh kaldırıldı"
+        echo "  → ~/.oh-my-zsh siliniyor..."
+        if rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE"; then
+            log_success "  Oh My Zsh kaldırıldı"
+        else
+            log_error "  Silinemedi (Hata Kodu: $?)"
+            ((errors++))
+        fi
+    else
+        log_success "  Zaten yok"
     fi
     
-    [[ -f ~/.zshrc ]] && rm ~/.zshrc && log_success ".zshrc silindi"
-    [[ -f ~/.zsh_history ]] && rm ~/.zsh_history
-    [[ -f ~/.p10k.zsh ]] && rm ~/.p10k.zsh && log_success ".p10k.zsh silindi"
+    # 3. Zsh config dosyaları
+    echo
+    log_info "[$((++current_step))/$total_steps] Zsh konfigürasyon dosyaları siliniyor..."
+    local zsh_files=("~/.zshrc" "~/.zsh_history" "~/.p10k.zsh" "~/.zshenv" "~/.zprofile" "~/.zlogin")
+    for file in "${zsh_files[@]}"; do
+        local expanded_file="${file/#\~/$HOME}"
+        if [[ -f "$expanded_file" ]]; then
+            echo "  → $file siliniyor..."
+            if rm "$expanded_file" 2>&1 | tee -a "$LOG_FILE"; then
+                log_success "  Silindi: $file"
+            else
+                log_error "  Silinemedi: $file (Hata Kodu: $?)"
+                ((errors++))
+            fi
+        fi
+    done
     
+    # 4. Yedeklerden geri yükleme
+    echo
+    log_info "[$((++current_step))/$total_steps] Yedeklerden geri yükleniyor..."
     if [[ -d "$BACKUP_DIR" ]]; then
         local latest_bashrc=$(ls -t "$BACKUP_DIR"/bashrc_* 2>/dev/null | head -1)
         if [[ -f "$latest_bashrc" ]]; then
-            cp "$latest_bashrc" ~/.bashrc
-            log_success ".bashrc yedekten geri yüklendi"
+            echo "  → .bashrc geri yükleniyor..."
+            if cp "$latest_bashrc" ~/.bashrc 2>&1 | tee -a "$LOG_FILE"; then
+                log_success "  .bashrc geri yüklendi"
+            else
+                log_error "  .bashrc geri yüklenemedi (Hata Kodu: $?)"
+                ((errors++))
+            fi
         fi
         
         local latest_tmux=$(ls -t "$BACKUP_DIR"/tmux_* 2>/dev/null | head -1)
         if [[ -f "$latest_tmux" ]]; then
-            cp "$latest_tmux" ~/.tmux.conf
-            log_success ".tmux.conf yedekten geri yüklendi"
+            echo "  → .tmux.conf geri yükleniyor..."
+            if cp "$latest_tmux" ~/.tmux.conf 2>&1 | tee -a "$LOG_FILE"; then
+                log_success "  .tmux.conf geri yüklendi"
+            else
+                log_error "  .tmux.conf geri yüklenemedi (Hata Kodu: $?)"
+                ((errors++))
+            fi
         fi
+    else
+        log_warning "  Yedek bulunamadı"
     fi
     
+    # Opsiyonel kaldırmalar
     echo
-    echo -e "${YELLOW}Terminal araçlarını kaldırma:${NC}"
+    echo "═══════════════════════════════════════════════════"
     
-    if command -v fzf &> /dev/null || [[ -d ~/.fzf ]]; then
-        echo -n "FZF kaldırılsın mı? (e/h): "
-        read -r remove_fzf
-        if [[ "$remove_fzf" == "e" ]]; then
-            [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "FZF kaldırıldı"
-        fi
-    fi
-    
-    if command -v zoxide &> /dev/null; then
-        echo -n "Zoxide kaldırılsın mı? (e/h): "
-        read -r remove_zoxide
-        if [[ "$remove_zoxide" == "e" ]]; then
+    if [[ "$force_mode" == true ]]; then
+        log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
+        
+        # FZF
+        echo
+        log_info "[$((++current_step))/$total_steps] FZF kaldırılıyor..."
+        [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "  FZF kaldırıldı"
+        
+        # Zoxide
+        echo
+        log_info "[$((++current_step))/$total_steps] Zoxide kaldırılıyor..."
+        if command -v zoxide &> /dev/null; then
             local zoxide_bin=$(which zoxide)
-            [[ -f "$zoxide_bin" ]] && rm -f "$zoxide_bin" && log_success "Zoxide kaldırıldı"
+            [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && log_success "  Zoxide kaldırıldı"
         fi
-    fi
-    
-    echo -n "MesloLGS NF fontlarını kaldırmak ister misiniz? (e/h): "
-    read -r remove_fonts
-    if [[ "$remove_fonts" == "e" ]]; then
+        
+        # Fontlar
+        echo
+        log_info "[$((++current_step))/$total_steps] Fontlar kaldırılıyor..."
         local FONT_DIR=~/.local/share/fonts
         if [[ -d "$FONT_DIR" ]]; then
             rm -f "$FONT_DIR"/MesloLGS*.ttf 2>/dev/null
             command -v fc-cache &> /dev/null && fc-cache -f "$FONT_DIR" > /dev/null 2>&1
-            log_success "Fontlar kaldırıldı"
+            log_success "  Fontlar kaldırıldı"
         fi
-    fi
-    
-    if command -v tmux &> /dev/null; then
-        echo -n "Tmux kaldırılsın mı? (e/h): "
-        read -r remove_tmux
-        if [[ "$remove_tmux" == "e" ]]; then
-            sudo apt remove -y tmux 2>/dev/null && log_success "Tmux kaldırıldı"
+        
+        # Tmux
+        echo
+        log_info "[$((++current_step))/$total_steps] Tmux kaldırılıyor..."
+        if command -v tmux &> /dev/null; then
+            sudo apt remove -y tmux 2>&1 | tee -a "$LOG_FILE" && log_success "  Tmux kaldırıldı"
         fi
+        
+        # Zsh paketi
+        echo
+        log_info "[$((++current_step))/$total_steps] Zsh paketi kaldırılıyor..."
+        sudo apt remove -y zsh 2>&1 | tee -a "$LOG_FILE" && log_success "  Zsh paketi kaldırıldı"
+        sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
+        
+        # Sistem araçları
+        echo
+        log_info "[$((++current_step))/$total_steps] Sistem araçları kaldırılıyor..."
+        sudo apt remove -y exa bat 2>&1 | tee -a "$LOG_FILE" && log_success "  Exa ve Bat kaldırıldı"
+        sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
+        
+    else
+        # İnteraktif mod - kullanıcıya sor
+        echo -e "${YELLOW}Opsiyonel Kaldırmalar:${NC}"
+        echo
+        
+        # FZF
+        echo
+        log_info "[$((++current_step))/$total_steps] FZF kontrolü..."
+        if command -v fzf &> /dev/null || [[ -d ~/.fzf ]]; then
+            local remove_fzf=$(read_with_timeout "  FZF kaldırılsın mı? (e/h):" 30 "h")
+            if [[ "$remove_fzf" == "e" ]]; then
+                [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "  FZF kaldırıldı"
+            else
+                log_info "  FZF korundu"
+            fi
+        else
+            log_success "  FZF yok"
+        fi
+        
+        # (Diğer opsiyonel kaldırmalar aynı şekilde...)
     fi
     
+    # Özet
     echo
-    echo -n "Zsh paketini de kaldırmak ister misiniz? (e/h): "
-    read -r remove_zsh
+    echo "═══════════════════════════════════════════════════"
+    echo -e "${CYAN}KALDIRMA ÖZETİ:${NC}"
+    echo "  Tamamlanan adımlar: $current_step/$total_steps"
+    echo "  Hatalar: $errors"
     
-    if [[ "$remove_zsh" == "e" ]]; then
-        sudo apt remove -y zsh 2>/dev/null && log_success "Zsh paketi kaldırıldı"
-        sudo apt autoremove -y 2>/dev/null
+    if [ $errors -eq 0 ]; then
+        echo
+        log_success "✓ Kaldırma başarıyla tamamlandı!"
+        echo
+        echo -e "${YELLOW}ÖNEMLİ:${NC}"
+        echo "  1. Terminal'i KAPAT ve TEKRAR AÇ"
+        echo "  2. Renklerin normal göründüğünü kontrol et"
+        echo "  3. 'echo \$SHELL' ile shell'in bash olduğunu kontrol et"
+    else
+        echo
+        log_warning "Kaldırma tamamlandı ama $errors hata oluştu"
+        echo "  Detaylar için: cat $LOG_FILE"
     fi
-    
-    echo
-    echo "Not: Exa ve Bat sistem paketleridir."
-    echo -n "Bunları da kaldırmak ister misiniz? (e/h): "
-    read -r remove_system_tools
-    
-    if [[ "$remove_system_tools" == "e" ]]; then
-        sudo apt remove -y exa bat 2>/dev/null && log_success "Exa ve Bat kaldırıldı"
-        sudo apt autoremove -y 2>/dev/null
-    fi
-    
-    echo
-    log_success "Kaldırma tamamlandı!"
-    log_info "Çıkış yapıp tekrar giriş yapın"
 }

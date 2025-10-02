@@ -104,9 +104,9 @@ show_menu() {
 # Tema seçim menüsü
 show_theme_menu() {
     clear
-    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║           TEMA SEÇİMİ                        ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     echo
     
     local terminal_type=$(detect_terminal)
@@ -128,9 +128,9 @@ show_theme_menu() {
 # Ayarlar menüsü
 show_settings_menu() {
     clear
-    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║              AYARLAR                         ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     echo
     
     load_config
@@ -326,9 +326,9 @@ manage_settings() {
 # Tamamlanma mesajı
 show_completion_message() {
     echo
-    echo -e "${GREEN}══════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
     echo -e "${GREEN}✓ Kurulum tamamlandı!${NC}"
-    echo -e "${GREEN}══════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
     echo
     echo -e "${YELLOW}Sonraki adımlar:${NC}"
     echo "1. Terminal'i kapatıp yeniden açın (veya 'exec zsh' yazın)"

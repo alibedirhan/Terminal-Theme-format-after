@@ -64,7 +64,7 @@ log_success() {
 
 log_warning() {
     log_message "WARNING" "$@"
-    echo -e "${YELLOW}⚠${NC} $*"
+    echo -e "${YELLOW}⚠ ${NC} $*"
 }
 
 log_error() {
@@ -218,9 +218,9 @@ test_internet_speed() {
 # ============================================================================
 
 system_health_check() {
-    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ               ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     echo
     
     local total_checks=0
@@ -273,7 +273,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} $terminal"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Bilinmeyen"
+        echo -e "${YELLOW}⚠ ${NC} Bilinmeyen"
         ((warnings++))
     fi
     
@@ -285,7 +285,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu ($zsh_version)"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -296,7 +296,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -307,7 +307,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -318,7 +318,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -334,10 +334,10 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Tamam (2/2)"
         ((passed_checks++))
     elif [ $plugin_count -eq 1 ]; then
-        echo -e "${YELLOW}⚠${NC} Kısmi (1/2)"
+        echo -e "${YELLOW}⚠ ${NC} Kısmi (1/2)"
         ((warnings++))
     else
-        echo -e "${YELLOW}⚠${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -349,18 +349,18 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Var ($backup_count dosya)"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠${NC} Yok"
+        echo -e "${YELLOW}⚠ ${NC} Yok"
         ((warnings++))
     fi
     
     # Sonuç özeti
     echo
-    echo "══════════════════════════════════════════════"
+    echo "═══════════════════════════════════════════════"
     echo -e "Toplam Kontrol: $total_checks"
     echo -e "${GREEN}✓ Başarılı: $passed_checks${NC}"
-    echo -e "${YELLOW}⚠ Uyarı: $warnings${NC}"
+    echo -e "${YELLOW}⚠  Uyarı: $warnings${NC}"
     echo -e "${RED}✗ Hata: $((total_checks - passed_checks))${NC}"
-    echo "══════════════════════════════════════════════"
+    echo "═══════════════════════════════════════════════"
     
     # Durum değerlendirmesi
     local success_rate=$((passed_checks * 100 / total_checks))
@@ -372,7 +372,7 @@ system_health_check() {
         echo -e "${GREEN}✓ Sistem kurulum için hazır${NC}"
         return 0
     elif [ $success_rate -ge 60 ]; then
-        echo -e "${YELLOW}⚠ Sistem kurulabilir ama bazı özellikler çalışmayabilir${NC}"
+        echo -e "${YELLOW}⚠  Sistem kurulabilir ama bazı özellikler çalışmayabilir${NC}"
         return 0
     else
         echo -e "${RED}✗ Sistem kurulum için hazır değil${NC}"
@@ -525,9 +525,9 @@ update_script() {
 # ============================================================================
 
 show_backups() {
-    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║              MEVCUT YEDEKLER                 ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     echo
     
     if [[ -d "$BACKUP_DIR" && $(ls -A "$BACKUP_DIR" 2>/dev/null) ]]; then
@@ -565,6 +565,346 @@ cleanup_old_backups() {
         
         log_success "Eski yedekler temizlendi"
     fi
+}
+
+# ============================================================================
+# HATA KODLARI SİSTEMİ
+# ============================================================================
+
+# Hata kodları
+readonly ERR_SUCCESS=0
+readonly ERR_NETWORK=1
+readonly ERR_PERMISSION=2
+readonly ERR_DEPENDENCY=3
+readonly ERR_FILE_NOT_FOUND=4
+readonly ERR_COMMAND_FAILED=5
+readonly ERR_USER_CANCELLED=6
+readonly ERR_TIMEOUT=7
+readonly ERR_INVALID_INPUT=8
+readonly ERR_DISK_SPACE=9
+readonly ERR_UNKNOWN=99
+
+# Hata mesajlarını map et
+declare -A ERROR_MESSAGES=(
+    [0]="Başarılı"
+    [1]="İnternet bağlantısı hatası"
+    [2]="Yetki hatası - sudo gerekli"
+    [3]="Bağımlılık hatası - paket eksik"
+    [4]="Dosya bulunamadı"
+    [5]="Komut çalıştırma hatası"
+    [6]="Kullanıcı tarafından iptal edildi"
+    [7]="Zaman aşımı"
+    [8]="Geçersiz girdi"
+    [9]="Disk alanı yetersiz"
+    [99]="Bilinmeyen hata"
+)
+
+# Hata mesajını göster
+show_error() {
+    local error_code=$1
+    local context="${2:-}"
+    
+    log_error "Hata [${error_code}]: ${ERROR_MESSAGES[$error_code]}"
+    
+    if [[ -n "$context" ]]; then
+        log_error "Detay: $context"
+    fi
+    
+    log_error "Log dosyası: $LOG_FILE"
+    
+    return $error_code
+}
+
+# Komut çalıştır ve hata kodu döndür
+run_with_error_handling() {
+    local description="$1"
+    shift
+    local command=("$@")
+    
+    log_debug "Çalıştırılıyor: ${command[*]}"
+    echo -n "  → $description... "
+    
+    local output
+    local exit_code
+    
+    # Komutu çalıştır ve çıktıyı yakala
+    output=$("${command[@]}" 2>&1)
+    exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        echo -e "${GREEN}✓${NC}"
+        log_debug "Başarılı: $description"
+        return $ERR_SUCCESS
+    else
+        echo -e "${RED}✗${NC}"
+        log_error "Başarısız: $description (Exit Code: $exit_code)"
+        log_error "Çıktı: $output"
+        return $exit_code
+    fi
+}
+
+# ============================================================================
+# GELİŞMİŞ PROGRESS TRACKING
+# ============================================================================
+
+# Spinner karakterleri
+SPINNER_CHARS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+SPINNER_PID=""
+
+# Spinner başlat
+start_spinner() {
+    local message="${1:-İşlem devam ediyor}"
+    
+    (
+        local i=0
+        while true; do
+            printf "\r${CYAN}${SPINNER_CHARS[$i]}${NC} $message"
+            i=$(( (i + 1) % ${#SPINNER_CHARS[@]} ))
+            sleep 0.1
+        done
+    ) &
+    
+    SPINNER_PID=$!
+    log_debug "Spinner başlatıldı (PID: $SPINNER_PID)"
+}
+
+# Spinner durdur
+stop_spinner() {
+    local status="${1:-}"
+    
+    if [[ -n "$SPINNER_PID" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
+        kill "$SPINNER_PID" 2>/dev/null
+        wait "$SPINNER_PID" 2>/dev/null
+        
+        # Satırı temizle
+        printf "\r\033[K"
+        
+        # Durum göster
+        if [[ "$status" == "success" ]]; then
+            echo -e "${GREEN}✓${NC} Tamamlandı"
+        elif [[ "$status" == "error" ]]; then
+            echo -e "${RED}✗${NC} Başarısız"
+        elif [[ "$status" == "warning" ]]; then
+            echo -e "${YELLOW}⚠${NC} Uyarı"
+        fi
+        
+        SPINNER_PID=""
+        log_debug "Spinner durduruldu"
+    fi
+}
+
+# Gelişmiş progress bar
+show_advanced_progress() {
+    local current=$1
+    local total=$2
+    local task=$3
+    local width=50
+    local percentage=$((current * 100 / total))
+    local completed=$((width * current / total))
+    
+    # Renk seçimi (ilerlemeye göre)
+    local bar_color
+    if [ $percentage -lt 33 ]; then
+        bar_color=$RED
+    elif [ $percentage -lt 66 ]; then
+        bar_color=$YELLOW
+    else
+        bar_color=$GREEN
+    fi
+    
+    # Önceki satırı temizle
+    printf "\r\033[K"
+    
+    # Progress bar çiz
+    printf "${CYAN}[%2d/%2d]${NC} " "$current" "$total"
+    printf "["
+    printf "${bar_color}%${completed}s${NC}" | tr ' ' '█'
+    printf "%$((width - completed))s" | tr ' ' '░'
+    printf "] ${bar_color}%3d%%${NC} - %s" "$percentage" "$task"
+    
+    # Son adımda yeni satır
+    if [ "$current" -eq "$total" ]; then
+        printf " ${GREEN}✓${NC}\n"
+    fi
+}
+
+# ============================================================================
+# TIMEOUT İŞLEMLERİ
+# ============================================================================
+
+# Timeout ile komut çalıştır
+run_with_timeout() {
+    local timeout_seconds=$1
+    local description=$2
+    shift 2
+    local command=("$@")
+    
+    log_info "Çalıştırılıyor: $description (Timeout: ${timeout_seconds}s)"
+    
+    start_spinner "$description"
+    
+    # timeout komutu varsa kullan
+    if command -v timeout &> /dev/null; then
+        timeout "$timeout_seconds" "${command[@]}" &> /dev/null
+        local exit_code=$?
+        
+        stop_spinner
+        
+        if [ $exit_code -eq 124 ]; then
+            log_error "Zaman aşımı: $description"
+            return $ERR_TIMEOUT
+        elif [ $exit_code -ne 0 ]; then
+            log_error "Komut başarısız: $description (Exit: $exit_code)"
+            return $ERR_COMMAND_FAILED
+        else
+            log_success "$description tamamlandı"
+            return $ERR_SUCCESS
+        fi
+    else
+        # timeout komutu yoksa normal çalıştır
+        "${command[@]}" &> /dev/null
+        local exit_code=$?
+        
+        stop_spinner
+        
+        if [ $exit_code -ne 0 ]; then
+            log_error "Komut başarısız: $description"
+            return $ERR_COMMAND_FAILED
+        else
+            log_success "$description tamamlandı"
+            return $ERR_SUCCESS
+        fi
+    fi
+}
+
+# ============================================================================
+# İNTERAKTİF INPUT (TIMEOUT İLE)
+# ============================================================================
+
+# Timeout ile input al
+read_with_timeout() {
+    local prompt="$1"
+    local timeout_seconds="${2:-30}"
+    local default_value="${3:-h}"
+    local response
+    
+    echo -n "$prompt "
+    
+    if read -r -t "$timeout_seconds" response; then
+        echo "$response"
+    else
+        echo
+        log_warning "Zaman aşımı - Varsayılan değer kullanılıyor: $default_value"
+        echo "$default_value"
+    fi
+}
+
+# ============================================================================
+# SİSTEM KAYNAK KONTROLÜ
+# ============================================================================
+
+check_system_resources() {
+    log_info "Sistem kaynakları kontrol ediliyor..."
+    
+    # Disk alanı
+    local available_mb=$(df -BM "$HOME" | awk 'NR==2 {print $4}' | sed 's/M//')
+    log_debug "Kullanılabilir disk alanı: ${available_mb}MB"
+    
+    if [ "$available_mb" -lt 500 ]; then
+        show_error $ERR_DISK_SPACE "Yetersiz disk alanı: ${available_mb}MB (Min: 500MB)"
+        return $ERR_DISK_SPACE
+    fi
+    
+    # Bellek kontrolü
+    local available_mem=$(free -m | awk 'NR==2 {print $7}')
+    log_debug "Kullanılabilir bellek: ${available_mem}MB"
+    
+    if [ "$available_mem" -lt 100 ]; then
+        log_warning "Düşük bellek: ${available_mem}MB"
+    fi
+    
+    return $ERR_SUCCESS
+}
+
+# ============================================================================
+# ROLLBACK MEKANİZMASI
+# ============================================================================
+
+# Rollback için snapshot oluştur
+create_snapshot() {
+    local snapshot_name="snapshot_$(date +%Y%m%d_%H%M%S)"
+    local snapshot_dir="$BACKUP_DIR/$snapshot_name"
+    
+    log_info "Snapshot oluşturuluyor: $snapshot_name"
+    mkdir -p "$snapshot_dir"
+    
+    # Önemli dosyaları yedekle
+    [[ -f ~/.bashrc ]] && cp ~/.bashrc "$snapshot_dir/"
+    [[ -f ~/.zshrc ]] && cp ~/.zshrc "$snapshot_dir/"
+    [[ -f ~/.p10k.zsh ]] && cp ~/.p10k.zsh "$snapshot_dir/"
+    
+    # Snapshot bilgisini kaydet
+    echo "TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')" > "$snapshot_dir/snapshot.info"
+    echo "SHELL=$SHELL" >> "$snapshot_dir/snapshot.info"
+    echo "USER=$USER" >> "$snapshot_dir/snapshot.info"
+    
+    log_success "Snapshot oluşturuldu: $snapshot_dir"
+    echo "$snapshot_dir"
+}
+
+# Snapshot'tan geri yükle
+restore_snapshot() {
+    local snapshot_dir="$1"
+    
+    if [[ ! -d "$snapshot_dir" ]]; then
+        log_error "Snapshot bulunamadı: $snapshot_dir"
+        return $ERR_FILE_NOT_FOUND
+    fi
+    
+    log_info "Snapshot'tan geri yükleniyor: $snapshot_dir"
+    
+    [[ -f "$snapshot_dir/.bashrc" ]] && cp "$snapshot_dir/.bashrc" ~/
+    [[ -f "$snapshot_dir/.zshrc" ]] && cp "$snapshot_dir/.zshrc" ~/
+    [[ -f "$snapshot_dir/.p10k.zsh" ]] && cp "$snapshot_dir/.p10k.zsh" ~/
+    
+    log_success "Snapshot geri yüklendi"
+    return $ERR_SUCCESS
+}
+
+# ============================================================================
+# DETAYLI LOGLama
+# ============================================================================
+
+# Function entry/exit tracking
+log_function_enter() {
+    local func_name="${FUNCNAME[1]}"
+    log_debug ">>> ENTER: $func_name"
+}
+
+log_function_exit() {
+    local func_name="${FUNCNAME[1]}"
+    local exit_code=$1
+    log_debug "<<< EXIT: $func_name (Exit Code: $exit_code)"
+}
+
+# Performans ölçümü
+measure_time() {
+    local description="$1"
+    shift
+    local command=("$@")
+    
+    local start_time=$(date +%s)
+    log_info "Başlatılıyor: $description"
+    
+    "${command[@]}"
+    local exit_code=$?
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    log_info "$description tamamlandı (Süre: ${duration}s, Exit: $exit_code)"
+    
+    return $exit_code
 }
 
 # ============================================================================
