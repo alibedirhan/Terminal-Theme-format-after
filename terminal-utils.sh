@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Yardımcı Fonksiyonlar
-# v3.0 - Utilities Module
+# v3.1.0 - Utilities Module
 # ============================================================================
 
 # ============================================================================
@@ -30,7 +30,7 @@ init_log() {
     
     # Eski logları temizle (son 1000 satır)
     if [[ -f "$LOG_FILE" ]]; then
-        local temp_log="/tmp/terminal-setup-log-$$"
+        local temp_log=$(mktemp)
         tail -n 1000 "$LOG_FILE" > "$temp_log"
         mv "$temp_log" "$LOG_FILE"
     fi
@@ -218,9 +218,9 @@ test_internet_speed() {
 # ============================================================================
 
 system_health_check() {
-    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ                ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ               ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo
     
     local total_checks=0
@@ -275,7 +275,6 @@ system_health_check() {
     else
         echo -e "${YELLOW}⚠${NC} Bilinmeyen"
         ((warnings++))
-        # passed_checks artırılmıyor - doğru davranış
     fi
     
     # 5. Zsh kontrolü
@@ -356,12 +355,12 @@ system_health_check() {
     
     # Sonuç özeti
     echo
-    echo "═══════════════════════════════════════════════════"
+    echo "══════════════════════════════════════════════"
     echo -e "Toplam Kontrol: $total_checks"
     echo -e "${GREEN}✓ Başarılı: $passed_checks${NC}"
     echo -e "${YELLOW}⚠ Uyarı: $warnings${NC}"
     echo -e "${RED}✗ Hata: $((total_checks - passed_checks))${NC}"
-    echo "═══════════════════════════════════════════════════"
+    echo "══════════════════════════════════════════════"
     
     # Durum değerlendirmesi
     local success_rate=$((passed_checks * 100 / total_checks))
@@ -418,7 +417,7 @@ EOF
 }
 
 # ============================================================================
-# OTOMATIK GÜNCELLEME
+# OTOMATİK GÜNCELLEME
 # ============================================================================
 
 check_for_updates() {
@@ -468,9 +467,8 @@ update_script() {
     log_info "Script güncelleniyor..."
     
     local REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
-    local TEMP_UPDATE_DIR="/tmp/terminal-setup-update-$$"
+    local TEMP_UPDATE_DIR=$(mktemp -d -t terminal-setup-update.XXXXXXXXXX)
     
-    mkdir -p "$TEMP_UPDATE_DIR"
     cd "$TEMP_UPDATE_DIR" || return 1
     
     # Dosyaları indir
@@ -527,9 +525,9 @@ update_script() {
 # ============================================================================
 
 show_backups() {
-    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              MEVCUT YEDEKLER                   ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              MEVCUT YEDEKLER                 ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo
     
     if [[ -d "$BACKUP_DIR" && $(ls -A "$BACKUP_DIR" 2>/dev/null) ]]; then

@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.0 - Modüler Yapı
+# v3.1.0 - Modüler Yapı
 # ============================================================================
 # Dosya Yapısı:
 # - terminal-setup.sh      (bu dosya - orchestration)
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler
 BACKUP_DIR="$HOME/.terminal-setup-backup"
-TEMP_DIR="/tmp/terminal-setup-$$"
+TEMP_DIR=""
 CONFIG_FILE="$HOME/.terminal-setup.conf"
 LOG_FILE="$HOME/.terminal-setup.log"
 
@@ -42,7 +42,7 @@ fi
 
 # Temizlik fonksiyonu
 cleanup() {
-    [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
+    [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
     
     # Sudo refresh process'ini durdur
     if [[ -n "$SUDO_REFRESH_PID" ]]; then
@@ -61,15 +61,15 @@ trap cleanup EXIT
 show_banner() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "╔══════════════════════════════════════════════════════════╗"
     echo "║       TERMİNAL ÖZELLEŞTİRME KURULUM ARACI v${VERSION}        ║"
-    echo "║                                                              ║"
-    echo "║  • Zsh + Oh My Zsh                                          ║"
-    echo "║  • Powerlevel10k Teması                                     ║"
-    echo "║  • 7 Farklı Renk Teması                                     ║"
-    echo "║  • Çoklu Terminal Emulator Desteği                          ║"
-    echo "║  • Syntax Highlighting & Auto-suggestions                   ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "║                                                          ║"
+    echo "║  • Zsh + Oh My Zsh                                       ║"
+    echo "║  • Powerlevel10k Teması                                  ║"
+    echo "║  • 7 Farklı Renk Teması                                  ║"
+    echo "║  • Çoklu Terminal Emulator Desteği                       ║"
+    echo "║  • Syntax Highlighting & Auto-suggestions                ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
@@ -104,9 +104,9 @@ show_menu() {
 # Tema seçim menüsü
 show_theme_menu() {
     clear
-    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           TEMA SEÇİMİ                          ║${NC}"
-    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║           TEMA SEÇİMİ                        ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo
     
     local terminal_type=$(detect_terminal)
@@ -128,9 +128,9 @@ show_theme_menu() {
 # Ayarlar menüsü
 show_settings_menu() {
     clear
-    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              AYARLAR                           ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              AYARLAR                         ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo
     
     load_config
@@ -326,9 +326,9 @@ manage_settings() {
 # Tamamlanma mesajı
 show_completion_message() {
     echo
-    echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════${NC}"
     echo -e "${GREEN}✓ Kurulum tamamlandı!${NC}"
-    echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════${NC}"
     echo
     echo -e "${YELLOW}Sonraki adımlar:${NC}"
     echo "1. Terminal'i kapatıp yeniden açın (veya 'exec zsh' yazın)"
@@ -405,6 +405,9 @@ if [[ $EUID -eq 0 ]]; then
     log_error "Bu scripti root olarak çalıştırmayın!"
     exit 1
 fi
+
+# Güvenli temp directory oluştur
+TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX)
 
 # Argümanları parse et
 parse_arguments "$@"
