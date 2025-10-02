@@ -1,24 +1,53 @@
 #!/bin/bash
 
-# Terminal Özelleştirme Kurulum/Kaldırma Scripti
-# Zsh + Oh My Zsh + Powerlevel10k + Dracula/Nord Teması
-# v2.0 - Hata düzeltmeleri ve Nord teması eklendi
+# ============================================================================
+# Terminal Özelleştirme Kurulum Aracı - Ana Script
+# v3.0 - Modüler Yapı
+# ============================================================================
+# Dosya Yapısı:
+# - terminal-setup.sh      (bu dosya - orchestration)
+# - terminal-core.sh       (kurulum fonksiyonları)
+# - terminal-utils.sh      (yardımcı fonksiyonlar)
+# ============================================================================
 
-# Renkler
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# Script versiyonu
+VERSION="3.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Yedek dizini
+# Global değişkenler
 BACKUP_DIR="$HOME/.terminal-setup-backup"
 TEMP_DIR="/tmp/terminal-setup-$$"
+CONFIG_FILE="$HOME/.terminal-setup.conf"
+LOG_FILE="$HOME/.terminal-setup.log"
+
+# Flags
+DEBUG_MODE=false
+VERBOSE_MODE=false
+
+# Modülleri yükle
+if [[ -f "$SCRIPT_DIR/terminal-utils.sh" ]]; then
+    source "$SCRIPT_DIR/terminal-utils.sh"
+else
+    echo "HATA: terminal-utils.sh bulunamadı!"
+    echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun."
+    exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/terminal-core.sh" ]]; then
+    source "$SCRIPT_DIR/terminal-core.sh"
+else
+    log_error "terminal-core.sh bulunamadı!"
+    exit 1
+fi
 
 # Temizlik fonksiyonu
 cleanup() {
     [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
+    
+    # Sudo refresh process'ini durdur
+    if [[ -n "$SUDO_REFRESH_PID" ]]; then
+        kill "$SUDO_REFRESH_PID" 2>/dev/null
+    fi
 }
 
 trap cleanup EXIT
@@ -27,354 +56,264 @@ trap cleanup EXIT
 show_banner() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║         TERMİNAL ÖZELLEŞTİRME KURULUM ARACI             ║"
-    echo "║                                                          ║"
-    echo "║  • Zsh + Oh My Zsh                                      ║"
-    echo "║  • Powerlevel10k Teması                                 ║"
-    echo "║  • Dracula / Nord Renk Teması                           ║"
-    echo "║  • Syntax Highlighting & Auto-suggestions               ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║       TERMİNAL ÖZELLEŞTİRME KURULUM ARACI v${VERSION}        ║"
+    echo "║                                                              ║"
+    echo "║  • Zsh + Oh My Zsh                                          ║"
+    echo "║  • Powerlevel10k Teması                                     ║"
+    echo "║  • 7 Farklı Renk Teması                                     ║"
+    echo "║  • Çoklu Terminal Emulator Desteği                          ║"
+    echo "║  • Syntax Highlighting & Auto-suggestions                   ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
 # Ana menü
 show_menu() {
-    echo -e "${YELLOW}Ne yapmak istersiniz?${NC}"
+    echo -e "${YELLOW}═══ ANA MENÜ ═══${NC}"
     echo
-    echo "1) Tam Kurulum (Dracula teması)"
-    echo "2) Tam Kurulum (Nord teması)"
-    echo "3) Sadece Zsh + Oh My Zsh"
-    echo "4) Sadece Powerlevel10k Teması"
-    echo "5) Sadece Dracula Renk Teması"
-    echo "6) Sadece Nord Renk Teması"
-    echo "7) Sadece Pluginler"
-    echo "8) Tümünü Kaldır (Yedekten Geri Yükle)"
-    echo "9) Yedekleri Göster"
-    echo "0) Çıkış"
+    echo -e "${CYAN}Tam Kurulum:${NC}"
+    echo "  1) Dracula Teması ile Tam Kurulum"
+    echo "  2) Nord Teması ile Tam Kurulum"
+    echo "  3) Gruvbox Teması ile Tam Kurulum"
+    echo "  4) Tokyo Night Teması ile Tam Kurulum"
     echo
-    echo -n "Seçiminiz (0-9): "
+    echo -e "${CYAN}Modüler Kurulum:${NC}"
+    echo "  5) Sadece Zsh + Oh My Zsh"
+    echo "  6) Sadece Powerlevel10k Teması"
+    echo "  7) Sadece Renk Teması Değiştir"
+    echo "  8) Sadece Pluginler"
+    echo
+    echo -e "${CYAN}Yönetim:${NC}"
+    echo "  9) Sistem Sağlık Kontrolü"
+    echo " 10) Yedekleri Göster"
+    echo " 11) Tümünü Kaldır"
+    echo " 12) Ayarlar"
+    echo "  0) Çıkış"
+    echo
+    echo -n "Seçiminiz (0-12): "
 }
 
-# İnternet kontrolü
-check_internet() {
-    if ! ping -c 1 8.8.8.8 &> /dev/null; then
-        echo -e "${RED}✗ İnternet bağlantısı yok!${NC}"
-        echo "Kurulum için internet gerekli."
-        return 1
-    fi
-    return 0
+# Tema seçim menüsü
+show_theme_menu() {
+    clear
+    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║           TEMA SEÇİMİ                          ║${NC}"
+    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
+    echo
+    
+    local terminal_type=$(detect_terminal)
+    echo -e "${YELLOW}Tespit edilen terminal: ${terminal_type}${NC}"
+    echo
+    
+    echo "1) Dracula        - Mor/Pembe tonları, yüksek kontrast"
+    echo "2) Nord           - Mavi/Gri tonları, göze yumuşak"
+    echo "3) Gruvbox Dark   - Retro, sıcak tonlar"
+    echo "4) Tokyo Night    - Modern, mavi/mor tonlar"
+    echo "5) Catppuccin     - Pastel renkler"
+    echo "6) One Dark       - Atom editor benzeri"
+    echo "7) Solarized Dark - Klasik, düşük kontrast"
+    echo "0) Geri"
+    echo
+    echo -n "Seçiminiz (0-7): "
 }
 
-# GNOME Terminal kontrolü
-check_gnome_terminal() {
-    if ! command -v gsettings &> /dev/null; then
-        echo -e "${YELLOW}⚠ GNOME Terminal bulunamadı${NC}"
-        echo "Renk teması sadece GNOME Terminal'de çalışır"
-        return 1
-    fi
-    return 0
+# Ayarlar menüsü
+show_settings_menu() {
+    clear
+    echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              AYARLAR                           ║${NC}"
+    echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    load_config
+    
+    echo -e "${YELLOW}Mevcut Ayarlar:${NC}"
+    echo "  Varsayılan Tema: ${DEFAULT_THEME:-Yok}"
+    echo "  Otomatik Güncelleme: ${AUTO_UPDATE:-false}"
+    echo "  Yedek Sayısı: ${BACKUP_COUNT:-5}"
+    echo "  Debug Modu: ${DEBUG_MODE}"
+    echo
+    echo "1) Varsayılan Tema Değiştir"
+    echo "2) Otomatik Güncelleme ($([ "$AUTO_UPDATE" = "true" ] && echo "Kapat" || echo "Aç"))"
+    echo "3) Yedek Sayısını Ayarla"
+    echo "4) Güncellemeleri Kontrol Et"
+    echo "5) Ayarları Sıfırla"
+    echo "0) Geri"
+    echo
+    echo -n "Seçiminiz (0-5): "
 }
 
-# Yedekleme
-create_backup() {
-    echo -e "${CYAN}Mevcut ayarlar yedekleniyor...${NC}"
-    mkdir -p "$BACKUP_DIR"
+# Tam kurulum wrapper fonksiyonu
+perform_full_install() {
+    local theme=$1
+    local theme_display=$2
     
-    local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    show_banner
+    echo -e "${CYAN}Tam kurulum başlıyor ($theme_display teması)...${NC}"
+    echo
     
-    # Dosya yedekleri
-    [[ -f ~/.bashrc ]] && cp ~/.bashrc "$BACKUP_DIR/bashrc_$TIMESTAMP"
-    [[ -f ~/.zshrc ]] && cp ~/.zshrc "$BACKUP_DIR/zshrc_$TIMESTAMP"
-    [[ -f ~/.p10k.zsh ]] && cp ~/.p10k.zsh "$BACKUP_DIR/p10k_$TIMESTAMP"
-    
-    # Mevcut shell'i kaydet
-    echo "$SHELL" > "$BACKUP_DIR/original_shell_$TIMESTAMP"
-    
-    # GNOME Terminal profil ID'sini kaydet
-    if command -v gsettings &> /dev/null; then
-        gsettings get org.gnome.Terminal.ProfilesList default > "$BACKUP_DIR/gnome_profile_$TIMESTAMP" 2>/dev/null || true
-    fi
-    
-    echo -e "${GREEN}✓ Yedek oluşturuldu: $BACKUP_DIR${NC}"
-}
-
-# Zsh kurulumu
-install_zsh() {
-    echo -e "${CYAN}Zsh kuruluyor...${NC}"
-    
-    if command -v zsh &> /dev/null; then
-        echo -e "${YELLOW}Zsh zaten kurulu, atlanıyor...${NC}"
-        return 0
-    fi
-    
-    sudo apt update || {
-        echo -e "${RED}✗ apt update başarısız!${NC}"
-        return 1
-    }
-    
-    sudo apt install -y zsh || {
-        echo -e "${RED}✗ Zsh kurulumu başarısız!${NC}"
-        return 1
-    }
-    
-    echo -e "${GREEN}✓ Zsh kuruldu${NC}"
-}
-
-# Oh My Zsh kurulumu
-install_oh_my_zsh() {
-    echo -e "${CYAN}Oh My Zsh kuruluyor...${NC}"
-    
-    if [[ -d ~/.oh-my-zsh ]]; then
-        echo -e "${YELLOW}Oh My Zsh zaten kurulu, atlanıyor...${NC}"
-        return 0
-    fi
-    
-    if ! check_internet; then
-        return 1
-    fi
-    
-    # Oh My Zsh'yi sessiz modda kur
-    RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || {
-        echo -e "${RED}✗ Oh My Zsh kurulumu başarısız!${NC}"
-        return 1
-    }
-    
-    echo -e "${GREEN}✓ Oh My Zsh kuruldu${NC}"
-}
-
-# Font kurulumu
-install_fonts() {
-    echo -e "${CYAN}Gerekli fontlar kuruluyor...${NC}"
-    
-    sudo apt install -y fonts-powerline || {
-        echo -e "${YELLOW}⚠ Powerline font kurulumu başarısız, devam ediliyor...${NC}"
-    }
-    
-    # MesloLGS NF fontunu kur
-    mkdir -p ~/.local/share/fonts
-    local FONT_DIR=~/.local/share/fonts
-    
-    if [[ ! -f "$FONT_DIR/MesloLGS NF Regular.ttf" ]]; then
-        echo "MesloLGS NF fontları indiriliyor..."
-        
-        cd "$FONT_DIR" || return 1
-        
-        wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf 2>/dev/null || true
-        wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf 2>/dev/null || true
-        wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf 2>/dev/null || true
-        wget -q https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf 2>/dev/null || true
-        
-        cd - > /dev/null
-        
-        fc-cache -f -v > /dev/null 2>&1
-        echo -e "${GREEN}✓ Fontlar kuruldu${NC}"
-    else
-        echo -e "${YELLOW}Fontlar zaten kurulu, atlanıyor...${NC}"
-    fi
-}
-
-# Powerlevel10k kurulumu
-install_powerlevel10k() {
-    echo -e "${CYAN}Powerlevel10k teması kuruluyor...${NC}"
-    
-    if ! check_internet; then
+    # Ön kontroller
+    if ! check_dependencies; then
+        log_error "Bağımlılık kontrolü başarısız"
         return 1
     fi
     
-    local P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+    if ! setup_sudo; then
+        log_error "Sudo yetkisi alınamadı"
+        return 1
+    fi
     
-    if [[ -d "$P10K_DIR" ]]; then
-        echo -e "${YELLOW}Powerlevel10k zaten kurulu, güncelleniyor...${NC}"
-        cd "$P10K_DIR" && git pull > /dev/null 2>&1
-        cd - > /dev/null
-    else
-        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" || {
-            echo -e "${RED}✗ Powerlevel10k klonlama başarısız!${NC}"
+    # Progress tracking
+    local total_steps=7
+    local current_step=0
+    
+    show_progress $((++current_step)) $total_steps "Yedek oluşturuluyor"
+    create_backup
+    
+    show_progress $((++current_step)) $total_steps "Zsh kuruluyor"
+    install_zsh || return 1
+    
+    show_progress $((++current_step)) $total_steps "Oh My Zsh kuruluyor"
+    install_oh_my_zsh || return 1
+    
+    show_progress $((++current_step)) $total_steps "Fontlar kuruluyor"
+    install_fonts
+    
+    show_progress $((++current_step)) $total_steps "Powerlevel10k kuruluyor"
+    install_powerlevel10k || return 1
+    
+    show_progress $((++current_step)) $total_steps "Pluginler kuruluyor"
+    install_plugins
+    
+    show_progress $((++current_step)) $total_steps "Tema uygulanıyor"
+    install_theme "$theme"
+    
+    show_progress $total_steps $total_steps "Shell değiştiriliyor"
+    change_default_shell
+    
+    show_completion_message
+}
+
+# Tema kurulum wrapper
+install_theme_wrapper() {
+    local theme=$1
+    
+    case $theme in
+        1|dracula)
+            install_theme "dracula"
+            ;;
+        2|nord)
+            install_theme "nord"
+            ;;
+        3|gruvbox)
+            install_theme "gruvbox"
+            ;;
+        4|tokyo-night)
+            install_theme "tokyo-night"
+            ;;
+        5|catppuccin)
+            install_theme "catppuccin"
+            ;;
+        6|one-dark)
+            install_theme "one-dark"
+            ;;
+        7|solarized)
+            install_theme "solarized"
+            ;;
+        *)
+            log_error "Geçersiz tema seçimi"
             return 1
-        }
-    fi
-    
-    # .zshrc'de temayı ayarla
-    if [[ -f ~/.zshrc ]]; then
-        sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
-    fi
-    
-    echo -e "${GREEN}✓ Powerlevel10k kuruldu${NC}"
+            ;;
+    esac
 }
 
-# Pluginler
-install_plugins() {
-    echo -e "${CYAN}Pluginler kuruluyor...${NC}"
+# Tema değiştirme işlemi
+change_theme_only() {
+    show_theme_menu
+    read -r theme_choice
     
-    if ! check_internet; then
-        return 1
+    if [[ "$theme_choice" == "0" ]]; then
+        return
     fi
     
-    local CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    echo
+    log_info "Tema değiştiriliyor..."
     
-    # zsh-autosuggestions
-    if [[ ! -d "$CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" || {
-            echo -e "${YELLOW}⚠ zsh-autosuggestions kurulumu başarısız${NC}"
-        }
+    if install_theme_wrapper "$theme_choice"; then
+        log_success "Tema başarıyla değiştirildi!"
+        echo "Terminal'i yeniden başlatın veya 'source ~/.zshrc' çalıştırın"
+    else
+        log_error "Tema değiştirme başarısız"
     fi
     
-    # zsh-syntax-highlighting
-    if [[ ! -d "$CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" || {
-            echo -e "${YELLOW}⚠ zsh-syntax-highlighting kurulumu başarısız${NC}"
-        }
-    fi
-    
-    # .zshrc'de pluginleri aktif et
-    if [[ -f ~/.zshrc ]]; then
-        if grep -q "^plugins=(" ~/.zshrc; then
-            sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc
-        else
-            echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)' >> ~/.zshrc
-        fi
-    fi
-    
-    echo -e "${GREEN}✓ Pluginler kuruldu${NC}"
+    echo
+    read -p "Devam etmek için Enter'a basın..."
 }
 
-# Dracula renk teması
-install_dracula() {
-    echo -e "${CYAN}Dracula renk teması kuruluyor...${NC}"
-    
-    if ! check_gnome_terminal; then
-        return 1
-    fi
-    
-    # Profil UUID'sini al
-    local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-    
-    if [[ -z "$PROFILE" ]]; then
-        echo -e "${RED}✗ Terminal profili bulunamadı${NC}"
-        return 1
-    fi
-    
-    local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
-    
-    # Dracula renklerini uygula
-    gsettings set "$PROFILE_PATH" background-color '#282A36' 2>/dev/null || return 1
-    gsettings set "$PROFILE_PATH" foreground-color '#F8F8F2' 2>/dev/null || return 1
-    gsettings set "$PROFILE_PATH" use-theme-colors false 2>/dev/null || return 1
-    gsettings set "$PROFILE_PATH" palette "['#000000', '#FF5555', '#50FA7B', '#F1FA8C', '#BD93F9', '#FF79C6', '#8BE9FD', '#BFBFBF', '#4D4D4D', '#FF6E67', '#5AF78E', '#F4F99D', '#CAA9FA', '#FF92D0', '#9AEDFE', '#E6E6E6']" 2>/dev/null || return 1
-    
-    echo -e "${GREEN}✓ Dracula teması uygulandı${NC}"
-}
-
-# Nord renk teması
-install_nord() {
-    echo -e "${CYAN}Nord renk teması kuruluyor...${NC}"
-    
-    if ! check_gnome_terminal; then
-        return 1
-    fi
-    
-    if ! check_internet; then
-        return 1
-    fi
-    
-    # Geçici dizin oluştur
-    mkdir -p "$TEMP_DIR"
-    cd "$TEMP_DIR" || return 1
-    
-    # Nord reposunu klonla
-    git clone https://github.com/arcticicestudio/nord-gnome-terminal.git > /dev/null 2>&1 || {
-        echo -e "${RED}✗ Nord repository klonlama başarısız!${NC}"
-        cd - > /dev/null
-        return 1
-    }
-    
-    cd nord-gnome-terminal/src || {
-        echo -e "${RED}✗ Nord dizinine girilemedi!${NC}"
-        cd - > /dev/null
-        return 1
-    }
-    
-    # Nord'u kur (otomatik mod)
-    echo -e "\n\n" | ./nord.sh > /dev/null 2>&1 || {
-        echo -e "${YELLOW}⚠ Nord kurulumu tamamlanamadı, manuel renk ayarları uygulanıyor...${NC}"
+# Ayarlar yönetimi
+manage_settings() {
+    while true; do
+        show_settings_menu
+        read -r setting_choice
         
-        # Manuel Nord renkleri
-        local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-        if [[ -n "$PROFILE" ]]; then
-            local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
-            gsettings set "$PROFILE_PATH" background-color '#2E3440' 2>/dev/null
-            gsettings set "$PROFILE_PATH" foreground-color '#D8DEE9' 2>/dev/null
-            gsettings set "$PROFILE_PATH" use-theme-colors false 2>/dev/null
-            gsettings set "$PROFILE_PATH" palette "['#3B4252', '#BF616A', '#A3BE8C', '#EBCB8B', '#81A1C1', '#B48EAD', '#88C0D0', '#E5E9F0', '#4C566A', '#BF616A', '#A3BE8C', '#EBCB8B', '#81A1C1', '#B48EAD', '#8FBCBB', '#ECEFF4']" 2>/dev/null
-        fi
-    }
-    
-    cd - > /dev/null
-    
-    echo -e "${GREEN}✓ Nord teması uygulandı${NC}"
-}
-
-# Varsayılan shell'i değiştir
-change_default_shell() {
-    echo -e "${CYAN}Varsayılan shell Zsh olarak ayarlanıyor...${NC}"
-    
-    local ZSH_PATH=$(which zsh)
-    
-    if [[ -z "$ZSH_PATH" ]]; then
-        echo -e "${RED}✗ Zsh bulunamadı!${NC}"
-        return 1
-    fi
-    
-    if [[ "$SHELL" == "$ZSH_PATH" ]]; then
-        echo -e "${YELLOW}Zsh zaten varsayılan shell${NC}"
-        return 0
-    fi
-    
-    chsh -s "$ZSH_PATH" || {
-        echo -e "${YELLOW}⚠ Shell değiştirme başarısız, sudo ile deneyin:${NC}"
-        echo "  sudo chsh -s $ZSH_PATH $USER"
-        return 1
-    }
-    
-    echo -e "${GREEN}✓ Varsayılan shell Zsh olarak ayarlandı${NC}"
-    echo -e "${YELLOW}Not: Değişikliğin geçerli olması için çıkış yapıp tekrar giriş yapın${NC}"
-}
-
-# Tam kurulum (Dracula)
-full_install_dracula() {
-    show_banner
-    echo -e "${CYAN}Tam kurulum başlıyor (Dracula teması)...${NC}"
-    echo
-    
-    create_backup
-    install_zsh || return 1
-    install_oh_my_zsh || return 1
-    install_fonts
-    install_powerlevel10k || return 1
-    install_plugins
-    install_dracula
-    change_default_shell
-    
-    show_completion_message
-}
-
-# Tam kurulum (Nord)
-full_install_nord() {
-    show_banner
-    echo -e "${CYAN}Tam kurulum başlıyor (Nord teması)...${NC}"
-    echo
-    
-    create_backup
-    install_zsh || return 1
-    install_oh_my_zsh || return 1
-    install_fonts
-    install_powerlevel10k || return 1
-    install_plugins
-    install_nord
-    change_default_shell
-    
-    show_completion_message
+        case $setting_choice in
+            1)
+                echo
+                show_theme_menu
+                read -r theme_num
+                if [[ $theme_num -ge 1 && $theme_num -le 7 ]]; then
+                    local theme_names=("dracula" "nord" "gruvbox" "tokyo-night" "catppuccin" "one-dark" "solarized")
+                    DEFAULT_THEME="${theme_names[$((theme_num-1))]}"
+                    save_config
+                    log_success "Varsayılan tema ayarlandı: $DEFAULT_THEME"
+                fi
+                sleep 2
+                ;;
+            2)
+                if [[ "$AUTO_UPDATE" == "true" ]]; then
+                    AUTO_UPDATE="false"
+                    log_info "Otomatik güncelleme kapatıldı"
+                else
+                    AUTO_UPDATE="true"
+                    log_success "Otomatik güncelleme açıldı"
+                fi
+                save_config
+                sleep 2
+                ;;
+            3)
+                echo -n "Yeni yedek sayısı (1-20): "
+                read -r new_count
+                if [[ $new_count =~ ^[0-9]+$ ]] && [[ $new_count -ge 1 && $new_count -le 20 ]]; then
+                    BACKUP_COUNT=$new_count
+                    save_config
+                    log_success "Yedek sayısı ayarlandı: $BACKUP_COUNT"
+                fi
+                sleep 2
+                ;;
+            4)
+                echo
+                check_for_updates
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            5)
+                echo -n "Ayarları sıfırlamak istediğinizden emin misiniz? (e/h): "
+                read -r confirm
+                if [[ "$confirm" == "e" ]]; then
+                    rm -f "$CONFIG_FILE"
+                    log_success "Ayarlar sıfırlandı"
+                    sleep 2
+                fi
+                ;;
+            0)
+                break
+                ;;
+            *)
+                log_error "Geçersiz seçim"
+                sleep 1
+                ;;
+        esac
+    done
 }
 
 # Tamamlanma mesajı
@@ -390,79 +329,85 @@ show_completion_message() {
     echo "3. İsterseniz daha sonra 'p10k configure' ile yeniden yapılandırabilirsiniz"
     echo
     echo -e "${CYAN}Yedekler: $BACKUP_DIR${NC}"
+    echo -e "${CYAN}Log dosyası: $LOG_FILE${NC}"
 }
 
-# Kaldırma
-uninstall_all() {
-    echo -e "${RED}Tüm özelleştirmeler kaldırılacak!${NC}"
-    echo -n "Emin misiniz? (e/h): "
-    read -r confirm
-    
-    if [[ "$confirm" != "e" ]]; then
-        echo "İptal edildi"
-        return
-    fi
-    
-    echo -e "${CYAN}Kaldırma işlemi başlıyor...${NC}"
-    
-    # Bash'e geri dön
-    if command -v bash &> /dev/null; then
-        chsh -s $(which bash) 2>/dev/null && echo -e "${GREEN}✓ Varsayılan shell Bash'e döndürüldü${NC}" || echo -e "${YELLOW}⚠ Shell değiştirilemedi${NC}"
-    fi
-    
-    # Oh My Zsh'yi kaldır
-    if [[ -d ~/.oh-my-zsh ]]; then
-        rm -rf ~/.oh-my-zsh
-        echo -e "${GREEN}✓ Oh My Zsh kaldırıldı${NC}"
-    fi
-    
-    # Zsh config dosyalarını sil
-    [[ -f ~/.zshrc ]] && rm ~/.zshrc && echo -e "${GREEN}✓ .zshrc silindi${NC}"
-    [[ -f ~/.zsh_history ]] && rm ~/.zsh_history
-    [[ -f ~/.p10k.zsh ]] && rm ~/.p10k.zsh && echo -e "${GREEN}✓ .p10k.zsh silindi${NC}"
-    
-    # Yedekten geri yükle
-    if [[ -d "$BACKUP_DIR" ]]; then
-        local latest_bashrc=$(ls -t "$BACKUP_DIR"/bashrc_* 2>/dev/null | head -1)
-        if [[ -f "$latest_bashrc" ]]; then
-            cp "$latest_bashrc" ~/.bashrc
-            echo -e "${GREEN}✓ .bashrc yedekten geri yüklendi${NC}"
-        fi
-    fi
-    
-    # Zsh'yi kaldır (opsiyonel)
-    echo -n "Zsh paketini de kaldırmak ister misiniz? (e/h): "
-    read -r remove_zsh
-    
-    if [[ "$remove_zsh" == "e" ]]; then
-        sudo apt remove -y zsh 2>/dev/null && echo -e "${GREEN}✓ Zsh paketi kaldırıldı${NC}"
-        sudo apt autoremove -y 2>/dev/null
-    fi
-    
-    echo
-    echo -e "${GREEN}Kaldırma tamamlandı!${NC}"
-    echo -e "${YELLOW}Çıkış yapıp tekrar giriş yapın${NC}"
+# Komut satırı argümanları
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --debug)
+                DEBUG_MODE=true
+                log_info "Debug modu aktif"
+                shift
+                ;;
+            --verbose)
+                VERBOSE_MODE=true
+                log_info "Verbose modu aktif"
+                shift
+                ;;
+            --health)
+                show_banner
+                system_health_check
+                exit 0
+                ;;
+            --update)
+                show_banner
+                check_for_updates
+                exit 0
+                ;;
+            --version)
+                echo "Terminal Setup v$VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Bilinmeyen parametre: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
 }
 
-# Yedekleri göster
-show_backups() {
-    echo -e "${CYAN}Mevcut yedekler:${NC}"
+# Yardım mesajı
+show_help() {
+    echo "Terminal Özelleştirme Kurulum Aracı v$VERSION"
     echo
-    
-    if [[ -d "$BACKUP_DIR" && $(ls -A "$BACKUP_DIR" 2>/dev/null) ]]; then
-        ls -lh "$BACKUP_DIR"
-    else
-        echo "Henüz yedek yok"
-    fi
-    
+    echo "Kullanım: $0 [SEÇENEKLER]"
     echo
-    read -p "Devam etmek için Enter'a basın..."
+    echo "Seçenekler:"
+    echo "  --health          Sistem sağlık kontrolü"
+    echo "  --update          Güncellemeleri kontrol et"
+    echo "  --debug           Debug modu"
+    echo "  --verbose         Detaylı çıktı"
+    echo "  --version         Versiyon bilgisi"
+    echo "  --help, -h        Bu yardım mesajı"
+    echo
+    echo "Örnekler:"
+    echo "  $0                # Normal mod"
+    echo "  $0 --health       # Sadece sağlık kontrolü"
+    echo "  $0 --debug        # Debug modu ile çalıştır"
 }
 
 # Root kontrolü
 if [[ $EUID -eq 0 ]]; then
-    echo -e "${RED}Bu scripti root olarak çalıştırmayın!${NC}"
+    log_error "Bu scripti root olarak çalıştırmayın!"
     exit 1
+fi
+
+# Argümanları parse et
+parse_arguments "$@"
+
+# Config yükle
+load_config
+
+# Otomatik güncelleme kontrolü
+if [[ "$AUTO_UPDATE" == "true" ]]; then
+    check_for_updates --silent
 fi
 
 # Ana program döngüsü
@@ -473,57 +418,75 @@ while true; do
     
     case $choice in
         1)
-            full_install_dracula
+            perform_full_install "dracula" "Dracula"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         2)
-            full_install_nord
+            perform_full_install "nord" "Nord"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         3)
-            create_backup
-            install_zsh
-            install_oh_my_zsh
-            change_default_shell
-            echo -e "${GREEN}✓ Tamamlandı${NC}"
+            perform_full_install "gruvbox" "Gruvbox"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         4)
-            create_backup
-            install_fonts
-            install_powerlevel10k
-            echo -e "${GREEN}✓ Tamamlandı${NC}"
+            perform_full_install "tokyo-night" "Tokyo Night"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         5)
-            install_dracula
-            echo -e "${GREEN}✓ Tamamlandı${NC}"
+            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            create_backup
+            show_progress 1 3 "Zsh kuruluyor"
+            install_zsh
+            show_progress 2 3 "Oh My Zsh kuruluyor"
+            install_oh_my_zsh
+            show_progress 3 3 "Shell değiştiriliyor"
+            change_default_shell
+            log_success "Tamamlandı"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         6)
-            install_nord
-            echo -e "${GREEN}✓ Tamamlandı${NC}"
+            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            create_backup
+            show_progress 1 2 "Fontlar kuruluyor"
+            install_fonts
+            show_progress 2 2 "Powerlevel10k kuruluyor"
+            install_powerlevel10k
+            log_success "Tamamlandı"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         7)
-            create_backup
-            install_plugins
-            echo -e "${GREEN}✓ Tamamlandı${NC}"
-            read -p "Devam etmek için Enter'a basın..."
+            change_theme_only
             ;;
         8)
-            uninstall_all
+            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            create_backup
+            install_plugins
+            log_success "Tamamlandı"
             read -p "Devam etmek için Enter'a basın..."
             ;;
         9)
+            show_banner
+            system_health_check
+            read -p "Devam etmek için Enter'a basın..."
+            ;;
+        10)
             show_backups
             ;;
+        11)
+            uninstall_all
+            read -p "Devam etmek için Enter'a basın..."
+            ;;
+        12)
+            manage_settings
+            ;;
         0)
-            echo -e "${CYAN}Çıkılıyor...${NC}"
+            log_info "Çıkılıyor..."
             exit 0
             ;;
         *)
-            echo -e "${RED}Geçersiz seçim!${NC}"
+            log_error "Geçersiz seçim!"
             sleep 2
             ;;
     esac

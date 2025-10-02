@@ -1,314 +1,481 @@
-# Theme After Format
+# 🎨 Terminal Setup v3.0 - Theme After Format
 
-Terminal özelleştirmelerini format sonrası tek komutla geri yükleyin.
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/alibedirhan/Theme-after-format)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Shell](https://img.shields.io/badge/shell-bash-orange.svg)](https://www.gnu.org/software/bash/)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Bash](https://img.shields.io/badge/bash-4.0+-green.svg)](https://www.gnu.org/software/bash/)
-[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian-orange.svg)](https://www.linux.org/)
+Format attıktan sonra terminal özelleştirmelerini tek komutla geri yükleyin! Modüler, hızlı ve güçlü terminal kurulum aracı.
 
-## Hakkında
+## ✨ v3.0 Yenilikleri
 
-Format attıktan sonra terminal özelleştirmelerini tek tek kurmaktan sıkıldınız mı? Bu script size yardımcı olacak!
+- 🎨 **7 Farklı Tema** - Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Solarized
+- 🖥️ **3 Terminal Desteği** - GNOME Terminal, Kitty, Alacritty
+- 📝 **Logging Sistemi** - Tüm işlemler loglanır
+- 📊 **Progress Bar** - Görsel ilerleme göstergesi
+- 🏥 **Health Check** - Sistem sağlık kontrolü
+- ⚙️ **Konfigürasyon** - Ayarlarınızı kaydedin
+- 🔄 **Otomatik Güncelleme** - Yeni versiyonları otomatik kontrol
+- 🐛 **Bug Fixes** - Kritik hatalar düzeltildi
+- 🧩 **Modüler Yapı** - 3 dosyalı temiz mimari
 
-**Theme After Format** ile:
-- Zsh + Oh My Zsh
-- Powerlevel10k teması
-- Dracula veya Nord renk teması
-- Syntax highlighting & Auto-suggestions
-
-Tek komutla kurun, tek komutla kaldırın.
-
-## Özellikler
-
-- **İnteraktif Menü**: Kolay kullanım için menü sistemi
-- **İki Tema Seçeneği**: Dracula (mor/pembe) veya Nord (mavi/gri)
-- **Otomatik Yedekleme**: Mevcut ayarlarınızı yedekler
-- **Modüler Kurulum**: İstediğiniz bileşenleri seçin
-- **Güvenli Kaldırma**: Tek tıkla eski haline döndürün
-- **Hata Yönetimi**: İnternet, GNOME Terminal kontrolleri
-
-## Kurulum
-
-### Hızlı Başlangıç
+## 🚀 Hızlı Başlangıç
 
 ```bash
-# Script'i indir
-wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/terminal-setup.sh
-
-# Çalıştırma yetkisi ver
-chmod +x terminal-setup.sh
-
-# Çalıştır
-./terminal-setup.sh
-```
-
-### Git ile
-
-```bash
+# Repository'yi klonlayın
 git clone https://github.com/alibedirhan/Theme-after-format.git
 cd Theme-after-format
-chmod +x terminal-setup.sh
+
+# Çalıştırma izni verin
+chmod +x *.sh
+
+# Çalıştırın
 ./terminal-setup.sh
 ```
 
-## Kullanım
+### Tek Komut Kurulum
 
-Script'i çalıştırdığınızda interaktif menü açılır:
-
-```
-╔══════════════════════════════════════════════════════════╗
-║         TERMİNAL ÖZELLEŞTİRME KURULUM ARACI             ║
-╚══════════════════════════════════════════════════════════╝
-
-1) Tam Kurulum (Dracula teması)
-2) Tam Kurulum (Nord teması)
-3) Sadece Zsh + Oh My Zsh
-4) Sadece Powerlevel10k Teması
-5) Sadece Dracula Renk Teması
-6) Sadece Nord Renk Teması
-7) Sadece Pluginler
-8) Tümünü Kaldır (Yedekten Geri Yükle)
-9) Yedekleri Göster
-0) Çıkış
+```bash
+# Tüm dosyaları indir ve çalıştır
+wget -qO- https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh | bash
 ```
 
-### Önerilen Kurulum
+## 📦 İçindekiler
 
-İlk kez kullanıyorsanız:
-- **Seçenek 1** veya **2**: Tam kurulum (Dracula veya Nord)
+- [Özellikler](#-özellikler)
+- [Desteklenen Temalar](#-desteklenen-temalar)
+- [Kurulum](#-kurulum)
+- [Kullanım](#-kullanım)
+- [Komut Satırı Parametreleri](#-komut-satırı-parametreleri)
+- [Konfigürasyon](#️-konfigürasyon)
+- [Terminal Desteği](#-terminal-desteği)
+- [Sorun Giderme](#-sorun-giderme)
+- [Katkıda Bulunma](#-katkıda-bulunma)
 
-Sadece temayı değiştirmek istiyorsanız:
-- **Seçenek 5** veya **6**: Renk teması değişikliği
+## 🎯 Özellikler
 
-### Kurulum Sonrası
+### Kurulum Özellikleri
 
-1. Terminal'i kapatıp yeniden açın
-2. Powerlevel10k yapılandırma wizard'ı otomatik başlayacak
-3. Sorulara cevap vererek görünümü özelleştirin
-4. Daha sonra `p10k configure` ile yeniden yapılandırabilirsiniz
+- ✅ Zsh + Oh My Zsh
+- ✅ Powerlevel10k teması
+- ✅ 7 farklı renk teması
+- ✅ zsh-autosuggestions plugin
+- ✅ zsh-syntax-highlighting plugin
+- ✅ Otomatik font kurulumu (MesloLGS NF)
+- ✅ Otomatik yedekleme
+- ✅ Tek tıkla kaldırma
 
-## Temalar
+### Yönetim Özellikleri
 
-### Dracula Theme
+- 📝 Detaylı logging (`~/.terminal-setup.log`)
+- 📊 Progress bar ile görsel geri bildirim
+- 🏥 Sistem sağlık kontrolü
+- ⚙️ Konfigürasyon dosyası desteği
+- 🔄 Otomatik güncelleme kontrolü
+- 🐛 Debug modu
+- 📦 Modüler yapı (kolay genişletilebilir)
 
-Mor ve pembe tonları, yüksek kontrast.
+## 🎨 Desteklenen Temalar
 
-**Renk Paleti:**
-- Background: `#282A36`
-- Foreground: `#F8F8F2`
-- Vurgular: Mor, pembe, cyan
+| Tema | Önizleme | Stil | Kontrast | Kullanım |
+|------|----------|------|----------|----------|
+| **Dracula** | ![#282A36](https://via.placeholder.com/20/282A36/000000?text=+) ![#F8F8F2](https://via.placeholder.com/20/F8F8F2/000000?text=+) | Mor/Pembe | Yüksek | Gece |
+| **Nord** | ![#2E3440](https://via.placeholder.com/20/2E3440/000000?text=+) ![#D8DEE9](https://via.placeholder.com/20/D8DEE9/000000?text=+) | Mavi/Gri | Orta | Gündüz |
+| **Gruvbox** | ![#282828](https://via.placeholder.com/20/282828/000000?text=+) ![#EBDBB2](https://via.placeholder.com/20/EBDBB2/000000?text=+) | Kahve/Turuncu | Orta | Retro |
+| **Tokyo Night** | ![#1A1B26](https://via.placeholder.com/20/1A1B26/000000?text=+) ![#C0CAF5](https://via.placeholder.com/20/C0CAF5/000000?text=+) | Mavi/Mor | Yüksek | Modern |
+| **Catppuccin** | ![#1E1E2E](https://via.placeholder.com/20/1E1E2E/000000?text=+) ![#CDD6F4](https://via.placeholder.com/20/CDD6F4/000000?text=+) | Pastel | Orta-Yüksek | Yumuşak |
+| **One Dark** | ![#282C34](https://via.placeholder.com/20/282C34/000000?text=+) ![#ABB2BF](https://via.placeholder.com/20/ABB2BF/000000?text=+) | Atom-like | Orta | Kod |
+| **Solarized** | ![#002B36](https://via.placeholder.com/20/002B36/000000?text=+) ![#839496](https://via.placeholder.com/20/839496/000000?text=+) | Klasik | Düşük | Klasik |
 
-**Kimler İçin:**
-- Yüksek kontrast seviyorsanız
-- Canlı renkler hoşunuza gidiyorsa
-- Gece çalışması yapıyorsanız
+## 💻 Kurulum
 
-### Nord Theme
-
-Mavi ve gri tonları, düşük kontrast.
-
-**Renk Paleti:**
-- Background: `#2E3440`
-- Foreground: `#D8DEE9`
-- Vurgular: Mavi, cyan, yeşil
-
-**Kimler İçin:**
-- Göz yorgunluğunu azaltmak istiyorsanız
-- Soğuk tonları seviyorsanız
-- Minimalist tasarım tercih ediyorsanız
-
-## Gereksinimler
-
-### Sistem Gereksinimleri
+### Gereksinimler
 
 - Ubuntu 20.04+ / Debian 10+ / Linux Mint 20+
 - Bash 4.0+
 - İnternet bağlantısı
 - sudo yetkisi
 
-### Desteklenen Terminal Emulatorler
+### Desteklenen Terminaller
 
-- ✅ GNOME Terminal (tam destek)
-- ⚠️ Tilix (kısmi destek - renk temaları çalışmayabilir)
-- ⚠️ Konsole (kısmi destek - renk temaları çalışmayabilir)
-- ❌ Diğerleri (test edilmedi)
+- ✅ **GNOME Terminal** (tam destek)
+- ✅ **Kitty** (tam destek)
+- ✅ **Alacritty** (tam destek)
+- ⚠️ **Tilix** (kısmi destek)
+- ⚠️ **Konsole** (kısmi destek)
+- ❌ **Diğerleri** (test edilmedi)
 
-**Not:** Renk temaları (Dracula/Nord) GNOME Terminal gerektirir. Zsh ve Powerlevel10k tüm terminal emulatorlerde çalışır.
+### Kurulum Adımları
 
-## Yedekleme ve Geri Yükleme
+1. **Repository'yi Klonlayın**
+```bash
+git clone https://github.com/alibedirhan/Theme-after-format.git
+cd Theme-after-format
+```
 
-### Otomatik Yedekleme
+2. **Dosya İzinlerini Ayarlayın**
+```bash
+chmod +x terminal-setup.sh terminal-core.sh terminal-utils.sh
+```
 
-Script her kurulumda otomatik yedek oluşturur:
-- `~/.bashrc`
-- `~/.zshrc`
-- `~/.p10k.zsh`
-- Mevcut shell bilgisi
-- GNOME Terminal profil ID'si
+3. **Çalıştırın**
+```bash
+./terminal-setup.sh
+```
 
-Yedekler: `~/.terminal-setup-backup/`
+### Alternatif: Manuel İndirme
 
-### Geri Yükleme
+```bash
+# Dosyaları indirin
+wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/terminal-setup.sh
+wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/terminal-core.sh
+wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/terminal-utils.sh
+
+# Çalıştırma izni verin
+chmod +x *.sh
+
+# Çalıştırın
+./terminal-setup.sh
+```
+
+## 🎮 Kullanım
+
+### İnteraktif Menü
+
+Script'i çalıştırdığınızda karşınıza menü gelir:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║       TERMİNAL ÖZELLEŞTİRME KURULUM ARACI v3.0.0           ║
+╚══════════════════════════════════════════════════════════════╝
+
+═══ ANA MENÜ ═══
+
+Tam Kurulum:
+  1) Dracula Teması ile Tam Kurulum
+  2) Nord Teması ile Tam Kurulum
+  3) Gruvbox Teması ile Tam Kurulum
+  4) Tokyo Night Teması ile Tam Kurulum
+
+Modüler Kurulum:
+  5) Sadece Zsh + Oh My Zsh
+  6) Sadece Powerlevel10k Teması
+  7) Sadece Renk Teması Değiştir
+  8) Sadece Pluginler
+
+Yönetim:
+  9) Sistem Sağlık Kontrolü
+ 10) Yedekleri Göster
+ 11) Tümünü Kaldır
+ 12) Ayarlar
+  0) Çıkış
+```
+
+### 🎯 Komut Satırı Parametreleri
+
+```bash
+# Sistem sağlık kontrolü
+./terminal-setup.sh --health
+
+# Güncelleme kontrolü
+./terminal-setup.sh --update
+
+# Debug modu (sorun giderme için)
+./terminal-setup.sh --debug
+
+# Verbose modu (detaylı çıktı)
+./terminal-setup.sh --verbose
+
+# Versiyon bilgisi
+./terminal-setup.sh --version
+
+# Yardım
+./terminal-setup.sh --help
+```
+
+## ⚙️ Konfigürasyon
+
+### Ayarlar Dosyası
+
+Ayarlarınız `~/.terminal-setup.conf` dosyasında saklanır:
+
+```bash
+# Terminal Setup Configuration
+DEFAULT_THEME="dracula"      # Varsayılan tema
+AUTO_UPDATE="false"          # Otomatik güncelleme
+BACKUP_COUNT="5"             # Tutulacak yedek sayısı
+```
+
+### Ayarları Değiştirme
 
 ```bash
 ./terminal-setup.sh
-# Menüden "8) Tümünü Kaldır" seçin
+# Menüden: 12 (Ayarlar)
 ```
 
-Bu işlem:
-- Oh My Zsh'yi kaldırır
-- Zsh konfigürasyonlarını siler
-- Bash'e geri döner
-- Yedekten .bashrc'yi geri yükler
+Veya manuel olarak:
 
-## Sorun Giderme
-
-### Renk temaları uygulanmıyor
-
-**Sebep:** GNOME Terminal kullanmıyorsunuz.
-
-**Çözüm:**
 ```bash
-# Hangi terminal kullandığınızı kontrol edin
-ps -o comm= -p $PPID
-
-# GNOME Terminal kurulumu
-sudo apt install gnome-terminal
+nano ~/.terminal-setup.conf
 ```
 
-### Powerlevel10k wizard açılmıyor
+## 📂 Dosya Yapısı
 
-**Çözüm:**
+### Script Dosyaları
+
+```
+Theme-after-format/
+├── terminal-setup.sh       # Ana script (391 satır)
+├── terminal-core.sh        # Kurulum fonksiyonları (523 satır)
+├── terminal-utils.sh       # Yardımcı fonksiyonlar (487 satır)
+├── VERSION                 # Versiyon numarası
+├── README.md              # Bu dosya
+└── KURULUM_REHBERI.md     # Detaylı rehber
+```
+
+### Oluşturulan Dosyalar
+
+```
+~/
+├── .terminal-setup-backup/    # Yedekler
+├── .terminal-setup.conf       # Ayarlar
+├── .terminal-setup.log        # Log dosyası
+├── .zshrc                     # Zsh konfigürasyonu
+├── .p10k.zsh                  # Powerlevel10k ayarları
+└── .oh-my-zsh/                # Oh My Zsh dizini
+```
+
+## 🏥 Sistem Sağlık Kontrolü
+
+```bash
+./terminal-setup.sh --health
+```
+
+Kontrol edilen öğeler:
+- ✅ Disk alanı (>500MB)
+- ✅ İnternet bağlantısı
+- ✅ Gerekli paketler (git, curl, wget)
+- ✅ Terminal emulator
+- ✅ Zsh kurulumu
+- ✅ Oh My Zsh kurulumu
+- ✅ Font kurulumu
+- ✅ Powerlevel10k kurulumu
+- ✅ Pluginler
+- ✅ Yedekler
+
+Örnek çıktı:
+```
+╔════════════════════════════════════════════════╗
+║         SİSTEM SAĞLIK KONTROLÜ                ║
+╚════════════════════════════════════════════════╝
+
+Disk alanı kontrolü... ✓ Yeterli (15432 MB)
+İnternet bağlantısı... ✓ Aktif
+Gerekli paketler... ✓ Tamam
+Terminal emulator... ✓ gnome-terminal
+Zsh... ✓ Kurulu (5.8.1)
+Oh My Zsh... ✓ Kurulu
+MesloLGS NF Font... ✓ Kurulu
+Powerlevel10k... ✓ Kurulu
+Zsh Pluginleri... ✓ Tamam (2/2)
+Yedekler... ✓ Var (8 dosya)
+
+═══════════════════════════════════════════════════
+Toplam Kontrol: 10
+✓ Başarılı: 10
+⚠ Uyarı: 0
+✗ Hata: 0
+═══════════════════════════════════════════════════
+✓ Sistem mükemmel durumda!
+```
+
+## 🔍 Sorun Giderme
+
+### Yaygın Sorunlar
+
+<details>
+<summary><b>1. "Bağımlılık eksik" hatası</b></summary>
+
+```bash
+# Script otomatik kurulum önerecek
+# Manuel kurulum:
+sudo apt update
+sudo apt install git curl wget
+```
+</details>
+
+<details>
+<summary><b>2. Fontlar gösterilmiyor</b></summary>
+
+Terminal ayarlarından fontu değiştirin:
+- GNOME Terminal: `Preferences → Profile → Custom Font → MesloLGS NF Regular`
+- Kitty: `kitty.conf` dosyasına `font_family MesloLGS NF` ekleyin
+- Alacritty: `alacritty.yml` dosyasına font ayarı ekleyin
+</details>
+
+<details>
+<summary><b>3. Tema uygulanmıyor</b></summary>
+
+```bash
+# Terminal tipinizi kontrol edin
+./terminal-setup.sh --health
+
+# Log dosyasını inceleyin
+tail -n 50 ~/.terminal-setup.log
+```
+</details>
+
+<details>
+<summary><b>4. Powerlevel10k wizard başlamıyor</b></summary>
+
 ```bash
 # Manuel başlatma
 p10k configure
+
+# Veya
+source ~/.zshrc
 ```
+</details>
 
-### Karakterler bozuk görünüyor
-
-**Sebep:** Font kurulmamış veya terminal font ayarları yanlış.
-
-**Çözüm:**
-```bash
-# Terminal Preferences → Profile → Custom Font → MesloLGS NF Regular
-```
-
-### Zsh çok yavaş açılıyor
-
-**Çözüm:**
-```bash
-# Performans analizi
-p10k debug
-
-# Instant prompt'u devre dışı bırak
-nano ~/.zshrc
-# Şu bloğu yoruma al (başına # ekle):
-# if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt...
-```
-
-### "chsh: PAM: Authentication failure" hatası
-
-**Çözüm:**
-```bash
-# sudo ile shell değiştir
-sudo chsh -s $(which zsh) $USER
-```
-
-## Sık Sorulan Sorular
-
-**S: Format sonrası kullanabilir miyim?**  
-C: Evet, tam olarak bunun için tasarlandı. Sistemi kurduktan sonra tek komutla tüm özelleştirmeleri geri yükleyin.
-
-**S: Mevcut ayarlarım kaybolur mu?**  
-C: Hayır, script otomatik yedekleme yapar. İsterseniz geri dönebilirsiniz.
-
-**S: Root olarak çalıştırmalı mıyım?**  
-C: Hayır! Normal kullanıcı olarak çalıştırın. Gerektiğinde sudo isteyecektir.
-
-**S: Her iki temayı da deneyebilir miyim?**  
-C: Evet, istediğiniz zaman tema değiştirebilirsiniz (seçenek 5 veya 6).
-
-**S: Pluginler ne işe yarar?**  
-C: 
-- `zsh-autosuggestions`: Komut önerileri
-- `zsh-syntax-highlighting`: Sözdizimi renklendirme
-- `colored-man-pages`: Renkli man sayfaları
-
-**S: Disk alanı ne kadar?**  
-C: Yaklaşık 50-100 MB (Oh My Zsh, tema, fontlar dahil)
-
-## Güncelleme
+<details>
+<summary><b>5. Güncelleme sorunu</b></summary>
 
 ```bash
+# Manuel güncelleme
 cd Theme-after-format
 git pull origin main
+chmod +x *.sh
+```
+</details>
+
+### Log Dosyası İnceleme
+
+```bash
+# Son 50 satır
+tail -n 50 ~/.terminal-setup.log
+
+# Sadece hataları göster
+grep ERROR ~/.terminal-setup.log
+
+# Canlı izleme
+tail -f ~/.terminal-setup.log
+```
+
+## 🎓 Kullanım Örnekleri
+
+### Örnek 1: İlk Kurulum
+
+```bash
+# Format sonrası ilk kurulum
+./terminal-setup.sh
+# Menüden 1 seçin (Dracula ile tam kurulum)
+# İşlem ~3 dakika sürer
+# Terminal'i yeniden başlatın
+```
+
+### Örnek 2: Tema Değiştirme
+
+```bash
+# Mevcut kurulumdayken tema değiştir
+./terminal-setup.sh
+# Menüden 7 seçin
+# Yeni tema seçin (ör: Nord)
+# source ~/.zshrc
+```
+
+### Örnek 3: Sistem Kontrolü
+
+```bash
+# Kurulum öncesi kontrol
+./terminal-setup.sh --health
+
+# Her şey OK ise kuruluma başla
 ./terminal-setup.sh
 ```
 
-## Kaldırma
-
-### Script ile
+### Örnek 4: Debug Modu
 
 ```bash
-./terminal-setup.sh
-# Seçenek 8: Tümünü Kaldır
+# Sorun yaşıyorsanız
+./terminal-setup.sh --debug
+# Detaylı çıktı göreceksiniz
+# Log dosyasına da yazılır
 ```
 
-### Manuel
+## 📊 Performans
 
-```bash
-# Oh My Zsh kaldırma
-rm -rf ~/.oh-my-zsh ~/.zshrc ~/.zsh_history ~/.p10k.zsh
+- **Kurulum Süresi**: 2-5 dakika (internet hızına bağlı)
+- **Disk Kullanımı**: ~100 MB
+- **RAM Kullanımı**: Minimal
+- **Script Boyutu**: ~1400 satır (3 dosya)
 
-# Bash'e geri dön
-chsh -s $(which bash)
+## 🤝 Katkıda Bulunma
 
-# Zsh paketini kaldır (opsiyonel)
-sudo apt remove zsh
-sudo apt autoremove
-```
-
-## Katkıda Bulunma
-
-Katkılarınızı bekliyoruz! Lütfen [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun.
-
-### Hızlı Katkı
+Katkılarınızı bekliyoruz!
 
 1. Fork'layın
-2. Feature branch: `git checkout -b feature/YeniOzellik`
-3. Commit: `git commit -m 'Yeni özellik eklendi'`
-4. Push: `git push origin feature/YeniOzellik`
+2. Feature branch oluşturun: `git checkout -b feature/yeni-ozellik`
+3. Commit: `git commit -m 'Yeni özellik: Xyz'`
+4. Push: `git push origin feature/yeni-ozellik`
 5. Pull Request açın
 
-## Lisans
+### Geliştirme Rehberi
+
+```bash
+# Test için
+./terminal-setup.sh --debug
+
+# Shellcheck ile kontrol
+shellcheck terminal-setup.sh terminal-core.sh terminal-utils.sh
+```
+
+## 📝 Değişiklik Günlüğü
+
+### v3.0.0 (2024-10-02)
+- ✨ Modüler yapı (3 dosya)
+- ✨ 7 tema desteği
+- ✨ Kitty ve Alacritty desteği
+- ✨ Logging sistemi
+- ✨ Progress bar
+- ✨ Health check
+- ✨ Konfigürasyon dosyası
+- ✨ Otomatik güncelleme
+- 🐛 Kritik bug'lar düzeltildi
+
+### v2.1 (2024-09-30)
+- 🐛 Sudo şifre sorunu düzeltildi
+- 🐛 Font indirme iyileştirildi
+- ✨ Bağımlılık kontrolü eklendi
+
+### v2.0 (2024-09-28)
+- ✨ Nord teması eklendi
+- ✨ Yedekleme sistemi
+
+### v1.0 (2024-09-25)
+- 🎉 İlk sürüm
+
+## 📄 Lisans
 
 Bu proje MIT lisansı altında lisanslanmıştır - detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
-## Teşekkürler
+## 🙏 Teşekkürler
 
-Bu proje şu harika projeleri kullanır:
+Bu proje aşağıdaki harika projeleri kullanır:
 
 - [Oh My Zsh](https://ohmyz.sh/) - Zsh konfigürasyon framework'ü
 - [Powerlevel10k](https://github.com/romkatv/powerlevel10k) - Zsh teması
 - [Dracula Theme](https://draculatheme.com/) - Renk teması
 - [Nord Theme](https://www.nordtheme.com/) - Renk teması
+- [Gruvbox](https://github.com/morhetz/gruvbox) - Renk teması
+- [Tokyo Night](https://github.com/enkia/tokyo-night-vscode-theme) - Renk teması
+- [Catppuccin](https://github.com/catppuccin/catppuccin) - Renk teması
 - [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) - Komut önerileri
 - [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) - Sözdizimi vurgulama
 
-## İletişim
+## 📞 İletişim
 
-- GitHub: [@alibedirhan](https://github.com/alibedirhan)
-- Issues: [Proje Issues](https://github.com/alibedirhan/Theme-after-format/issues)
-
-## Ekran Görüntüleri
-
-### Dracula Theme
-
-![Dracula](screenshots/dracula.png)
-
-### Nord Theme
-
-![Nord](screenshots/nord.png)
+- **GitHub**: [@alibedirhan](https://github.com/alibedirhan)
+- **Issues**: [Proje Issues](https://github.com/alibedirhan/Theme-after-format/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/alibedirhan/Theme-after-format/discussions)
 
 ---
 
