@@ -1,45 +1,42 @@
-# Theme After Format - Git Ignore
+# Log dosyaları
+*.log
 
-# Temporary files
+# Yedek dosyaları
+*.backup
+*.bak
+*~
+
+# Geçici dosyalar
 *.tmp
-*.temp
 *.swp
 *.swo
-*~
+.*.swp
+
+# OS dosyaları
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Backup files
-*.bak
-*.backup
-*.old
-
-# Test files
-test/
-tmp/
-temp/
-
-# Local user data
-.terminal-setup-backup/
-.zsh_history
-.bash_history
-
-# Editor configurations
+# IDE/Editor dosyaları
 .vscode/
 .idea/
 *.sublime-*
-.atom/
 
-# OS specific
-Thumbs.db
-Desktop.ini
-.directory
+# Test dosyaları
+test/
+tests/
+*.test
 
-# Logs
-*.log
-logs/
+# Kullanıcı spesifik dosyalar
+.terminal-setup.conf
+.terminal-setup.log
 
-# Personal notes
-notes.txt
-TODO.txt
-PERSONAL.md
-scratch.md
+# Geliştirme dosyaları
+TODO.md
+NOTES.md
+dev/
+
+# Compressed files
+*.zip
+*.tar.gz
+*.tar.bz2
