@@ -11,7 +11,7 @@
 # ============================================================================
 
 # Script versiyonu
-VERSION="3.0.0"
+VERSION="3.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler
@@ -48,6 +48,11 @@ cleanup() {
     if [[ -n "$SUDO_REFRESH_PID" ]]; then
         kill "$SUDO_REFRESH_PID" 2>/dev/null
     fi
+    
+    # Core modülündeki cleanup'ı da çağır
+    if type cleanup_sudo &>/dev/null; then
+        cleanup_sudo
+    fi
 }
 
 trap cleanup EXIT
@@ -83,15 +88,17 @@ show_menu() {
     echo "  6) Sadece Powerlevel10k Teması"
     echo "  7) Sadece Renk Teması Değiştir"
     echo "  8) Sadece Pluginler"
+    echo "  9) Terminal Araçları (FZF, Zoxide, Exa, Bat)"
+    echo " 10) Tmux Kurulumu"
     echo
     echo -e "${CYAN}Yönetim:${NC}"
-    echo "  9) Sistem Sağlık Kontrolü"
-    echo " 10) Yedekleri Göster"
-    echo " 11) Tümünü Kaldır"
-    echo " 12) Ayarlar"
+    echo " 11) Sistem Sağlık Kontrolü"
+    echo " 12) Yedekleri Göster"
+    echo " 13) Tümünü Kaldır"
+    echo " 14) Ayarlar"
     echo "  0) Çıkış"
     echo
-    echo -n "Seçiminiz (0-12): "
+    echo -n "Seçiminiz (0-14): "
 }
 
 # Tema seçim menüsü
@@ -467,18 +474,58 @@ while true; do
             read -p "Devam etmek için Enter'a basın..."
             ;;
         9)
+            if show_terminal_tools_info; then
+                check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
+                setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
+                install_all_tools
+                log_success "Tamamlandı"
+            fi
+            read -p "Devam etmek için Enter'a basın..."
+            ;;
+        10)
+            echo
+            echo -e "${YELLOW}Hangi tema ile Tmux kurmak istersiniz?${NC}"
+            echo "1) Dracula"
+            echo "2) Nord"
+            echo "3) Gruvbox"
+            echo "4) Tokyo Night"
+            echo "5) Catppuccin"
+            echo "6) One Dark"
+            echo "7) Solarized"
+            echo -n "Seçiminiz (1-7): "
+            read -r tmux_theme_choice
+            
+            local tmux_theme="dracula"
+            case $tmux_theme_choice in
+                1) tmux_theme="dracula" ;;
+                2) tmux_theme="nord" ;;
+                3) tmux_theme="gruvbox" ;;
+                4) tmux_theme="tokyo-night" ;;
+                5) tmux_theme="catppuccin" ;;
+                6) tmux_theme="one-dark" ;;
+                7) tmux_theme="solarized" ;;
+                *) log_error "Geçersiz seçim, Dracula kullanılıyor"; tmux_theme="dracula" ;;
+            esac
+            
+            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
+            install_tmux_with_theme "$tmux_theme"
+            log_success "Tamamlandı"
+            read -p "Devam etmek için Enter'a basın..."
+            ;;
+        11)
             show_banner
             system_health_check
             read -p "Devam etmek için Enter'a basın..."
             ;;
-        10)
+        12)
             show_backups
             ;;
-        11)
+        13)
             uninstall_all
             read -p "Devam etmek için Enter'a basın..."
             ;;
-        12)
+        14)
             manage_settings
             ;;
         0)

@@ -274,8 +274,8 @@ system_health_check() {
         ((passed_checks++))
     else
         echo -e "${YELLOW}⚠${NC} Bilinmeyen"
-        ((passed_checks++))
         ((warnings++))
+        # passed_checks artırılmıyor - doğru davranış
     fi
     
     # 5. Zsh kontrolü

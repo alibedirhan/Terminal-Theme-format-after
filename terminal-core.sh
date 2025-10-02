@@ -2,11 +2,23 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.0 - Core Module
+# v3.1 - Core Module (Bug Fixes)
 # ============================================================================
 
-# Sudo refresh PID
+# Sudo refresh PID - Global değişken
 SUDO_REFRESH_PID=""
+
+# Sudo cleanup fonksiyonu
+cleanup_sudo() {
+    if [[ -n "$SUDO_REFRESH_PID" ]] && kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
+        kill "$SUDO_REFRESH_PID" 2>/dev/null
+        log_debug "Sudo refresh process durduruldu (PID: $SUDO_REFRESH_PID)"
+        SUDO_REFRESH_PID=""
+    fi
+}
+
+# Trap ekle
+trap cleanup_sudo EXIT ERR
 
 # ============================================================================
 # BAĞIMLILIK KONTROLÜ
@@ -230,7 +242,8 @@ install_fonts() {
             
             while [ $retry -lt $max_retry ]; do
                 if wget --timeout=15 --tries=2 -q "$base_url/$url_name" -O "$file_name" 2>/dev/null; then
-                    local file_size=$(stat -f%z "$file_name" 2>/dev/null || stat -c%s "$file_name" 2>/dev/null)
+                    # Platform bağımsız dosya boyutu kontrolü
+                    local file_size=$(wc -c < "$file_name" 2>/dev/null)
                     if [[ -n "$file_size" ]] && [[ "$file_size" -gt 10000 ]]; then
                         log_debug "$file_name indirildi"
                         ((success_count++))
@@ -263,7 +276,13 @@ install_fonts() {
             fi
             log_success "$success_count font kuruldu"
         else
-            log_warning "Font kurulumu tamamlanamadı"
+            log_error "Hiçbir font indirilemedi!"
+            log_warning "Manuel kurulum için: https://github.com/romkatv/powerlevel10k#fonts"
+            echo -n "Font olmadan devam etmek ister misiniz? (e/h): "
+            read -r continue_choice
+            if [[ "$continue_choice" != "e" ]]; then
+                return 1
+            fi
         fi
     else
         log_warning "Fontlar zaten kurulu, atlanıyor..."
@@ -339,6 +358,349 @@ install_plugins() {
     fi
     
     log_success "Pluginler kuruldu"
+}
+
+# ============================================================================
+# TERMINAL ARAÇLARI
+# ============================================================================
+
+# Terminal araçlarını göster
+show_terminal_tools_info() {
+    clear
+    echo -e "${CYAN}╔════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║           MODERN TERMINAL ARAÇLARI                     ║${NC}"
+    echo -e "${CYAN}╚════════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    echo -e "${YELLOW}1) FZF - Fuzzy Finder${NC}"
+    echo "   Dosya, komut, history'de hızlı arama"
+    echo "   https://github.com/junegunn/fzf"
+    echo
+    
+    echo -e "${YELLOW}2) Zoxide - Akıllı cd${NC}"
+    echo "   En çok kullandığınız dizinlere hızlıca atlama"
+    echo "   https://github.com/ajeetdsouza/zoxide"
+    echo
+    
+    echo -e "${YELLOW}3) Exa - Modern ls${NC}"
+    echo "   Renkli ve icon'lu dosya listeleme"
+    echo "   https://github.com/ogham/exa"
+    echo
+    
+    echo -e "${YELLOW}4) Bat - cat with syntax${NC}"
+    echo "   Syntax highlighting ile dosya görüntüleme"
+    echo "   https://github.com/sharkdp/bat"
+    echo
+    
+    echo -e "${CYAN}Tümünü kurmak ister misiniz? (e/h): ${NC}"
+    read -r install_all
+    
+    if [[ "$install_all" == "e" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# FZF kurulumu
+install_fzf() {
+    log_info "FZF kuruluyor..."
+    
+    if command -v fzf &> /dev/null; then
+        log_warning "FZF zaten kurulu, atlanıyor..."
+        return 0
+    fi
+    
+    if ! check_internet; then
+        return 1
+    fi
+    
+    # FZF'yi klonla ve kur
+    if [[ ! -d ~/.fzf ]]; then
+        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf || {
+            log_error "FZF klonlama başarısız!"
+            return 1
+        }
+    fi
+    
+    # Otomatik kurulum
+    ~/.fzf/install --all --no-bash --no-fish || {
+        log_error "FZF kurulumu başarısız!"
+        return 1
+    }
+    
+    log_success "FZF kuruldu"
+}
+
+# Zoxide kurulumu
+install_zoxide() {
+    log_info "Zoxide kuruluyor..."
+    
+    if command -v zoxide &> /dev/null; then
+        log_warning "Zoxide zaten kurulu, atlanıyor..."
+        return 0
+    fi
+    
+    if ! check_internet; then
+        return 1
+    fi
+    
+    # Zoxide kurulum scripti
+    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash || {
+        log_error "Zoxide kurulumu başarısız!"
+        return 1
+    }
+    
+    # Zshrc'ye ekle
+    if [[ -f ~/.zshrc ]]; then
+        if ! grep -q "zoxide init zsh" ~/.zshrc; then
+            echo '' >> ~/.zshrc
+            echo '# Zoxide initialization' >> ~/.zshrc
+            echo 'eval "$(zoxide init zsh)"' >> ~/.zshrc
+        fi
+    fi
+    
+    log_success "Zoxide kuruldu"
+}
+
+# Exa kurulumu
+install_exa() {
+    log_info "Exa kuruluyor..."
+    
+    if command -v exa &> /dev/null; then
+        log_warning "Exa zaten kurulu, atlanıyor..."
+        return 0
+    fi
+    
+    sudo apt install -y exa || {
+        log_error "Exa kurulumu başarısız!"
+        return 1
+    }
+    
+    # Aliases ekle
+    if [[ -f ~/.zshrc ]]; then
+        if ! grep -q "alias ls=" ~/.zshrc; then
+            echo '' >> ~/.zshrc
+            echo '# Exa aliases' >> ~/.zshrc
+            echo 'alias ls="exa --icons"' >> ~/.zshrc
+            echo 'alias ll="exa -l --icons"' >> ~/.zshrc
+            echo 'alias la="exa -la --icons"' >> ~/.zshrc
+            echo 'alias lt="exa --tree --icons"' >> ~/.zshrc
+        fi
+    fi
+    
+    log_success "Exa kuruldu"
+}
+
+# Bat kurulumu
+install_bat() {
+    log_info "Bat kuruluyor..."
+    
+    if command -v batcat &> /dev/null || command -v bat &> /dev/null; then
+        log_warning "Bat zaten kurulu, atlanıyor..."
+        return 0
+    fi
+    
+    sudo apt install -y bat || {
+        log_error "Bat kurulumu başarısız!"
+        return 1
+    }
+    
+    # Ubuntu'da 'batcat' olarak kurulur, alias ekle
+    if [[ -f ~/.zshrc ]]; then
+        if ! grep -q "alias cat=" ~/.zshrc; then
+            echo '' >> ~/.zshrc
+            echo '# Bat alias' >> ~/.zshrc
+            echo 'alias cat="batcat"' >> ~/.zshrc
+        fi
+    fi
+    
+    log_success "Bat kuruldu"
+}
+
+# Tüm araçları kur
+install_all_tools() {
+    log_info "Terminal araçları kuruluyor..."
+    
+    local total_tools=4
+    local current_tool=0
+    
+    show_progress $((++current_tool)) $total_tools "FZF kuruluyor"
+    install_fzf
+    
+    show_progress $((++current_tool)) $total_tools "Zoxide kuruluyor"
+    install_zoxide
+    
+    show_progress $((++current_tool)) $total_tools "Exa kuruluyor"
+    install_exa
+    
+    show_progress $((++current_tool)) $total_tools "Bat kuruluyor"
+    install_bat
+    
+    log_success "Tüm araçlar kuruldu"
+}
+
+# ============================================================================
+# TMUX KURULUMU VE TEMA ENTEGRASYONU
+# ============================================================================
+
+# Tmux kurulumu
+install_tmux() {
+    log_info "Tmux kuruluyor..."
+    
+    if command -v tmux &> /dev/null; then
+        log_warning "Tmux zaten kurulu, atlanıyor..."
+        return 0
+    fi
+    
+    sudo apt install -y tmux || {
+        log_error "Tmux kurulumu başarısız!"
+        return 1
+    }
+    
+    log_success "Tmux kuruldu"
+}
+
+# Tmux tema konfigürasyonu
+configure_tmux_theme() {
+    local theme=$1
+    
+    log_info "Tmux için $theme teması yapılandırılıyor..."
+    
+    # Tmux konfigürasyon dosyası
+    local tmux_conf="$HOME/.tmux.conf"
+    
+    # Temel konfigürasyon
+    cat > "$tmux_conf" << 'EOF'
+# Prefix değiştir (Ctrl+b yerine Ctrl+a)
+unbind C-b
+set -g prefix C-a
+bind C-a send-prefix
+
+# Mouse desteği
+set -g mouse on
+
+# 256 renk desteği
+set -g default-terminal "screen-256color"
+
+# Pencere numaraları 1'den başlasın
+set -g base-index 1
+setw -g pane-base-index 1
+
+# Escape time azalt
+set -sg escape-time 0
+
+# History limit
+set -g history-limit 10000
+
+# Otomatik pencere yeniden numaralandırma
+set -g renumber-windows on
+
+EOF
+    
+    # Temaya özel renkler
+    case $theme in
+        dracula)
+            cat >> "$tmux_conf" << 'EOF'
+# Dracula Theme
+set -g status-style bg='#282a36',fg='#f8f8f2'
+set -g window-status-current-style bg='#bd93f9',fg='#282a36'
+set -g pane-border-style fg='#6272a4'
+set -g pane-active-border-style fg='#ff79c6'
+set -g message-style bg='#44475a',fg='#f8f8f2'
+EOF
+            ;;
+        nord)
+            cat >> "$tmux_conf" << 'EOF'
+# Nord Theme
+set -g status-style bg='#2e3440',fg='#d8dee9'
+set -g window-status-current-style bg='#88c0d0',fg='#2e3440'
+set -g pane-border-style fg='#4c566a'
+set -g pane-active-border-style fg='#88c0d0'
+set -g message-style bg='#3b4252',fg='#d8dee9'
+EOF
+            ;;
+        gruvbox)
+            cat >> "$tmux_conf" << 'EOF'
+# Gruvbox Theme
+set -g status-style bg='#282828',fg='#ebdbb2'
+set -g window-status-current-style bg='#fabd2f',fg='#282828'
+set -g pane-border-style fg='#504945'
+set -g pane-active-border-style fg='#fabd2f'
+set -g message-style bg='#504945',fg='#ebdbb2'
+EOF
+            ;;
+        tokyo-night)
+            cat >> "$tmux_conf" << 'EOF'
+# Tokyo Night Theme
+set -g status-style bg='#1a1b26',fg='#c0caf5'
+set -g window-status-current-style bg='#7aa2f7',fg='#1a1b26'
+set -g pane-border-style fg='#414868'
+set -g pane-active-border-style fg='#7aa2f7'
+set -g message-style bg='#414868',fg='#c0caf5'
+EOF
+            ;;
+        catppuccin)
+            cat >> "$tmux_conf" << 'EOF'
+# Catppuccin Theme
+set -g status-style bg='#1e1e2e',fg='#cdd6f4'
+set -g window-status-current-style bg='#89b4fa',fg='#1e1e2e'
+set -g pane-border-style fg='#45475a'
+set -g pane-active-border-style fg='#89b4fa'
+set -g message-style bg='#45475a',fg='#cdd6f4'
+EOF
+            ;;
+        one-dark)
+            cat >> "$tmux_conf" << 'EOF'
+# One Dark Theme
+set -g status-style bg='#282c34',fg='#abb2bf'
+set -g window-status-current-style bg='#61afef',fg='#282c34'
+set -g pane-border-style fg='#5c6370'
+set -g pane-active-border-style fg='#61afef'
+set -g message-style bg='#3e4451',fg='#abb2bf'
+EOF
+            ;;
+        solarized)
+            cat >> "$tmux_conf" << 'EOF'
+# Solarized Dark Theme
+set -g status-style bg='#002b36',fg='#839496'
+set -g window-status-current-style bg='#268bd2',fg='#fdf6e3'
+set -g pane-border-style fg='#073642'
+set -g pane-active-border-style fg='#268bd2'
+set -g message-style bg='#073642',fg='#839496'
+EOF
+            ;;
+        *)
+            log_warning "Bilinmeyen tema, varsayılan renkler kullanılıyor"
+            ;;
+    esac
+    
+    # Status bar konfigürasyonu
+    cat >> "$tmux_conf" << 'EOF'
+
+# Status bar
+set -g status-left-length 40
+set -g status-left "#[bold] Session: #S "
+set -g status-right "#[bold] %d %b %Y | %H:%M "
+set -g status-justify centre
+
+# Pencere listesi
+setw -g window-status-format " #I:#W "
+setw -g window-status-current-format " #I:#W "
+EOF
+    
+    log_success "Tmux tema konfigürasyonu tamamlandı"
+}
+
+# Tmux tam kurulum
+install_tmux_with_theme() {
+    local theme=$1
+    
+    install_tmux || return 1
+    configure_tmux_theme "$theme"
+    
+    log_info "Tmux'u test etmek için: tmux"
+    log_info "Çıkmak için: Ctrl+a, sonra 'd'"
 }
 
 # ============================================================================
