@@ -76,6 +76,14 @@ jobs:
     
     - name: Verify module loading
       run: |
+        # Global değişkenleri tanımla
+        export LOG_FILE="/tmp/test.log"
+        export BACKUP_DIR="/tmp/backup"
+        export CONFIG_FILE="/tmp/config"
+        export VERSION="3.1.0"
+        export SCRIPT_DIR="$(pwd)"
+        
+        # Modülleri yükle
         source terminal-utils.sh
         source terminal-core.sh
         echo "Modules loaded successfully"
@@ -103,6 +111,12 @@ jobs:
     
     - name: Test dependency check
       run: |
+        export LOG_FILE="/tmp/test.log"
+        export BACKUP_DIR="/tmp/backup"
+        export CONFIG_FILE="/tmp/config"
+        export VERSION="3.1.0"
+        export SCRIPT_DIR="$(pwd)"
+        
         bash -c '
         source terminal-utils.sh
         source terminal-core.sh
@@ -111,6 +125,9 @@ jobs:
     
     - name: Test terminal detection
       run: |
+        export LOG_FILE="/tmp/test.log"
+        export BACKUP_DIR="/tmp/backup"
+        
         bash -c '
         source terminal-utils.sh
         terminal=$(detect_terminal)
@@ -165,16 +182,13 @@ jobs:
         fi
         echo "README.md exists"
     
-    - name: Check documentation files
+    - name: Check CHANGELOG
       run: |
-        docs=("KURULUM_REHBERI.md" "HIZLI_REFERANS.md" "PROJE_OZETI.md")
-        for doc in "${docs[@]}"; do
-          if [ -f "$doc" ]; then
-            echo "✓ $doc exists"
-          else
-            echo "⚠ $doc missing (optional)"
-          fi
-        done
+        if [ ! -f CHANGELOG.md ]; then
+          echo "⚠ CHANGELOG.md missing (optional)"
+        else
+          echo "✓ CHANGELOG.md exists"
+        fi
     
     - name: Validate links in README
       run: |
