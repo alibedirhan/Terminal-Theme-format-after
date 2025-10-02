@@ -912,4 +912,6 @@ measure_time() {
 # ============================================================================
 
 # Log sistemini başlat
-init_log
+if [[ -n "$LOG_FILE" ]]; then
+    init_log
+fi
