@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.1.0 - Core Module
+# v3.2.0 - Core Module (Clean Output)
 # ============================================================================
 
 # Sudo refresh PID - Global değişken
@@ -12,13 +12,56 @@ SUDO_REFRESH_PID=""
 cleanup_sudo() {
     if [[ -n "$SUDO_REFRESH_PID" ]] && kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
         kill "$SUDO_REFRESH_PID" 2>/dev/null
+        wait "$SUDO_REFRESH_PID" 2>/dev/null || true
         log_debug "Sudo refresh process durduruldu (PID: $SUDO_REFRESH_PID)"
         SUDO_REFRESH_PID=""
     fi
 }
 
 # Trap ekle
-trap cleanup_sudo EXIT ERR
+trap cleanup_sudo EXIT ERR INT TERM
+
+# ============================================================================
+# CLEAN OUTPUT HELPERS
+# ============================================================================
+
+show_section() {
+    local step=$1
+    local total=$2
+    local title=$3
+    echo
+    echo -e "${CYAN}━━━━ KURULUM [${step}/${total}] ━━━━${NC}"
+    echo -e "${YELLOW}⟳${NC} ${title}..."
+}
+
+show_step_success() {
+    local message=$1
+    echo -e "  ${GREEN}✓${NC} ${message}"
+}
+
+show_step_info() {
+    local message=$1
+    echo -e "  ${CYAN}→${NC} ${message}"
+}
+
+show_step_skip() {
+    local message=$1
+    echo -e "  ${YELLOW}→${NC} ${message}"
+}
+
+show_user_prompt() {
+    local title="$1"
+    shift
+    local messages=("$@")
+    
+    echo
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│${NC} ${BOLD}${title}${NC}"
+    for msg in "${messages[@]}"; do
+        echo -e "${YELLOW}│${NC} ${msg}"
+    done
+    echo -e "${YELLOW}└─────────────────────────────────────────────────────────┘${NC}"
+}
 
 # ============================================================================
 # BAĞIMLILIK KONTROLÜ
@@ -49,21 +92,22 @@ check_dependencies() {
     done
     
     if [ ${#missing_required[@]} -ne 0 ]; then
-        echo
-        log_warning "Eksik zorunlu paketler: ${missing_required[*]}"
+        show_user_prompt "EKSİK PAKETLER TESPİT EDİLDİ" \
+            "Zorunlu: ${missing_required[*]}" \
+            ""
         echo -n "Otomatik kurmak ister misiniz? (e/h): "
         read -r install_choice
         
         if [[ "$install_choice" == "e" ]]; then
-            log_info "Paketler kuruluyor..."
+            echo -e "${CYAN}→${NC} Paketler kuruluyor..."
             
-            if ! sudo apt update; then
+            if ! sudo apt update &>/dev/null; then
                 log_error "apt update başarısız"
                 diagnose_and_fix "internet_connection"
                 return 1
             fi
             
-            if ! sudo apt install -y "${missing_required[@]}"; then
+            if ! sudo apt install -y "${missing_required[@]}" &>/dev/null; then
                 log_error "Paket kurulumu başarısız"
                 for pkg in "${missing_required[@]}"; do
                     diagnose_and_fix "package_missing" "$pkg"
@@ -71,7 +115,7 @@ check_dependencies() {
                 return 1
             fi
             
-            log_success "Eksik paketler kuruldu"
+            echo -e "${GREEN}✓${NC} Eksik paketler kuruldu"
         else
             log_error "Zorunlu paketler olmadan devam edilemez!"
             return 1
@@ -79,15 +123,7 @@ check_dependencies() {
     fi
     
     if [ ${#missing_optional[@]} -ne 0 ]; then
-        echo
-        log_warning "Opsiyonel paketler eksik: ${missing_optional[*]}"
-        if [[ " ${missing_optional[*]} " =~ " gsettings " ]]; then
-            echo "  • gsettings: Renk temaları için gerekli (GNOME Terminal)"
-        fi
-        if [[ " ${missing_optional[*]} " =~ " fc-cache " ]]; then
-            echo "  • fc-cache: Font cache güncellemesi için gerekli"
-        fi
-        sleep 2
+        log_debug "Opsiyonel paketler eksik: ${missing_optional[*]}"
     fi
     
     log_success "Bağımlılık kontrolü tamamlandı"
@@ -109,11 +145,12 @@ setup_sudo() {
     
     log_success "Sudo yetkisi alındı"
     
+    # Background sudo refresh process
     (
         while true; do
             sleep 50
-            sudo -n true
-            kill -0 "$" 2>/dev/null || exit
+            sudo -n true 2>/dev/null || exit 1
+            kill -0 "$$" 2>/dev/null || exit 0
         done
     ) &
     
@@ -129,7 +166,10 @@ setup_sudo() {
 
 create_backup() {
     log_info "Mevcut ayarlar yedekleniyor..."
-    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR" || {
+        log_error "Yedek dizini oluşturulamadı: $BACKUP_DIR"
+        return 1
+    }
     
     local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     
@@ -146,6 +186,7 @@ create_backup() {
     
     log_success "Yedek oluşturuldu: $BACKUP_DIR"
     cleanup_old_backups
+    return 0
 }
 
 # ============================================================================
@@ -160,17 +201,18 @@ install_zsh() {
         return 0
     fi
     
-    sudo apt update || {
+    if ! sudo apt update &>/dev/null; then
         log_error "apt update başarısız!"
         return 1
-    }
+    fi
     
-    sudo apt install -y zsh || {
+    if ! sudo apt install -y zsh &>/dev/null; then
         log_error "Zsh kurulumu başarısız!"
         return 1
-    }
+    fi
     
     log_success "Zsh kuruldu"
+    return 0
 }
 
 # ============================================================================
@@ -189,12 +231,13 @@ install_oh_my_zsh() {
         return 1
     fi
     
-    RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || {
+    if ! RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null; then
         log_error "Oh My Zsh kurulumu başarısız!"
         return 1
-    }
+    fi
     
     log_success "Oh My Zsh kuruldu"
+    return 0
 }
 
 # ============================================================================
@@ -205,23 +248,30 @@ install_fonts() {
     log_info "Fontlar kuruluyor..."
     
     if ! command -v fc-cache &> /dev/null; then
-        log_info "fontconfig paketi kuruluyor..."
-        sudo apt install -y fontconfig 2>/dev/null || {
+        show_step_info "fontconfig paketi kuruluyor..."
+        sudo apt install -y fontconfig &>/dev/null || {
             log_warning "fontconfig kurulumu başarısız"
         }
     fi
     
-    sudo apt install -y fonts-powerline 2>/dev/null || {
+    sudo apt install -y fonts-powerline &>/dev/null || {
         log_warning "Powerline font kurulumu başarısız, devam ediliyor..."
     }
     
     local FONT_DIR=~/.local/share/fonts
-    mkdir -p "$FONT_DIR"
+    mkdir -p "$FONT_DIR" || {
+        log_error "Font dizini oluşturulamadı"
+        return 1
+    }
     
     if [[ ! -f "$FONT_DIR/MesloLGS NF Regular.ttf" ]]; then
-        log_info "MesloLGS NF fontları indiriliyor..."
+        show_step_info "MesloLGS NF fontları indiriliyor..."
         
-        cd "$FONT_DIR" || return 1
+        local current_dir=$(pwd)
+        if ! cd "$FONT_DIR"; then
+            log_error "Font dizinine geçilemedi"
+            return 1
+        fi
         
         local fonts=(
             "MesloLGS%20NF%20Regular.ttf:MesloLGS NF Regular.ttf"
@@ -247,7 +297,6 @@ install_fonts() {
                         ((success_count++))
                         break
                     else
-                        log_debug "$file_name çok küçük, tekrar deneniyor..."
                         rm -f "$file_name"
                         ((retry++))
                     fi
@@ -256,27 +305,25 @@ install_fonts() {
                 fi
                 
                 if [ $retry -lt $max_retry ]; then
-                    log_debug "$file_name tekrar deneniyor ($((retry + 1))/$max_retry)..."
                     sleep 2
                 fi
             done
-            
-            if [ $retry -eq $max_retry ]; then
-                log_warning "$file_name indirilemedi"
-            fi
         done
         
-        cd - > /dev/null
+        cd "$current_dir" || {
+            log_warning "Orijinal dizine geri dönülemedi"
+        }
         
         if [ $success_count -gt 0 ]; then
             if command -v fc-cache &> /dev/null; then
-                log_debug "Font cache güncelleniyor..."
                 fc-cache -f "$FONT_DIR" > /dev/null 2>&1
             fi
-            log_success "$success_count font kuruldu"
+            show_step_success "$success_count font kuruldu"
         else
             log_error "Hiçbir font indirilemedi!"
-            log_warning "Manuel kurulum için: https://github.com/romkatv/powerlevel10k#fonts"
+            show_user_prompt "FONT KURULUMU BAŞARISIZ" \
+                "Manuel kurulum: https://github.com/romkatv/powerlevel10k#fonts" \
+                ""
             echo -n "Font olmadan devam etmek ister misiniz? (e/h): "
             read -r continue_choice
             if [[ "$continue_choice" != "e" ]]; then
@@ -284,8 +331,10 @@ install_fonts() {
             fi
         fi
     else
-        log_warning "Fontlar zaten kurulu, atlanıyor..."
+        show_step_skip "Zaten kurulu, atlandı"
     fi
+    
+    return 0
 }
 
 # ============================================================================
@@ -302,14 +351,19 @@ install_powerlevel10k() {
     local P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
     
     if [[ -d "$P10K_DIR" ]]; then
-        log_warning "Powerlevel10k zaten kurulu, güncelleniyor..."
-        cd "$P10K_DIR" && git pull > /dev/null 2>&1
-        cd - > /dev/null
+        show_step_info "Güncelleniyor..."
+        local current_dir=$(pwd)
+        if cd "$P10K_DIR"; then
+            git pull &>/dev/null || log_warning "Güncelleme başarısız"
+            cd "$current_dir" || true
+        fi
+        show_step_success "Tema motoru hazır"
     else
-        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" || {
+        if ! git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" &>/dev/null; then
             log_error "Powerlevel10k klonlama başarısız!"
             return 1
-        }
+        fi
+        show_step_success "Tema motoru kuruldu"
     fi
     
     if [[ -f ~/.zshrc ]]; then
@@ -317,6 +371,7 @@ install_powerlevel10k() {
     fi
     
     log_success "Powerlevel10k kuruldu"
+    return 0
 }
 
 # ============================================================================
@@ -331,17 +386,28 @@ install_plugins() {
     fi
     
     local CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    local install_errors=0
     
     if [[ ! -d "$CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" || {
+        if git clone https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" &>/dev/null; then
+            show_step_success "zsh-autosuggestions"
+        else
             log_warning "zsh-autosuggestions kurulumu başarısız"
-        }
+            ((install_errors++))
+        fi
+    else
+        show_step_skip "zsh-autosuggestions zaten kurulu"
     fi
     
     if [[ ! -d "$CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" || {
+        if git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null; then
+            show_step_success "zsh-syntax-highlighting"
+        else
             log_warning "zsh-syntax-highlighting kurulumu başarısız"
-        }
+            ((install_errors++))
+        fi
+    else
+        show_step_skip "zsh-syntax-highlighting zaten kurulu"
     fi
     
     if [[ -f ~/.zshrc ]]; then
@@ -352,7 +418,13 @@ install_plugins() {
         fi
     fi
     
-    log_success "Pluginler kuruldu"
+    if [ $install_errors -eq 0 ]; then
+        log_success "Pluginler kuruldu"
+        return 0
+    else
+        log_warning "Bazı pluginler kurulamadı ($install_errors hata)"
+        return 1
+    fi
 }
 
 # ============================================================================
@@ -372,18 +444,19 @@ install_fzf() {
     fi
     
     if [[ ! -d ~/.fzf ]]; then
-        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf || {
+        if ! git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf &>/dev/null; then
             log_error "FZF klonlama başarısız!"
             return 1
-        }
+        fi
     fi
     
-    ~/.fzf/install --all --no-bash --no-fish || {
+    if ! ~/.fzf/install --all --no-bash --no-fish &>/dev/null; then
         log_error "FZF kurulumu başarısız!"
         return 1
-    }
+    fi
     
     log_success "FZF kuruldu"
+    return 0
 }
 
 install_zoxide() {
@@ -398,20 +471,23 @@ install_zoxide() {
         return 1
     fi
     
-    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash || {
+    if ! curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null; then
         log_error "Zoxide kurulumu başarısız!"
         return 1
-    }
+    fi
     
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "zoxide init zsh" ~/.zshrc; then
-            echo '' >> ~/.zshrc
-            echo '# Zoxide initialization' >> ~/.zshrc
-            echo 'eval "$(zoxide init zsh)"' >> ~/.zshrc
+            {
+                echo ''
+                echo '# Zoxide initialization'
+                echo 'eval "$(zoxide init zsh)"'
+            } >> ~/.zshrc
         fi
     fi
     
     log_success "Zoxide kuruldu"
+    return 0
 }
 
 install_exa() {
@@ -422,23 +498,26 @@ install_exa() {
         return 0
     fi
     
-    sudo apt install -y exa || {
+    if ! sudo apt install -y exa &>/dev/null; then
         log_error "Exa kurulumu başarısız!"
         return 1
-    }
+    fi
     
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "alias ls=" ~/.zshrc; then
-            echo '' >> ~/.zshrc
-            echo '# Exa aliases' >> ~/.zshrc
-            echo 'alias ls="exa --icons"' >> ~/.zshrc
-            echo 'alias ll="exa -l --icons"' >> ~/.zshrc
-            echo 'alias la="exa -la --icons"' >> ~/.zshrc
-            echo 'alias lt="exa --tree --icons"' >> ~/.zshrc
+            {
+                echo ''
+                echo '# Exa aliases'
+                echo 'alias ls="exa --icons"'
+                echo 'alias ll="exa -l --icons"'
+                echo 'alias la="exa -la --icons"'
+                echo 'alias lt="exa --tree --icons"'
+            } >> ~/.zshrc
         fi
     fi
     
     log_success "Exa kuruldu"
+    return 0
 }
 
 install_bat() {
@@ -449,20 +528,23 @@ install_bat() {
         return 0
     fi
     
-    sudo apt install -y bat || {
+    if ! sudo apt install -y bat &>/dev/null; then
         log_error "Bat kurulumu başarısız!"
         return 1
-    }
+    fi
     
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "alias cat=" ~/.zshrc; then
-            echo '' >> ~/.zshrc
-            echo '# Bat alias' >> ~/.zshrc
-            echo 'alias cat="batcat"' >> ~/.zshrc
+            {
+                echo ''
+                echo '# Bat alias'
+                echo 'alias cat="batcat"'
+            } >> ~/.zshrc
         fi
     fi
     
     log_success "Bat kuruldu"
+    return 0
 }
 
 install_all_tools() {
@@ -470,20 +552,27 @@ install_all_tools() {
     
     local total_tools=4
     local current_tool=0
+    local errors=0
     
     show_progress $((++current_tool)) $total_tools "FZF kuruluyor"
-    install_fzf
+    install_fzf || ((errors++))
     
     show_progress $((++current_tool)) $total_tools "Zoxide kuruluyor"
-    install_zoxide
+    install_zoxide || ((errors++))
     
     show_progress $((++current_tool)) $total_tools "Exa kuruluyor"
-    install_exa
+    install_exa || ((errors++))
     
     show_progress $((++current_tool)) $total_tools "Bat kuruluyor"
-    install_bat
+    install_bat || ((errors++))
     
-    log_success "Tüm araçlar kuruldu"
+    if [ $errors -eq 0 ]; then
+        log_success "Tüm araçlar kuruldu"
+        return 0
+    else
+        log_warning "$errors araç kurulamadı"
+        return 1
+    fi
 }
 
 # ============================================================================
@@ -498,12 +587,13 @@ install_tmux() {
         return 0
     fi
     
-    sudo apt install -y tmux || {
+    if ! sudo apt install -y tmux &>/dev/null; then
         log_error "Tmux kurulumu başarısız!"
         return 1
-    }
+    fi
     
     log_success "Tmux kuruldu"
+    return 0
 }
 
 configure_tmux_theme() {
@@ -532,7 +622,6 @@ set -g renumber-windows on
 
 EOF
     
-    # Tema modülünden tema config'i al ve ekle
     case $theme in
         dracula) get_tmux_theme_dracula >> "$tmux_conf" ;;
         nord) get_tmux_theme_nord >> "$tmux_conf" ;;
@@ -554,13 +643,15 @@ setw -g window-status-current-format " #I:#W "
 EOF
     
     log_success "Tmux tema konfigürasyonu tamamlandı"
+    return 0
 }
 
 install_tmux_with_theme() {
     local theme=$1
     install_tmux || return 1
-    configure_tmux_theme "$theme"
+    configure_tmux_theme "$theme" || return 1
     log_info "Tmux'u test etmek için: tmux"
+    return 0
 }
 
 # ============================================================================
@@ -601,7 +692,6 @@ install_theme_gnome() {
     
     local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
     
-    # Tema modülündeki fonksiyonları kullan
     case $theme in
         dracula) apply_dracula_gnome "$PROFILE_PATH" ;;
         nord) apply_nord_gnome "$PROFILE_PATH" ;;
@@ -612,6 +702,8 @@ install_theme_gnome() {
         solarized) apply_solarized_gnome "$PROFILE_PATH" ;;
         *) log_error "Bilinmeyen tema: $theme"; return 1 ;;
     esac
+    
+    return 0
 }
 
 install_theme_kitty() {
@@ -625,11 +717,13 @@ install_theme_kitty() {
     local kitty_conf="$HOME/.config/kitty/kitty.conf"
     local theme_dir="$HOME/.config/kitty/themes"
     
-    mkdir -p "$theme_dir"
+    mkdir -p "$theme_dir" || {
+        log_error "Tema dizini oluşturulamadı"
+        return 1
+    }
     
     [[ -f "$kitty_conf" ]] && sed -i '/^include themes\//d' "$kitty_conf" || touch "$kitty_conf"
     
-    # Tema modülünden tema config'i al ve kaydet
     case $theme in
         dracula)
             get_kitty_theme_dracula > "$theme_dir/dracula.conf"
@@ -662,6 +756,7 @@ install_theme_kitty() {
     esac
     
     log_success "Kitty için $theme teması kuruldu"
+    return 0
 }
 
 install_theme_alacritty() {
@@ -673,11 +768,13 @@ install_theme_alacritty() {
     fi
     
     local alacritty_conf="$HOME/.config/alacritty/alacritty.yml"
-    mkdir -p "$(dirname "$alacritty_conf")"
+    mkdir -p "$(dirname "$alacritty_conf")" || {
+        log_error "Alacritty config dizini oluşturulamadı"
+        return 1
+    }
     
     [[ -f "$alacritty_conf" ]] && sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
     
-    # Tema modülünden tema config'i al ve ekle
     case $theme in
         dracula) get_alacritty_theme_dracula >> "$alacritty_conf" ;;
         nord) get_alacritty_theme_nord >> "$alacritty_conf" ;;
@@ -689,6 +786,7 @@ install_theme_alacritty() {
     esac
     
     log_success "Alacritty için $theme teması kuruldu"
+    return 0
 }
 
 # ============================================================================
@@ -703,30 +801,34 @@ migrate_bash_aliases() {
     
     for alias_file in "${aliases_files[@]}"; do
         if [[ -f "$alias_file" ]]; then
-            log_success "Bulundu: $alias_file"
+            show_step_success "Bulundu: $alias_file"
             found_aliases=true
             
-            # .zshrc'de zaten var mı kontrol et
-            if grep -q "source.*$(basename $alias_file)" ~/.zshrc 2>/dev/null; then
-                log_warning "$(basename $alias_file) zaten .zshrc içinde tanımlı"
+            local alias_basename
+            alias_basename=$(basename "$alias_file")
+            
+            if grep -q "source.*${alias_basename}" ~/.zshrc 2>/dev/null; then
+                show_step_skip "${alias_basename} zaten .zshrc içinde tanımlı"
             else
-                echo
-                echo -e "${YELLOW}$alias_file dosyanız bulundu.${NC}"
-                echo -e "${CYAN}Bu dosyayı Zsh'de de kullanmak ister misiniz?${NC}"
-                echo
+                show_user_prompt "BASH ALIASES BULUNDU" \
+                    "$alias_file dosyanız mevcut." \
+                    "Zsh'de de kullanmak ister misiniz?" \
+                    ""
                 echo -n "Eklemek için (e/h): "
                 read -r add_aliases
                 
                 if [[ "$add_aliases" == "e" ]]; then
-                    echo "" >> ~/.zshrc
-                    echo "# Bash aliases compatibility" >> ~/.zshrc
-                    echo "if [[ -f $alias_file ]]; then" >> ~/.zshrc
-                    echo "    source $alias_file" >> ~/.zshrc
-                    echo "fi" >> ~/.zshrc
+                    {
+                        echo ""
+                        echo "# Bash aliases compatibility"
+                        echo "if [[ -f $alias_file ]]; then"
+                        echo "    source $alias_file"
+                        echo "fi"
+                    } >> ~/.zshrc
                     
-                    log_success "$alias_file .zshrc'ye eklendi"
+                    show_step_success "$alias_file .zshrc'ye eklendi"
                 else
-                    log_info "Atlandı"
+                    show_step_skip "Atlandı"
                 fi
             fi
         fi
@@ -751,7 +853,8 @@ configure_gnome_terminal_login_shell() {
     
     log_info "GNOME Terminal login shell ayarı yapılıyor..."
     
-    local PROFILE_ID=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+    local PROFILE_ID
+    PROFILE_ID=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
     
     if [[ -z "$PROFILE_ID" ]]; then
         log_debug "GNOME Terminal profili bulunamadı"
@@ -760,14 +863,18 @@ configure_gnome_terminal_login_shell() {
     
     local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE_ID/"
     
-    # Login shell ayarını kontrol et
-    local current_setting=$(gsettings get "$PROFILE_PATH" login-shell 2>/dev/null)
+    local current_setting
+    current_setting=$(gsettings get "$PROFILE_PATH" login-shell 2>/dev/null)
     
     if [[ "$current_setting" == "true" ]]; then
         log_success "GNOME Terminal zaten login shell modunda"
     else
-        gsettings set "$PROFILE_PATH" login-shell true 2>/dev/null
-        log_success "GNOME Terminal login shell olarak ayarlandı"
+        if gsettings set "$PROFILE_PATH" login-shell true 2>/dev/null; then
+            log_success "GNOME Terminal login shell olarak ayarlandı"
+        else
+            log_warning "GNOME Terminal ayarı yapılamadı"
+            return 1
+        fi
     fi
     
     return 0
@@ -776,29 +883,33 @@ configure_gnome_terminal_login_shell() {
 change_default_shell() {
     log_info "Varsayılan shell Zsh olarak ayarlanıyor..."
     
-    local ZSH_PATH=$(which zsh)
+    local ZSH_PATH
+    ZSH_PATH=$(which zsh)
     
     if [[ -z "$ZSH_PATH" ]]; then
         log_error "Zsh bulunamadı!"
         return 1
     fi
     
-    # /etc/passwd kontrolü
-    local CURRENT_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+    local CURRENT_SHELL
+    CURRENT_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
     
     if [[ "$CURRENT_SHELL" == "$ZSH_PATH" ]]; then
-        log_success "Zsh zaten sistem varsayılan shell'i"
+        show_step_skip "Zaten Zsh aktif"
     else
-        log_info "Shell değiştiriliyor: $CURRENT_SHELL → $ZSH_PATH"
+        show_step_info "Shell değiştiriliyor: $CURRENT_SHELL → $ZSH_PATH"
         
-        if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE"; then
-            log_success "Sistem shell'i Zsh olarak ayarlandı"
+        if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+            show_step_success "Sistem shell'i Zsh olarak ayarlandı"
             
-            # Doğrulama
-            local NEW_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+            local NEW_SHELL
+            NEW_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
             if [[ "$NEW_SHELL" != "$ZSH_PATH" ]]; then
-                log_warning "chsh başarısız, sudo ile deneniyor..."
-                sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE"
+                show_step_info "sudo ile deneniyor..."
+                if ! sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                    log_error "Shell değiştirilemedi"
+                    return 1
+                fi
             fi
         else
             log_error "Shell değiştirilemedi"
@@ -806,20 +917,13 @@ change_default_shell() {
         fi
     fi
     
-    # GNOME Terminal ayarı (kritik!)
     configure_gnome_terminal_login_shell
-    
-    echo
-    log_warning "ÖNEMLİ: Yeni terminallerde Zsh görmek için:"
-    echo -e "  ${CYAN}Seçenek 1:${NC} Tüm terminal pencerelerini kapatıp yeniden açın"
-    echo -e "  ${CYAN}Seçenek 2:${NC} Logout/login yapın (en garantili)"
-    echo -e "  ${CYAN}Seçenek 3:${NC} 'exec zsh' komutuyla mevcut terminalde geçin"
     
     return 0
 }
 
 # ============================================================================
-# KALDIRMA - İYİLEŞTİRİLMİŞ VERSİYON
+# KALDIRMA
 # ============================================================================
 
 reset_terminal_profile() {
@@ -830,7 +934,8 @@ reset_terminal_profile() {
         return 1
     fi
     
-    local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+    local PROFILE
+    PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
     
     if [[ -z "$PROFILE" ]]; then
         log_warning "Terminal profili bulunamadı"
@@ -839,7 +944,7 @@ reset_terminal_profile() {
     
     local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
     
-    echo "  → Renk teması varsayılana döndürülüyor..."
+    show_step_info "Renk teması varsayılana döndürülüyor..."
     
     gsettings set "$PROFILE_PATH" use-theme-colors true 2>/dev/null
     gsettings reset "$PROFILE_PATH" background-color 2>/dev/null
@@ -847,7 +952,7 @@ reset_terminal_profile() {
     gsettings reset "$PROFILE_PATH" palette 2>/dev/null
     gsettings reset "$PROFILE_PATH" visible-name 2>/dev/null
     
-    log_success "  Terminal ayarları sıfırlandı"
+    show_step_success "Terminal ayarları sıfırlandı"
     return 0
 }
 
@@ -866,17 +971,21 @@ USER=$USER
 EOF
     
     if command -v gsettings &> /dev/null; then
-        local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        local PROFILE
+        PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
         if [[ -n "$PROFILE" ]]; then
             local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
-            echo "PROFILE=$PROFILE" >> "$state_file"
-            echo "USE_THEME_COLORS=$(gsettings get "$PATH" use-theme-colors 2>/dev/null)" >> "$state_file"
-            echo "BG_COLOR=$(gsettings get "$PATH" background-color 2>/dev/null)" >> "$state_file"
-            echo "FG_COLOR=$(gsettings get "$PATH" foreground-color 2>/dev/null)" >> "$state_file"
+            {
+                echo "PROFILE=$PROFILE"
+                echo "USE_THEME_COLORS=$(gsettings get "$PATH" use-theme-colors 2>/dev/null)"
+                echo "BG_COLOR=$(gsettings get "$PATH" background-color 2>/dev/null)"
+                echo "FG_COLOR=$(gsettings get "$PATH" foreground-color 2>/dev/null)"
+            } >> "$state_file"
         fi
     fi
     
     log_success "Orijinal durum kaydedildi: $state_file"
+    return 0
 }
 
 restore_original_state() {
@@ -889,17 +998,18 @@ restore_original_state() {
     
     log_info "Orijinal duruma geri dönülüyor..."
     
+    # shellcheck source=/dev/null
     source "$state_file"
     
     if [[ -n "$ORIGINAL_SHELL" ]] && command -v "$ORIGINAL_SHELL" &> /dev/null; then
-        echo "  → Shell geri yükleniyor: $ORIGINAL_SHELL"
-        sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE"
+        show_step_info "Shell geri yükleniyor: $ORIGINAL_SHELL"
+        sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null
     fi
     
     if [[ -n "$PROFILE" ]] && command -v gsettings &> /dev/null; then
         local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
         
-        echo "  → Terminal renkleri geri yükleniyor..."
+        show_step_info "Terminal renkleri geri yükleniyor..."
         
         if [[ "$USE_THEME_COLORS" == "true" ]]; then
             gsettings set "$PATH" use-theme-colors true 2>/dev/null
@@ -910,6 +1020,7 @@ restore_original_state() {
     fi
     
     log_success "Orijinal durum geri yüklendi"
+    return 0
 }
 
 uninstall_all() {
@@ -925,195 +1036,165 @@ uninstall_all() {
     fi
     
     if [[ "$force_mode" == false ]]; then
-        log_warning "Tüm özelleştirmeler kaldırılacak!"
-        echo
-        echo "Bu işlem şunları yapacak:"
-        echo "  • Tüm Zsh ayarlarını silecek"
-        echo "  • Oh My Zsh'i kaldıracak"
-        echo "  • Terminal renklerini varsayılana döndürecek"
-        echo "  • Fontları silecek"
-        echo "  • Kurulu araçları kaldıracak (opsiyonel)"
-        echo "  • Zsh paketini kaldıracak (opsiyonel)"
-        echo
+        show_user_prompt "TÜM ÖZELLEŞTİRMELER KALDIRILACAK" \
+            "• Tüm Zsh ayarlarını silecek" \
+            "• Oh My Zsh'i kaldıracak" \
+            "• Terminal renklerini varsayılana döndürecek" \
+            "• Fontları silecek" \
+            "• Kurulu araçları kaldıracak (opsiyonel)" \
+            ""
         echo -n "Emin misiniz? (e/h): "
         read -r confirm
         
         if [[ "$confirm" != "e" ]]; then
             log_info "İptal edildi"
-            return
+            return 0
         fi
     fi
     
     echo
-    log_info "═════════════════════════════════════════════"
-    log_info "TAM KALDIRMA İŞLEMİ BAŞLIYOR"
-    log_info "═════════════════════════════════════════════"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}   TAM KALDIRMA İŞLEMİ BAŞLIYOR           ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     
     local total_steps=11
     local current_step=0
     local errors=0
     
     echo
-    log_info "[$((++current_step))/$total_steps] Terminal profil ayarları sıfırlanıyor..."
+    show_section $((++current_step)) $total_steps "Terminal profil ayarları sıfırlanıyor"
     if reset_terminal_profile; then
-        log_success "  Terminal varsayılan renklerine döndü"
+        show_step_success "Terminal varsayılan renklerine döndü"
     else
-        log_warning "  Terminal ayarları sıfırlanamadı"
+        show_step_skip "Terminal ayarları sıfırlanamadı"
         ((errors++))
     fi
     
-    echo
-    log_info "[$((++current_step))/$total_steps] Orijinal sistem durumuna dönülüyor..."
+    show_section $((++current_step)) $total_steps "Orijinal sistem durumuna dönülüyor"
     if restore_original_state; then
-        log_success "  Orijinal durum geri yüklendi"
+        show_step_success "Orijinal durum geri yüklendi"
     else
-        log_warning "  Orijinal durum dosyası yok, manuel geri yükleme yapılacak"
+        show_step_info "Orijinal durum dosyası yok, manuel geri yükleme yapılacak"
         
         if command -v bash &> /dev/null; then
-            local bash_path=$(which bash)
-            echo "  → Bash yolu: $bash_path"
+            local bash_path
+            bash_path=$(which bash)
             
             if [[ "$SHELL" == "$bash_path" ]]; then
-                log_success "  Zaten Bash kullanılıyor"
+                show_step_skip "Zaten Bash kullanılıyor"
             else
-                echo "  → sudo ile shell değiştiriliyor (şifre gerekebilir)..."
-                if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE"; then
-                    log_success "  Shell başarıyla değiştirildi"
+                show_step_info "Bash'e geçiliyor..."
+                if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                    show_step_success "Shell başarıyla değiştirildi"
                 else
-                    log_error "  Shell değiştirilemedi (Hata Kodu: $?)"
+                    log_error "Shell değiştirilemedi"
                     ((errors++))
                 fi
             fi
         fi
     fi
     
-    echo
-    log_info "[$((++current_step))/$total_steps] Oh My Zsh kaldırılıyor..."
+    show_section $((++current_step)) $total_steps "Oh My Zsh kaldırılıyor"
     if [[ -d ~/.oh-my-zsh ]]; then
-        echo "  → ~/.oh-my-zsh siliniyor..."
-        if rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE"; then
-            log_success "  Oh My Zsh kaldırıldı"
+        if rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+            show_step_success "Oh My Zsh kaldırıldı"
         else
-            log_error "  Silinemedi (Hata Kodu: $?)"
+            log_error "Silinemedi"
             ((errors++))
         fi
     else
-        log_success "  Zaten yok"
+        show_step_skip "Zaten yok"
     fi
     
-    echo
-    log_info "[$((++current_step))/$total_steps] Zsh konfigürasyon dosyaları siliniyor..."
+    show_section $((++current_step)) $total_steps "Zsh konfigürasyon dosyaları siliniyor"
     local zsh_files=("~/.zshrc" "~/.zsh_history" "~/.p10k.zsh" "~/.zshenv" "~/.zprofile" "~/.zlogin")
     for file in "${zsh_files[@]}"; do
         local expanded_file="${file/#\~/$HOME}"
         if [[ -f "$expanded_file" ]]; then
-            echo "  → $file siliniyor..."
-            if rm "$expanded_file" 2>&1 | tee -a "$LOG_FILE"; then
-                log_success "  Silindi: $file"
+            if rm "$expanded_file" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                show_step_success "Silindi: $file"
             else
-                log_error "  Silinemedi: $file (Hata Kodu: $?)"
+                log_error "Silinemedi: $file"
                 ((errors++))
             fi
         fi
     done
     
-    echo
-    log_info "[$((++current_step))/$total_steps] Yedeklerden geri yükleniyor..."
+    show_section $((++current_step)) $total_steps "Yedeklerden geri yükleniyor"
     if [[ -d "$BACKUP_DIR" ]]; then
-        local latest_bashrc=$(ls -t "$BACKUP_DIR"/bashrc_* 2>/dev/null | head -1)
+        local latest_bashrc
+        latest_bashrc=$(ls -t "$BACKUP_DIR"/bashrc_* 2>/dev/null | head -1)
         if [[ -f "$latest_bashrc" ]]; then
-            echo "  → .bashrc geri yükleniyor..."
-            if cp "$latest_bashrc" ~/.bashrc 2>&1 | tee -a "$LOG_FILE"; then
-                log_success "  .bashrc geri yüklendi"
+            if cp "$latest_bashrc" ~/.bashrc 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                show_step_success ".bashrc geri yüklendi"
             else
-                log_error "  .bashrc geri yüklenemedi (Hata Kodu: $?)"
+                log_error ".bashrc geri yüklenemedi"
                 ((errors++))
             fi
         fi
         
-        local latest_tmux=$(ls -t "$BACKUP_DIR"/tmux_* 2>/dev/null | head -1)
+        local latest_tmux
+        latest_tmux=$(ls -t "$BACKUP_DIR"/tmux_* 2>/dev/null | head -1)
         if [[ -f "$latest_tmux" ]]; then
-            echo "  → .tmux.conf geri yükleniyor..."
-            if cp "$latest_tmux" ~/.tmux.conf 2>&1 | tee -a "$LOG_FILE"; then
-                log_success "  .tmux.conf geri yüklendi"
+            if cp "$latest_tmux" ~/.tmux.conf 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                show_step_success ".tmux.conf geri yüklendi"
             else
-                log_error "  .tmux.conf geri yüklenemedi (Hata Kodu: $?)"
+                log_error ".tmux.conf geri yüklenemedi"
                 ((errors++))
             fi
         fi
     else
-        log_warning "  Yedek bulunamadı"
+        show_step_skip "Yedek bulunamadı"
     fi
     
     echo
-    echo "═════════════════════════════════════════════"
+    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
     
     if [[ "$force_mode" == true ]]; then
         log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
         
-        echo
-        log_info "[$((++current_step))/$total_steps] FZF kaldırılıyor..."
-        [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "  FZF kaldırıldı"
+        show_section $((++current_step)) $total_steps "FZF kaldırılıyor"
+        [[ -d ~/.fzf ]] && rm -rf ~/.fzf && show_step_success "FZF kaldırıldı"
         
-        echo
-        log_info "[$((++current_step))/$total_steps] Zoxide kaldırılıyor..."
+        show_section $((++current_step)) $total_steps "Zoxide kaldırılıyor"
         if command -v zoxide &> /dev/null; then
-            local zoxide_bin=$(which zoxide)
-            [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && log_success "  Zoxide kaldırıldı"
+            local zoxide_bin
+            zoxide_bin=$(which zoxide)
+            [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && show_step_success "Zoxide kaldırıldı"
         fi
         
-        echo
-        log_info "[$((++current_step))/$total_steps] Fontlar kaldırılıyor..."
+        show_section $((++current_step)) $total_steps "Fontlar kaldırılıyor"
         local FONT_DIR=~/.local/share/fonts
         if [[ -d "$FONT_DIR" ]]; then
             rm -f "$FONT_DIR"/MesloLGS*.ttf 2>/dev/null
             command -v fc-cache &> /dev/null && fc-cache -f "$FONT_DIR" > /dev/null 2>&1
-            log_success "  Fontlar kaldırıldı"
+            show_step_success "Fontlar kaldırıldı"
         fi
         
-        echo
-        log_info "[$((++current_step))/$total_steps] Tmux kaldırılıyor..."
+        show_section $((++current_step)) $total_steps "Tmux kaldırılıyor"
         if command -v tmux &> /dev/null; then
-            sudo apt remove -y tmux 2>&1 | tee -a "$LOG_FILE" && log_success "  Tmux kaldırıldı"
+            sudo apt remove -y tmux &>/dev/null && show_step_success "Tmux kaldırıldı"
         fi
         
-        echo
-        log_info "[$((++current_step))/$total_steps] Zsh paketi kaldırılıyor..."
-        sudo apt remove -y zsh 2>&1 | tee -a "$LOG_FILE" && log_success "  Zsh paketi kaldırıldı"
-        sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
+        show_section $((++current_step)) $total_steps "Zsh paketi kaldırılıyor"
+        sudo apt remove -y zsh &>/dev/null && show_step_success "Zsh paketi kaldırıldı"
+        sudo apt autoremove -y &>/dev/null
         
-        echo
-        log_info "[$((++current_step))/$total_steps] Sistem araçları kaldırılıyor..."
-        sudo apt remove -y exa bat 2>&1 | tee -a "$LOG_FILE" && log_success "  Exa ve Bat kaldırıldı"
-        sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
-        
-    else
-        echo -e "${YELLOW}Opsiyonel Kaldırmalar:${NC}"
-        echo
-        
-        echo
-        log_info "[$((++current_step))/$total_steps] FZF kontrolü..."
-        if command -v fzf &> /dev/null || [[ -d ~/.fzf ]]; then
-            local remove_fzf=$(read_with_timeout "  FZF kaldırılsın mı? (e/h):" 30 "h")
-            if [[ "$remove_fzf" == "e" ]]; then
-                [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "  FZF kaldırıldı"
-            else
-                log_info "  FZF korundu"
-            fi
-        else
-            log_success "  FZF yok"
-        fi
+        show_section $((++current_step)) $total_steps "Sistem araçları kaldırılıyor"
+        sudo apt remove -y exa bat &>/dev/null && show_step_success "Exa ve Bat kaldırıldı"
+        sudo apt autoremove -y &>/dev/null
     fi
     
     echo
-    echo "═════════════════════════════════════════════"
-    echo -e "${CYAN}KALDIRMA ÖZETİ:${NC}"
-    echo "  Tamamlanan adımlar: $current_step/$total_steps"
-    echo "  Hatalar: $errors"
+    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}   KALDIRMA ÖZET${NC}İ                        ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
+    echo -e "  Tamamlanan adımlar: ${current_step}/${total_steps}"
+    echo -e "  Hatalar: ${errors}"
     
     if [ $errors -eq 0 ]; then
         echo
-        log_success "✓ Kaldırma başarıyla tamamlandı!"
+        echo -e "${GREEN}✓ Kaldırma başarıyla tamamlandı!${NC}"
         echo
         echo -e "${YELLOW}ÖNEMLİ:${NC}"
         echo "  1. Terminal'i KAPAT ve TEKRAR AÇ"
@@ -1121,7 +1202,9 @@ uninstall_all() {
         echo "  3. 'echo \$SHELL' ile shell'in bash olduğunu kontrol et"
     else
         echo
-        log_warning "Kaldırma tamamlandı ama $errors hata oluştu"
+        echo -e "${YELLOW}Kaldırma tamamlandı ama $errors hata oluştu${NC}"
         echo "  Detaylar için: cat $LOG_FILE"
     fi
+    
+    return 0
 }

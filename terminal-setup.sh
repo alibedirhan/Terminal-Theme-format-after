@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.1.0 - Modüler Yapı
+# v3.1.1 - Modüler Yapı (Modern UI)
 # ============================================================================
 # Dosya Yapısı:
 # - terminal-setup.sh      (bu dosya - orchestration)
@@ -13,7 +13,7 @@
 # ============================================================================
 
 # Script versiyonu
-VERSION="3.1.0"
+VERSION="3.1.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler - Organize edilmiş yapı
@@ -30,13 +30,15 @@ DEBUG_MODE=false
 VERBOSE_MODE=false
 
 # Dizinleri oluştur
-mkdir -p "$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR"
+mkdir -p "$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR" || {
+    echo "HATA: Gerekli dizinler oluşturulamadı!"
+    exit 1
+}
 
 # ============================================================================
 # MODÜL YÜKLEME
 # ============================================================================
 
-# Modülleri yükle
 load_modules() {
     local modules=(
         "terminal-utils.sh"
@@ -48,7 +50,11 @@ load_modules() {
     for module in "${modules[@]}"; do
         local module_path="$SCRIPT_DIR/$module"
         if [[ -f "$module_path" ]]; then
-            source "$module_path"
+            # shellcheck source=/dev/null
+            source "$module_path" || {
+                echo "HATA: $module yüklenemedi!"
+                exit 1
+            }
         else
             echo "HATA: $module bulunamadı!"
             echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun."
@@ -68,8 +74,8 @@ cleanup() {
     [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
     
     # Sudo refresh process'ini durdur
-    if [[ -n "$SUDO_REFRESH_PID" ]]; then
-        kill "$SUDO_REFRESH_PID" 2>/dev/null
+    if [[ -n "${SUDO_REFRESH_PID:-}" ]]; then
+        kill "$SUDO_REFRESH_PID" 2>/dev/null || true
     fi
     
     # Core modülündeki cleanup'ı da çağır
@@ -78,7 +84,7 @@ cleanup() {
     fi
 }
 
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 # ============================================================================
 # TAM KURULUM WRAPPER FONKSİYONU
@@ -88,58 +94,74 @@ perform_full_install() {
     local theme=$1
     local theme_display=$2
     
-    show_banner
-    echo -e "${CYAN}Tam kurulum başlıyor ($theme_display teması)...${NC}"
-    echo
+    clear
+    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}   ${BOLD}${theme_display^^} KURULUMU BAŞLIYOR${NC}          ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
     
     # Ön kontroller
+    echo
+    echo -e "${CYAN}━━━━ HAZIRLIK ━━━━${NC}"
+    
     if ! check_dependencies; then
         log_error "Bağımlılık kontrolü başarısız"
         return 1
     fi
+    show_step_success "Bağımlılıklar kontrol edildi"
     
     if ! setup_sudo; then
         log_error "Sudo yetkisi alınamadı"
         return 1
     fi
+    show_step_success "Sudo yetkisi alındı"
     
-    # Progress tracking
-    local total_steps=7
-    local current_step=0
+    if ! create_backup; then
+        log_error "Yedekleme başarısız"
+        return 1
+    fi
+    show_step_success "Yedek oluşturuldu"
     
-    show_progress $((++current_step)) $total_steps "Yedek oluşturuluyor"
-    create_backup
-    
-    show_progress $((++current_step)) $total_steps "Zsh kuruluyor"
+    # Kurulum adımları
+    show_section 1 7 "Zsh kuruluyor"
     install_zsh || return 1
     
-    show_progress $((++current_step)) $total_steps "Oh My Zsh kuruluyor"
+    show_section 2 7 "Oh My Zsh kuruluyor"
     install_oh_my_zsh || return 1
     
-    show_progress $((++current_step)) $total_steps "Fontlar kuruluyor"
+    show_section 3 7 "Fontlar kuruluyor"
     install_fonts
     
-    show_progress $((++current_step)) $total_steps "Powerlevel10k kuruluyor"
+    show_section 4 7 "Powerlevel10k kuruluyor"
     install_powerlevel10k || return 1
     
-    show_progress $((++current_step)) $total_steps "Pluginler kuruluyor"
+    show_section 5 7 "Pluginler kuruluyor"
     install_plugins
     
-    show_progress $((++current_step)) $total_steps "Tema uygulanıyor"
+    show_section 6 7 "$theme_display teması uygulanıyor"
     install_theme "$theme"
     
-    show_progress $total_steps $total_steps "Shell değiştiriliyor"
+    show_section 7 7 "Shell değiştiriliyor"
     change_default_shell
     
     # Bash aliases migrasyonu
+    echo
+    echo -e "${CYAN}━━━━ BASH ALIASES KONTROLÜ ━━━━${NC}"
     migrate_bash_aliases
     
-    show_completion_message
+    echo
+    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}   ${GREEN}✓ KURULUM BAŞARIYLA TAMAMLANDI${NC}       ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo
+    echo -e "${DIM}Yedekler: $BACKUP_DIR${NC}"
+    echo -e "${DIM}Log dosyası: $LOG_FILE${NC}"
     
     # Otomatik Zsh'e geçiş
     if show_switch_shell_prompt; then
         exec zsh
     fi
+    
+    return 0
 }
 
 # ============================================================================
@@ -187,7 +209,7 @@ change_theme_only() {
     read -r theme_choice
     
     if [[ "$theme_choice" == "0" ]]; then
-        return
+        return 0
     fi
     
     echo
@@ -253,17 +275,17 @@ manage_diagnostics() {
                 # Tüm kontroller
                 diagnose_and_fix "zsh_not_default"
                 echo
-                echo "─────────────────────────────────────"
+                echo "────────────────────────────────────"
                 echo
                 
                 diagnose_and_fix "internet_connection"
                 echo
-                echo "─────────────────────────────────────"
+                echo "────────────────────────────────────"
                 echo
                 
                 diagnose_and_fix "font_not_visible"
                 echo
-                echo "─────────────────────────────────────"
+                echo "────────────────────────────────────"
                 echo
                 
                 diagnose_and_fix "theme_not_applied"
@@ -368,12 +390,12 @@ parse_arguments() {
                 shift
                 ;;
             --health)
-                show_banner
+                show_animated_banner
                 system_health_check
                 exit 0
                 ;;
             --update)
-                show_banner
+                show_animated_banner
                 check_for_updates
                 exit 0
                 ;;
@@ -408,7 +430,10 @@ fi
 # ============================================================================
 
 # Güvenli temp directory oluştur
-TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX)
+TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX) || {
+    echo "HATA: Geçici dizin oluşturulamadı!"
+    exit 1
+}
 
 # Argümanları parse et
 parse_arguments "$@"
@@ -417,13 +442,17 @@ parse_arguments "$@"
 load_config
 
 # Otomatik güncelleme kontrolü
-if [[ "$AUTO_UPDATE" == "true" ]]; then
+if [[ "${AUTO_UPDATE:-false}" == "true" ]]; then
     check_for_updates --silent
 fi
 
 # ============================================================================
 # ANA PROGRAM DÖNGÜSÜ
 # ============================================================================
+
+# İLK AÇILIŞ - ANİMASYONLU BANNER
+show_animated_banner
+sleep 1
 
 while true; do
     show_banner
@@ -447,13 +476,23 @@ while true; do
             check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
             setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
             create_backup
-            show_progress 1 3 "Zsh kuruluyor"
+            
+            clear
+            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║${NC}   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
+            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            
+            show_section 1 3 "Zsh kuruluyor"
             install_zsh
-            show_progress 2 3 "Oh My Zsh kuruluyor"
+            
+            show_section 2 3 "Oh My Zsh kuruluyor"
             install_oh_my_zsh
-            show_progress 3 3 "Shell değiştiriliyor"
+            
+            show_section 3 3 "Shell değiştiriliyor"
             change_default_shell
-            log_success "Tamamlandı"
+            
+            echo
+            echo -e "${GREEN}✓ Tamamlandı${NC}"
             
             # Zsh'e geçiş öner
             if show_switch_shell_prompt; then
@@ -465,11 +504,20 @@ while true; do
         6)
             check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
             create_backup
-            show_progress 1 2 "Fontlar kuruluyor"
+            
+            clear
+            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║${NC}   ${BOLD}POWERLEVEL10K KURULUMU${NC}               ${CYAN}║${NC}"
+            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            
+            show_section 1 2 "Fontlar kuruluyor"
             install_fonts
-            show_progress 2 2 "Powerlevel10k kuruluyor"
+            
+            show_section 2 2 "Powerlevel10k kuruluyor"
             install_powerlevel10k
-            log_success "Tamamlandı"
+            
+            echo
+            echo -e "${GREEN}✓ Tamamlandı${NC}"
             
             # Eğer zsh aktifse source et
             if [[ "$SHELL" == *"zsh"* ]]; then
@@ -484,8 +532,17 @@ while true; do
         8)
             check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
             create_backup
+            
+            clear
+            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║${NC}   ${BOLD}PLUGİN KURULUMU${NC}                      ${CYAN}║${NC}"
+            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo
+            
             install_plugins
-            log_success "Tamamlandı"
+            
+            echo
+            echo -e "${GREEN}✓ Tamamlandı${NC}"
             
             # Eğer zsh aktifse source et
             if [[ "$SHELL" == *"zsh"* ]]; then
@@ -498,8 +555,26 @@ while true; do
             if show_terminal_tools_info; then
                 check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
                 setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
-                install_all_tools
-                log_success "Tamamlandı"
+                
+                clear
+                echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+                echo -e "${CYAN}║${NC}   ${BOLD}TERMİNAL ARAÇLARI KURULUMU${NC}          ${CYAN}║${NC}"
+                echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+                
+                show_section 1 4 "FZF kuruluyor"
+                install_fzf
+                
+                show_section 2 4 "Zoxide kuruluyor"
+                install_zoxide
+                
+                show_section 3 4 "Exa kuruluyor"
+                install_exa
+                
+                show_section 4 4 "Bat kuruluyor"
+                install_bat
+                
+                echo
+                echo -e "${GREEN}✓ Tamamlandı${NC}"
             fi
             read -p "Devam etmek için Enter'a basın..."
             ;;
@@ -544,6 +619,7 @@ while true; do
             ;;
         13)
             show_backups
+            read -p "Devam etmek için Enter'a basın..."
             ;;
         14)
             uninstall_all
