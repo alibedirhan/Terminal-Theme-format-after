@@ -56,11 +56,21 @@ check_dependencies() {
         
         if [[ "$install_choice" == "e" ]]; then
             log_info "Paketler kuruluyor..."
-            sudo apt update || return 1
-            sudo apt install -y "${missing_required[@]}" || {
-                log_error "Paket kurulumu başarısız"
+            
+            if ! sudo apt update; then
+                log_error "apt update başarısız"
+                diagnose_and_fix "internet_connection"
                 return 1
-            }
+            fi
+            
+            if ! sudo apt install -y "${missing_required[@]}"; then
+                log_error "Paket kurulumu başarısız"
+                for pkg in "${missing_required[@]}"; do
+                    diagnose_and_fix "package_missing" "$pkg"
+                done
+                return 1
+            fi
+            
             log_success "Eksik paketler kuruldu"
         else
             log_error "Zorunlu paketler olmadan devam edilemez!"
@@ -93,6 +103,7 @@ setup_sudo() {
     
     if ! sudo -v; then
         log_error "Sudo yetkisi alınamadı"
+        diagnose_and_fix "permission_denied" "sudo -v"
         return 1
     fi
     
@@ -102,7 +113,7 @@ setup_sudo() {
         while true; do
             sleep 50
             sudo -n true
-            kill -0 "$$" 2>/dev/null || exit
+            kill -0 "$" 2>/dev/null || exit
         done
     ) &
     
@@ -348,32 +359,6 @@ install_plugins() {
 # TERMİNAL ARAÇLARI
 # ============================================================================
 
-show_terminal_tools_info() {
-    clear
-    echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           MODERN TERMİNAL ARAÇLARI                   ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
-    echo
-    
-    echo -e "${YELLOW}1) FZF - Fuzzy Finder${NC}"
-    echo "   Dosya, komut, history'de hızlı arama"
-    echo
-    echo -e "${YELLOW}2) Zoxide - Akıllı cd${NC}"
-    echo "   En çok kullandığınız dizinlere hızlıca atlama"
-    echo
-    echo -e "${YELLOW}3) Exa - Modern ls${NC}"
-    echo "   Renkli ve icon'lu dosya listeleme"
-    echo
-    echo -e "${YELLOW}4) Bat - cat with syntax${NC}"
-    echo "   Syntax highlighting ile dosya görüntüleme"
-    echo
-    
-    echo -e "${CYAN}Tümünü kurmak ister misiniz? (e/h): ${NC}"
-    read -r install_all
-    
-    [[ "$install_all" == "e" ]]
-}
-
 install_fzf() {
     log_info "FZF kuruluyor..."
     
@@ -547,70 +532,15 @@ set -g renumber-windows on
 
 EOF
     
+    # Tema modülünden tema config'i al ve ekle
     case $theme in
-        dracula)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#282a36',fg='#f8f8f2'
-set -g window-status-current-style bg='#bd93f9',fg='#282a36'
-set -g pane-border-style fg='#6272a4'
-set -g pane-active-border-style fg='#ff79c6'
-set -g message-style bg='#44475a',fg='#f8f8f2'
-EOF
-            ;;
-        nord)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#2e3440',fg='#d8dee9'
-set -g window-status-current-style bg='#88c0d0',fg='#2e3440'
-set -g pane-border-style fg='#4c566a'
-set -g pane-active-border-style fg='#88c0d0'
-set -g message-style bg='#3b4252',fg='#d8dee9'
-EOF
-            ;;
-        gruvbox)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#282828',fg='#ebdbb2'
-set -g window-status-current-style bg='#fabd2f',fg='#282828'
-set -g pane-border-style fg='#504945'
-set -g pane-active-border-style fg='#fabd2f'
-set -g message-style bg='#504945',fg='#ebdbb2'
-EOF
-            ;;
-        tokyo-night)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#1a1b26',fg='#c0caf5'
-set -g window-status-current-style bg='#7aa2f7',fg='#1a1b26'
-set -g pane-border-style fg='#414868'
-set -g pane-active-border-style fg='#7aa2f7'
-set -g message-style bg='#414868',fg='#c0caf5'
-EOF
-            ;;
-        catppuccin)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#1e1e2e',fg='#cdd6f4'
-set -g window-status-current-style bg='#89b4fa',fg='#1e1e2e'
-set -g pane-border-style fg='#45475a'
-set -g pane-active-border-style fg='#89b4fa'
-set -g message-style bg='#45475a',fg='#cdd6f4'
-EOF
-            ;;
-        one-dark)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#282c34',fg='#abb2bf'
-set -g window-status-current-style bg='#61afef',fg='#282c34'
-set -g pane-border-style fg='#5c6370'
-set -g pane-active-border-style fg='#61afef'
-set -g message-style bg='#3e4451',fg='#abb2bf'
-EOF
-            ;;
-        solarized)
-            cat >> "$tmux_conf" << 'EOF'
-set -g status-style bg='#002b36',fg='#839496'
-set -g window-status-current-style bg='#268bd2',fg='#fdf6e3'
-set -g pane-border-style fg='#073642'
-set -g pane-active-border-style fg='#268bd2'
-set -g message-style bg='#073642',fg='#839496'
-EOF
-            ;;
+        dracula) get_tmux_theme_dracula >> "$tmux_conf" ;;
+        nord) get_tmux_theme_nord >> "$tmux_conf" ;;
+        gruvbox) get_tmux_theme_gruvbox >> "$tmux_conf" ;;
+        tokyo-night) get_tmux_theme_tokyo_night >> "$tmux_conf" ;;
+        catppuccin) get_tmux_theme_catppuccin >> "$tmux_conf" ;;
+        one-dark) get_tmux_theme_one_dark >> "$tmux_conf" ;;
+        solarized) get_tmux_theme_solarized >> "$tmux_conf" ;;
     esac
     
     cat >> "$tmux_conf" << 'EOF'
@@ -671,6 +601,7 @@ install_theme_gnome() {
     
     local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
     
+    # Tema modülündeki fonksiyonları kullan
     case $theme in
         dracula) apply_dracula_gnome "$PROFILE_PATH" ;;
         nord) apply_nord_gnome "$PROFILE_PATH" ;;
@@ -681,76 +612,6 @@ install_theme_gnome() {
         solarized) apply_solarized_gnome "$PROFILE_PATH" ;;
         *) log_error "Bilinmeyen tema: $theme"; return 1 ;;
     esac
-}
-
-apply_dracula_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Dracula" 2>/dev/null
-    gsettings set "$path" background-color '#282A36' 2>/dev/null
-    gsettings set "$path" foreground-color '#F8F8F2' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#000000', '#FF5555', '#50FA7B', '#F1FA8C', '#BD93F9', '#FF79C6', '#8BE9FD', '#BFBFBF', '#4D4D4D', '#FF6E67', '#5AF78E', '#F4F99D', '#CAA9FA', '#FF92D0', '#9AEDFE', '#E6E6E6']" 2>/dev/null
-    log_success "Dracula teması uygulandı"
-}
-
-apply_nord_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Nord" 2>/dev/null
-    gsettings set "$path" background-color '#2E3440' 2>/dev/null
-    gsettings set "$path" foreground-color '#D8DEE9' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#3B4252', '#BF616A', '#A3BE8C', '#EBCB8B', '#81A1C1', '#B48EAD', '#88C0D0', '#E5E9F0', '#4C566A', '#BF616A', '#A3BE8C', '#EBCB8B', '#81A1C1', '#B48EAD', '#8FBCBB', '#ECEFF4']" 2>/dev/null
-    log_success "Nord teması uygulandı"
-}
-
-apply_gruvbox_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Gruvbox Dark" 2>/dev/null
-    gsettings set "$path" background-color '#282828' 2>/dev/null
-    gsettings set "$path" foreground-color '#EBDBB2' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#282828', '#CC241D', '#98971A', '#D79921', '#458588', '#B16286', '#689D6A', '#A89984', '#928374', '#FB4934', '#B8BB26', '#FABD2F', '#83A598', '#D3869B', '#8EC07C', '#EBDBB2']" 2>/dev/null
-    log_success "Gruvbox teması uygulandı"
-}
-
-apply_tokyo_night_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Tokyo Night" 2>/dev/null
-    gsettings set "$path" background-color '#1A1B26' 2>/dev/null
-    gsettings set "$path" foreground-color '#C0CAF5' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#15161E', '#F7768E', '#9ECE6A', '#E0AF68', '#7AA2F7', '#BB9AF7', '#7DCFFF', '#A9B1D6', '#414868', '#F7768E', '#9ECE6A', '#E0AF68', '#7AA2F7', '#BB9AF7', '#7DCFFF', '#C0CAF5']" 2>/dev/null
-    log_success "Tokyo Night teması uygulandı"
-}
-
-apply_catppuccin_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Catppuccin Mocha" 2>/dev/null
-    gsettings set "$path" background-color '#1E1E2E' 2>/dev/null
-    gsettings set "$path" foreground-color '#CDD6F4' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#45475A', '#F38BA8', '#A6E3A1', '#F9E2AF', '#89B4FA', '#F5C2E7', '#94E2D5', '#BAC2DE', '#585B70', '#F38BA8', '#A6E3A1', '#F9E2AF', '#89B4FA', '#F5C2E7', '#94E2D5', '#A6ADC8']" 2>/dev/null
-    log_success "Catppuccin teması uygulandı"
-}
-
-apply_one_dark_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "One Dark" 2>/dev/null
-    gsettings set "$path" background-color '#282C34' 2>/dev/null
-    gsettings set "$path" foreground-color '#ABB2BF' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#282C34', '#E06C75', '#98C379', '#E5C07B', '#61AFEF', '#C678DD', '#56B6C2', '#ABB2BF', '#5C6370', '#E06C75', '#98C379', '#E5C07B', '#61AFEF', '#C678DD', '#56B6C2', '#FFFFFF']" 2>/dev/null
-    log_success "One Dark teması uygulandı"
-}
-
-apply_solarized_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Solarized Dark" 2>/dev/null
-    gsettings set "$path" background-color '#002B36' 2>/dev/null
-    gsettings set "$path" foreground-color '#839496' 2>/dev/null
-    gsettings set "$path" use-theme-colors false 2>/dev/null
-    gsettings set "$path" palette "['#073642', '#DC322F', '#859900', '#B58900', '#268BD2', '#D33682', '#2AA198', '#EEE8D5', '#002B36', '#CB4B16', '#586E75', '#657B83', '#839496', '#6C71C4', '#93A1A1', '#FDF6E3']" 2>/dev/null
-    log_success "Solarized Dark teması uygulandı"
 }
 
 install_theme_kitty() {
@@ -768,180 +629,34 @@ install_theme_kitty() {
     
     [[ -f "$kitty_conf" ]] && sed -i '/^include themes\//d' "$kitty_conf" || touch "$kitty_conf"
     
+    # Tema modülünden tema config'i al ve kaydet
     case $theme in
         dracula)
-            cat > "$theme_dir/dracula.conf" << 'EOF'
-foreground #f8f8f2
-background #282a36
-selection_foreground #ffffff
-selection_background #44475a
-color0  #21222c
-color1  #ff5555
-color2  #50fa7b
-color3  #f1fa8c
-color4  #bd93f9
-color5  #ff79c6
-color6  #8be9fd
-color7  #f8f8f2
-color8  #6272a4
-color9  #ff6e6e
-color10 #69ff94
-color11 #ffffa5
-color12 #d6acff
-color13 #ff92df
-color14 #a4ffff
-color15 #ffffff
-EOF
+            get_kitty_theme_dracula > "$theme_dir/dracula.conf"
             echo "include themes/dracula.conf" >> "$kitty_conf"
             ;;
         nord)
-            cat > "$theme_dir/nord.conf" << 'EOF'
-foreground #d8dee9
-background #2e3440
-selection_foreground #000000
-selection_background #fffacd
-color0  #3b4252
-color1  #bf616a
-color2  #a3be8c
-color3  #ebcb8b
-color4  #81a1c1
-color5  #b48ead
-color6  #88c0d0
-color7  #e5e9f0
-color8  #4c566a
-color9  #bf616a
-color10 #a3be8c
-color11 #ebcb8b
-color12 #81a1c1
-color13 #b48ead
-color14 #8fbcbb
-color15 #eceff4
-EOF
+            get_kitty_theme_nord > "$theme_dir/nord.conf"
             echo "include themes/nord.conf" >> "$kitty_conf"
             ;;
         gruvbox)
-            cat > "$theme_dir/gruvbox.conf" << 'EOF'
-foreground #ebdbb2
-background #282828
-selection_foreground #928374
-selection_background #ebdbb2
-color0  #282828
-color1  #cc241d
-color2  #98971a
-color3  #d79921
-color4  #458588
-color5  #b16286
-color6  #689d6a
-color7  #a89984
-color8  #928374
-color9  #fb4934
-color10 #b8bb26
-color11 #fabd2f
-color12 #83a598
-color13 #d3869b
-color14 #8ec07c
-color15 #ebdbb2
-EOF
+            get_kitty_theme_gruvbox > "$theme_dir/gruvbox.conf"
             echo "include themes/gruvbox.conf" >> "$kitty_conf"
             ;;
         tokyo-night)
-            cat > "$theme_dir/tokyo-night.conf" << 'EOF'
-foreground #c0caf5
-background #1a1b26
-selection_foreground #c0caf5
-selection_background #33467C
-color0  #15161E
-color1  #f7768e
-color2  #9ece6a
-color3  #e0af68
-color4  #7aa2f7
-color5  #bb9af7
-color6  #7dcfff
-color7  #a9b1d6
-color8  #414868
-color9  #f7768e
-color10 #9ece6a
-color11 #e0af68
-color12 #7aa2f7
-color13 #bb9af7
-color14 #7dcfff
-color15 #c0caf5
-EOF
+            get_kitty_theme_tokyo_night > "$theme_dir/tokyo-night.conf"
             echo "include themes/tokyo-night.conf" >> "$kitty_conf"
             ;;
         catppuccin)
-            cat > "$theme_dir/catppuccin.conf" << 'EOF'
-foreground #cdd6f4
-background #1e1e2e
-selection_foreground #1e1e2e
-selection_background #f5e0dc
-color0  #45475a
-color1  #f38ba8
-color2  #a6e3a1
-color3  #f9e2af
-color4  #89b4fa
-color5  #f5c2e7
-color6  #94e2d5
-color7  #bac2de
-color8  #585b70
-color9  #f38ba8
-color10 #a6e3a1
-color11 #f9e2af
-color12 #89b4fa
-color13 #f5c2e7
-color14 #94e2d5
-color15 #a6adc8
-EOF
+            get_kitty_theme_catppuccin > "$theme_dir/catppuccin.conf"
             echo "include themes/catppuccin.conf" >> "$kitty_conf"
             ;;
         one-dark)
-            cat > "$theme_dir/one-dark.conf" << 'EOF'
-foreground #abb2bf
-background #282c34
-selection_foreground #282c34
-selection_background #abb2bf
-color0  #282c34
-color1  #e06c75
-color2  #98c379
-color3  #e5c07b
-color4  #61afef
-color5  #c678dd
-color6  #56b6c2
-color7  #abb2bf
-color8  #5c6370
-color9  #e06c75
-color10 #98c379
-color11 #e5c07b
-color12 #61afef
-color13 #c678dd
-color14 #56b6c2
-color15 #ffffff
-EOF
+            get_kitty_theme_one_dark > "$theme_dir/one-dark.conf"
             echo "include themes/one-dark.conf" >> "$kitty_conf"
             ;;
         solarized)
-            cat > "$theme_dir/solarized.conf" << 'EOF'
-foreground #839496
-background #002b36
-selection_foreground #93a1a1
-selection_background #073642
-color0  #073642
-color1  #dc322f
-color2  #859900
-color3  #b58900
-color4  #268bd2
-color5  #d33682
-color6  #2aa198
-color7  #eee8d5
-color8  #002b36
-color9  #cb4b16
-color10 #586e75
-color11 #657b83
-color12 #839496
-color13 #6c71c4
-color14 #93a1a1
-color15 #fdf6e3
-EOF
+            get_kitty_theme_solarized > "$theme_dir/solarized.conf"
             echo "include themes/solarized.conf" >> "$kitty_conf"
             ;;
     esac
@@ -960,174 +675,103 @@ install_theme_alacritty() {
     local alacritty_conf="$HOME/.config/alacritty/alacritty.yml"
     mkdir -p "$(dirname "$alacritty_conf")"
     
-    local theme_config=""
-    
-    case $theme in
-        dracula) theme_config="colors:
-  primary:
-    background: '#282a36'
-    foreground: '#f8f8f2'
-  normal:
-    black:   '#000000'
-    red:     '#ff5555'
-    green:   '#50fa7b'
-    yellow:  '#f1fa8c'
-    blue:    '#bd93f9'
-    magenta: '#ff79c6'
-    cyan:    '#8be9fd'
-    white:   '#bfbfbf'
-  bright:
-    black:   '#4d4d4d'
-    red:     '#ff6e67'
-    green:   '#5af78e'
-    yellow:  '#f4f99d'
-    blue:    '#caa9fa'
-    magenta: '#ff92d0'
-    cyan:    '#9aedfe'
-    white:   '#e6e6e6'" ;;
-        nord) theme_config="colors:
-  primary:
-    background: '#2e3440'
-    foreground: '#d8dee9'
-  normal:
-    black:   '#3b4252'
-    red:     '#bf616a'
-    green:   '#a3be8c'
-    yellow:  '#ebcb8b'
-    blue:    '#81a1c1'
-    magenta: '#b48ead'
-    cyan:    '#88c0d0'
-    white:   '#e5e9f0'
-  bright:
-    black:   '#4c566a'
-    red:     '#bf616a'
-    green:   '#a3be8c'
-    yellow:  '#ebcb8b'
-    blue:    '#81a1c1'
-    magenta: '#b48ead'
-    cyan:    '#8fbcbb'
-    white:   '#eceff4'" ;;
-        gruvbox) theme_config="colors:
-  primary:
-    background: '#282828'
-    foreground: '#ebdbb2'
-  normal:
-    black:   '#282828'
-    red:     '#cc241d'
-    green:   '#98971a'
-    yellow:  '#d79921'
-    blue:    '#458588'
-    magenta: '#b16286'
-    cyan:    '#689d6a'
-    white:   '#a89984'
-  bright:
-    black:   '#928374'
-    red:     '#fb4934'
-    green:   '#b8bb26'
-    yellow:  '#fabd2f'
-    blue:    '#83a598'
-    magenta: '#d3869b'
-    cyan:    '#8ec07c'
-    white:   '#ebdbb2'" ;;
-        tokyo-night) theme_config="colors:
-  primary:
-    background: '#1a1b26'
-    foreground: '#c0caf5'
-  normal:
-    black:   '#15161e'
-    red:     '#f7768e'
-    green:   '#9ece6a'
-    yellow:  '#e0af68'
-    blue:    '#7aa2f7'
-    magenta: '#bb9af7'
-    cyan:    '#7dcfff'
-    white:   '#a9b1d6'
-  bright:
-    black:   '#414868'
-    red:     '#f7768e'
-    green:   '#9ece6a'
-    yellow:  '#e0af68'
-    blue:    '#7aa2f7'
-    magenta: '#bb9af7'
-    cyan:    '#7dcfff'
-    white:   '#c0caf5'" ;;
-        catppuccin) theme_config="colors:
-  primary:
-    background: '#1e1e2e'
-    foreground: '#cdd6f4'
-  normal:
-    black:   '#45475a'
-    red:     '#f38ba8'
-    green:   '#a6e3a1'
-    yellow:  '#f9e2af'
-    blue:    '#89b4fa'
-    magenta: '#f5c2e7'
-    cyan:    '#94e2d5'
-    white:   '#bac2de'
-  bright:
-    black:   '#585b70'
-    red:     '#f38ba8'
-    green:   '#a6e3a1'
-    yellow:  '#f9e2af'
-    blue:    '#89b4fa'
-    magenta: '#f5c2e7'
-    cyan:    '#94e2d5'
-    white:   '#a6adc8'" ;;
-        one-dark) theme_config="colors:
-  primary:
-    background: '#282c34'
-    foreground: '#abb2bf'
-  normal:
-    black:   '#282c34'
-    red:     '#e06c75'
-    green:   '#98c379'
-    yellow:  '#e5c07b'
-    blue:    '#61afef'
-    magenta: '#c678dd'
-    cyan:    '#56b6c2'
-    white:   '#abb2bf'
-  bright:
-    black:   '#5c6370'
-    red:     '#e06c75'
-    green:   '#98c379'
-    yellow:  '#e5c07b'
-    blue:    '#61afef'
-    magenta: '#c678dd'
-    cyan:    '#56b6c2'
-    white:   '#ffffff'" ;;
-        solarized) theme_config="colors:
-  primary:
-    background: '#002b36'
-    foreground: '#839496'
-  normal:
-    black:   '#073642'
-    red:     '#dc322f'
-    green:   '#859900'
-    yellow:  '#b58900'
-    blue:    '#268bd2'
-    magenta: '#d33682'
-    cyan:    '#2aa198'
-    white:   '#eee8d5'
-  bright:
-    black:   '#002b36'
-    red:     '#cb4b16'
-    green:   '#586e75'
-    yellow:  '#657b83'
-    blue:    '#839496'
-    magenta: '#6c71c4'
-    cyan:    '#93a1a1'
-    white:   '#fdf6e3'" ;;
-    esac
-    
     [[ -f "$alacritty_conf" ]] && sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
     
-    echo "$theme_config" >> "$alacritty_conf"
+    # Tema modülünden tema config'i al ve ekle
+    case $theme in
+        dracula) get_alacritty_theme_dracula >> "$alacritty_conf" ;;
+        nord) get_alacritty_theme_nord >> "$alacritty_conf" ;;
+        gruvbox) get_alacritty_theme_gruvbox >> "$alacritty_conf" ;;
+        tokyo-night) get_alacritty_theme_tokyo_night >> "$alacritty_conf" ;;
+        catppuccin) get_alacritty_theme_catppuccin >> "$alacritty_conf" ;;
+        one-dark) get_alacritty_theme_one_dark >> "$alacritty_conf" ;;
+        solarized) get_alacritty_theme_solarized >> "$alacritty_conf" ;;
+    esac
+    
     log_success "Alacritty için $theme teması kuruldu"
+}
+
+# ============================================================================
+# BASH ALIASES MİGRASYONU
+# ============================================================================
+
+migrate_bash_aliases() {
+    log_info "Bash aliases kontrolü yapılıyor..."
+    
+    local aliases_files=("$HOME/.aliases" "$HOME/.bash_aliases")
+    local found_aliases=false
+    
+    for alias_file in "${aliases_files[@]}"; do
+        if [[ -f "$alias_file" ]]; then
+            log_success "Bulundu: $alias_file"
+            found_aliases=true
+            
+            # .zshrc'de zaten var mı kontrol et
+            if grep -q "source.*$(basename $alias_file)" ~/.zshrc 2>/dev/null; then
+                log_warning "$(basename $alias_file) zaten .zshrc içinde tanımlı"
+            else
+                echo
+                echo -e "${YELLOW}$alias_file dosyanız bulundu.${NC}"
+                echo -e "${CYAN}Bu dosyayı Zsh'de de kullanmak ister misiniz?${NC}"
+                echo
+                echo -n "Eklemek için (e/h): "
+                read -r add_aliases
+                
+                if [[ "$add_aliases" == "e" ]]; then
+                    echo "" >> ~/.zshrc
+                    echo "# Bash aliases compatibility" >> ~/.zshrc
+                    echo "if [[ -f $alias_file ]]; then" >> ~/.zshrc
+                    echo "    source $alias_file" >> ~/.zshrc
+                    echo "fi" >> ~/.zshrc
+                    
+                    log_success "$alias_file .zshrc'ye eklendi"
+                else
+                    log_info "Atlandı"
+                fi
+            fi
+        fi
+    done
+    
+    if ! $found_aliases; then
+        log_debug "Bash aliases dosyası bulunamadı"
+    fi
+    
+    return 0
 }
 
 # ============================================================================
 # SHELL DEĞİŞTİRME
 # ============================================================================
+
+configure_gnome_terminal_login_shell() {
+    if ! command -v gsettings &> /dev/null; then
+        log_debug "gsettings bulunamadı, GNOME Terminal ayarı atlanıyor"
+        return 0
+    fi
+    
+    log_info "GNOME Terminal login shell ayarı yapılıyor..."
+    
+    local PROFILE_ID=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+    
+    if [[ -z "$PROFILE_ID" ]]; then
+        log_debug "GNOME Terminal profili bulunamadı"
+        return 0
+    fi
+    
+    local PROFILE_PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE_ID/"
+    
+    # Login shell ayarını kontrol et
+    local current_setting=$(gsettings get "$PROFILE_PATH" login-shell 2>/dev/null)
+    
+    if [[ "$current_setting" == "true" ]]; then
+        log_success "GNOME Terminal zaten login shell modunda"
+    else
+        gsettings set "$PROFILE_PATH" login-shell true 2>/dev/null
+        log_success "GNOME Terminal login shell olarak ayarlandı"
+    fi
+    
+    return 0
+}
 
 change_default_shell() {
     log_info "Varsayılan shell Zsh olarak ayarlanıyor..."
@@ -1139,19 +783,39 @@ change_default_shell() {
         return 1
     fi
     
-    if [[ "$SHELL" == "$ZSH_PATH" ]]; then
-        log_warning "Zsh zaten varsayılan shell"
-        return 0
+    # /etc/passwd kontrolü
+    local CURRENT_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+    
+    if [[ "$CURRENT_SHELL" == "$ZSH_PATH" ]]; then
+        log_success "Zsh zaten sistem varsayılan shell'i"
+    else
+        log_info "Shell değiştiriliyor: $CURRENT_SHELL → $ZSH_PATH"
+        
+        if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE"; then
+            log_success "Sistem shell'i Zsh olarak ayarlandı"
+            
+            # Doğrulama
+            local NEW_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+            if [[ "$NEW_SHELL" != "$ZSH_PATH" ]]; then
+                log_warning "chsh başarısız, sudo ile deneniyor..."
+                sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE"
+            fi
+        else
+            log_error "Shell değiştirilemedi"
+            return 1
+        fi
     fi
     
-    chsh -s "$ZSH_PATH" || {
-        log_warning "Shell değiştirme başarısız, sudo ile deneyin:"
-        echo "  sudo chsh -s $ZSH_PATH $USER"
-        return 1
-    }
+    # GNOME Terminal ayarı (kritik!)
+    configure_gnome_terminal_login_shell
     
-    log_success "Varsayılan shell Zsh olarak ayarlandı"
-    log_info "Değişikliğin geçerli olması için çıkış yapıp tekrar giriş yapın"
+    echo
+    log_warning "ÖNEMLİ: Yeni terminallerde Zsh görmek için:"
+    echo -e "  ${CYAN}Seçenek 1:${NC} Tüm terminal pencerelerini kapatıp yeniden açın"
+    echo -e "  ${CYAN}Seçenek 2:${NC} Logout/login yapın (en garantili)"
+    echo -e "  ${CYAN}Seçenek 3:${NC} 'exec zsh' komutuyla mevcut terminalde geçin"
+    
+    return 0
 }
 
 # ============================================================================
@@ -1177,10 +841,7 @@ reset_terminal_profile() {
     
     echo "  → Renk teması varsayılana döndürülüyor..."
     
-    # Tema kullanımını aç (sistem temasını kullan)
     gsettings set "$PROFILE_PATH" use-theme-colors true 2>/dev/null
-    
-    # Veya manuel olarak varsayılan renklere döndür
     gsettings reset "$PROFILE_PATH" background-color 2>/dev/null
     gsettings reset "$PROFILE_PATH" foreground-color 2>/dev/null
     gsettings reset "$PROFILE_PATH" palette 2>/dev/null
@@ -1190,7 +851,6 @@ reset_terminal_profile() {
     return 0
 }
 
-# Kurulum öncesi durumu kaydet
 save_original_state() {
     local state_file="$BACKUP_DIR/original_state.txt"
     
@@ -1219,7 +879,6 @@ EOF
     log_success "Orijinal durum kaydedildi: $state_file"
 }
 
-# Orijinal duruma tam geri dön
 restore_original_state() {
     local state_file="$BACKUP_DIR/original_state.txt"
     
@@ -1232,13 +891,11 @@ restore_original_state() {
     
     source "$state_file"
     
-    # Shell'i geri yükle
     if [[ -n "$ORIGINAL_SHELL" ]] && command -v "$ORIGINAL_SHELL" &> /dev/null; then
         echo "  → Shell geri yükleniyor: $ORIGINAL_SHELL"
         sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE"
     fi
     
-    # Terminal ayarlarını geri yükle
     if [[ -n "$PROFILE" ]] && command -v gsettings &> /dev/null; then
         local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
         
@@ -1255,14 +912,9 @@ restore_original_state() {
     log_success "Orijinal durum geri yüklendi"
 }
 
-# ============================================================================
-# YENİ VE GELİŞTİRİLMİŞ UNINSTALL_ALL
-# ============================================================================
-
 uninstall_all() {
     local force_mode=false
     
-    # Force parametresi kontrolü
     if [[ "$1" == "--force" ]]; then
         force_mode=true
         log_warning "ZORLAMALI KALDIRMA MODU - Otomatik onay aktif!"
@@ -1293,15 +945,14 @@ uninstall_all() {
     fi
     
     echo
-    log_info "═══════════════════════════════════════════════════"
+    log_info "═════════════════════════════════════════════"
     log_info "TAM KALDIRMA İŞLEMİ BAŞLIYOR"
-    log_info "═══════════════════════════════════════════════════"
+    log_info "═════════════════════════════════════════════"
     
     local total_steps=11
     local current_step=0
     local errors=0
     
-    # 0. TERMİNAL AYARLARINI SIFIRLA (YENİ!)
     echo
     log_info "[$((++current_step))/$total_steps] Terminal profil ayarları sıfırlanıyor..."
     if reset_terminal_profile; then
@@ -1311,7 +962,6 @@ uninstall_all() {
         ((errors++))
     fi
     
-    # 1. ORİJİNAL DURUMA GERİ DÖN
     echo
     log_info "[$((++current_step))/$total_steps] Orijinal sistem durumuna dönülüyor..."
     if restore_original_state; then
@@ -1319,7 +969,6 @@ uninstall_all() {
     else
         log_warning "  Orijinal durum dosyası yok, manuel geri yükleme yapılacak"
         
-        # Manuel shell değiştirme
         if command -v bash &> /dev/null; then
             local bash_path=$(which bash)
             echo "  → Bash yolu: $bash_path"
@@ -1338,7 +987,6 @@ uninstall_all() {
         fi
     fi
     
-    # 2. Oh My Zsh kaldırma
     echo
     log_info "[$((++current_step))/$total_steps] Oh My Zsh kaldırılıyor..."
     if [[ -d ~/.oh-my-zsh ]]; then
@@ -1353,7 +1001,6 @@ uninstall_all() {
         log_success "  Zaten yok"
     fi
     
-    # 3. Zsh config dosyaları
     echo
     log_info "[$((++current_step))/$total_steps] Zsh konfigürasyon dosyaları siliniyor..."
     local zsh_files=("~/.zshrc" "~/.zsh_history" "~/.p10k.zsh" "~/.zshenv" "~/.zprofile" "~/.zlogin")
@@ -1370,7 +1017,6 @@ uninstall_all() {
         fi
     done
     
-    # 4. Yedeklerden geri yükleme
     echo
     log_info "[$((++current_step))/$total_steps] Yedeklerden geri yükleniyor..."
     if [[ -d "$BACKUP_DIR" ]]; then
@@ -1399,19 +1045,16 @@ uninstall_all() {
         log_warning "  Yedek bulunamadı"
     fi
     
-    # Opsiyonel kaldırmalar
     echo
-    echo "═══════════════════════════════════════════════════"
+    echo "═════════════════════════════════════════════"
     
     if [[ "$force_mode" == true ]]; then
         log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
         
-        # FZF
         echo
         log_info "[$((++current_step))/$total_steps] FZF kaldırılıyor..."
         [[ -d ~/.fzf ]] && rm -rf ~/.fzf && log_success "  FZF kaldırıldı"
         
-        # Zoxide
         echo
         log_info "[$((++current_step))/$total_steps] Zoxide kaldırılıyor..."
         if command -v zoxide &> /dev/null; then
@@ -1419,7 +1062,6 @@ uninstall_all() {
             [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && log_success "  Zoxide kaldırıldı"
         fi
         
-        # Fontlar
         echo
         log_info "[$((++current_step))/$total_steps] Fontlar kaldırılıyor..."
         local FONT_DIR=~/.local/share/fonts
@@ -1429,31 +1071,26 @@ uninstall_all() {
             log_success "  Fontlar kaldırıldı"
         fi
         
-        # Tmux
         echo
         log_info "[$((++current_step))/$total_steps] Tmux kaldırılıyor..."
         if command -v tmux &> /dev/null; then
             sudo apt remove -y tmux 2>&1 | tee -a "$LOG_FILE" && log_success "  Tmux kaldırıldı"
         fi
         
-        # Zsh paketi
         echo
         log_info "[$((++current_step))/$total_steps] Zsh paketi kaldırılıyor..."
         sudo apt remove -y zsh 2>&1 | tee -a "$LOG_FILE" && log_success "  Zsh paketi kaldırıldı"
         sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
         
-        # Sistem araçları
         echo
         log_info "[$((++current_step))/$total_steps] Sistem araçları kaldırılıyor..."
         sudo apt remove -y exa bat 2>&1 | tee -a "$LOG_FILE" && log_success "  Exa ve Bat kaldırıldı"
         sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE"
         
     else
-        # İnteraktif mod - kullanıcıya sor
         echo -e "${YELLOW}Opsiyonel Kaldırmalar:${NC}"
         echo
         
-        # FZF
         echo
         log_info "[$((++current_step))/$total_steps] FZF kontrolü..."
         if command -v fzf &> /dev/null || [[ -d ~/.fzf ]]; then
@@ -1466,13 +1103,10 @@ uninstall_all() {
         else
             log_success "  FZF yok"
         fi
-        
-        # (Diğer opsiyonel kaldırmalar aynı şekilde...)
     fi
     
-    # Özet
     echo
-    echo "═══════════════════════════════════════════════════"
+    echo "═════════════════════════════════════════════"
     echo -e "${CYAN}KALDIRMA ÖZETİ:${NC}"
     echo "  Tamamlanan adımlar: $current_step/$total_steps"
     echo "  Hatalar: $errors"

@@ -6,6 +6,8 @@
 # ============================================================================
 # Dosya Yapısı:
 # - terminal-setup.sh      (bu dosya - orchestration)
+# - terminal-ui.sh         (görsel arayüz)
+# - terminal-themes.sh     (tema tanımları)
 # - terminal-core.sh       (kurulum fonksiyonları)
 # - terminal-utils.sh      (yardımcı fonksiyonlar)
 # ============================================================================
@@ -14,33 +16,54 @@
 VERSION="3.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Global değişkenler
-BACKUP_DIR="$HOME/.terminal-setup-backup"
+# Global değişkenler - Organize edilmiş yapı
+BASE_DIR="$HOME/.terminal-setup"
+BACKUP_DIR="$BASE_DIR/backups"
+LOG_DIR="$BASE_DIR/logs"
+CONFIG_DIR="$BASE_DIR/config"
 TEMP_DIR=""
-CONFIG_FILE="$HOME/.terminal-setup.conf"
-LOG_FILE="$HOME/.terminal-setup.log"
+CONFIG_FILE="$CONFIG_DIR/settings.conf"
+LOG_FILE="$LOG_DIR/terminal-setup.log"
 
 # Flags
 DEBUG_MODE=false
 VERBOSE_MODE=false
 
+# Dizinleri oluştur
+mkdir -p "$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR"
+
+# ============================================================================
+# MODÜL YÜKLEME
+# ============================================================================
+
 # Modülleri yükle
-if [[ -f "$SCRIPT_DIR/terminal-utils.sh" ]]; then
-    source "$SCRIPT_DIR/terminal-utils.sh"
-else
-    echo "HATA: terminal-utils.sh bulunamadı!"
-    echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun."
-    exit 1
-fi
+load_modules() {
+    local modules=(
+        "terminal-utils.sh"
+        "terminal-ui.sh"
+        "terminal-themes.sh"
+        "terminal-core.sh"
+    )
+    
+    for module in "${modules[@]}"; do
+        local module_path="$SCRIPT_DIR/$module"
+        if [[ -f "$module_path" ]]; then
+            source "$module_path"
+        else
+            echo "HATA: $module bulunamadı!"
+            echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun."
+            exit 1
+        fi
+    done
+}
 
-if [[ -f "$SCRIPT_DIR/terminal-core.sh" ]]; then
-    source "$SCRIPT_DIR/terminal-core.sh"
-else
-    log_error "terminal-core.sh bulunamadı!"
-    exit 1
-fi
+# Modülleri yükle
+load_modules
 
-# Temizlik fonksiyonu
+# ============================================================================
+# CLEANUP FONKSİYONU
+# ============================================================================
+
 cleanup() {
     [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
     
@@ -57,101 +80,10 @@ cleanup() {
 
 trap cleanup EXIT
 
-# Banner
-show_banner() {
-    clear
-    echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║       TERMİNAL ÖZELLEŞTİRME KURULUM ARACI v${VERSION}        ║"
-    echo "║                                                          ║"
-    echo "║  • Zsh + Oh My Zsh                                       ║"
-    echo "║  • Powerlevel10k Teması                                  ║"
-    echo "║  • 7 Farklı Renk Teması                                  ║"
-    echo "║  • Çoklu Terminal Emulator Desteği                       ║"
-    echo "║  • Syntax Highlighting & Auto-suggestions                ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
-}
+# ============================================================================
+# TAM KURULUM WRAPPER FONKSİYONU
+# ============================================================================
 
-# Ana menü
-show_menu() {
-    echo -e "${YELLOW}═══ ANA MENÜ ═══${NC}"
-    echo
-    echo -e "${CYAN}Tam Kurulum:${NC}"
-    echo "  1) Dracula Teması ile Tam Kurulum"
-    echo "  2) Nord Teması ile Tam Kurulum"
-    echo "  3) Gruvbox Teması ile Tam Kurulum"
-    echo "  4) Tokyo Night Teması ile Tam Kurulum"
-    echo
-    echo -e "${CYAN}Modüler Kurulum:${NC}"
-    echo "  5) Sadece Zsh + Oh My Zsh"
-    echo "  6) Sadece Powerlevel10k Teması"
-    echo "  7) Sadece Renk Teması Değiştir"
-    echo "  8) Sadece Pluginler"
-    echo "  9) Terminal Araçları (FZF, Zoxide, Exa, Bat)"
-    echo " 10) Tmux Kurulumu"
-    echo
-    echo -e "${CYAN}Yönetim:${NC}"
-    echo " 11) Sistem Sağlık Kontrolü"
-    echo " 12) Yedekleri Göster"
-    echo " 13) Tümünü Kaldır"
-    echo " 14) Ayarlar"
-    echo "  0) Çıkış"
-    echo
-    echo -n "Seçiminiz (0-14): "
-}
-
-# Tema seçim menüsü
-show_theme_menu() {
-    clear
-    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           TEMA SEÇİMİ                        ║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
-    echo
-    
-    local terminal_type=$(detect_terminal)
-    echo -e "${YELLOW}Tespit edilen terminal: ${terminal_type}${NC}"
-    echo
-    
-    echo "1) Dracula        - Mor/Pembe tonları, yüksek kontrast"
-    echo "2) Nord           - Mavi/Gri tonları, göze yumuşak"
-    echo "3) Gruvbox Dark   - Retro, sıcak tonlar"
-    echo "4) Tokyo Night    - Modern, mavi/mor tonlar"
-    echo "5) Catppuccin     - Pastel renkler"
-    echo "6) One Dark       - Atom editor benzeri"
-    echo "7) Solarized Dark - Klasik, düşük kontrast"
-    echo "0) Geri"
-    echo
-    echo -n "Seçiminiz (0-7): "
-}
-
-# Ayarlar menüsü
-show_settings_menu() {
-    clear
-    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              AYARLAR                         ║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
-    echo
-    
-    load_config
-    
-    echo -e "${YELLOW}Mevcut Ayarlar:${NC}"
-    echo "  Varsayılan Tema: ${DEFAULT_THEME:-Yok}"
-    echo "  Otomatik Güncelleme: ${AUTO_UPDATE:-false}"
-    echo "  Yedek Sayısı: ${BACKUP_COUNT:-5}"
-    echo "  Debug Modu: ${DEBUG_MODE}"
-    echo
-    echo "1) Varsayılan Tema Değiştir"
-    echo "2) Otomatik Güncelleme ($([ "$AUTO_UPDATE" = "true" ] && echo "Kapat" || echo "Aç"))"
-    echo "3) Yedek Sayısını Ayarla"
-    echo "4) Güncellemeleri Kontrol Et"
-    echo "5) Ayarları Sıfırla"
-    echo "0) Geri"
-    echo
-    echo -n "Seçiminiz (0-5): "
-}
-
-# Tam kurulum wrapper fonksiyonu
 perform_full_install() {
     local theme=$1
     local theme_display=$2
@@ -199,10 +131,21 @@ perform_full_install() {
     show_progress $total_steps $total_steps "Shell değiştiriliyor"
     change_default_shell
     
+    # Bash aliases migrasyonu
+    migrate_bash_aliases
+    
     show_completion_message
+    
+    # Otomatik Zsh'e geçiş
+    if show_switch_shell_prompt; then
+        exec zsh
+    fi
 }
 
-# Tema kurulum wrapper
+# ============================================================================
+# TEMA KURULUM WRAPPER
+# ============================================================================
+
 install_theme_wrapper() {
     local theme=$1
     
@@ -235,7 +178,10 @@ install_theme_wrapper() {
     esac
 }
 
-# Tema değiştirme işlemi
+# ============================================================================
+# TEMA DEĞİŞTİRME İŞLEMİ
+# ============================================================================
+
 change_theme_only() {
     show_theme_menu
     read -r theme_choice
@@ -249,7 +195,12 @@ change_theme_only() {
     
     if install_theme_wrapper "$theme_choice"; then
         log_success "Tema başarıyla değiştirildi!"
-        echo "Terminal'i yeniden başlatın veya 'source ~/.zshrc' çalıştırın"
+        
+        # Zsh aktif mi kontrol et
+        if [[ "$SHELL" == *"zsh"* ]]; then
+            echo
+            echo -e "${YELLOW}Değişiklikleri görmek için terminali yenileyin:${NC} ${CYAN}source ~/.zshrc${NC}"
+        fi
     else
         log_error "Tema değiştirme başarısız"
     fi
@@ -258,7 +209,83 @@ change_theme_only() {
     read -p "Devam etmek için Enter'a basın..."
 }
 
-# Ayarlar yönetimi
+# ============================================================================
+# TEŞHİS YÖNETİMİ
+# ============================================================================
+
+manage_diagnostics() {
+    while true; do
+        show_diagnostic_menu
+        read -r diag_choice
+        
+        case $diag_choice in
+            1)
+                diagnose_and_fix "zsh_not_default"
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            2)
+                diagnose_and_fix "internet_connection"
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            3)
+                diagnose_and_fix "permission_denied" "genel"
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            4)
+                diagnose_and_fix "font_not_visible"
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            5)
+                diagnose_and_fix "theme_not_applied"
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            6)
+                echo
+                echo "Eksik paket kontrolü..."
+                check_dependencies
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            7)
+                echo
+                log_info "Kapsamlı sistem kontrolü başlatılıyor..."
+                echo
+                
+                # Tüm kontroller
+                diagnose_and_fix "zsh_not_default"
+                echo
+                echo "─────────────────────────────────────"
+                echo
+                
+                diagnose_and_fix "internet_connection"
+                echo
+                echo "─────────────────────────────────────"
+                echo
+                
+                diagnose_and_fix "font_not_visible"
+                echo
+                echo "─────────────────────────────────────"
+                echo
+                
+                diagnose_and_fix "theme_not_applied"
+                echo
+                
+                read -p "Devam etmek için Enter'a basın..."
+                ;;
+            0)
+                break
+                ;;
+            *)
+                log_error "Geçersiz seçim"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================================
+# AYARLAR YÖNETİMİ
+# ============================================================================
+
 manage_settings() {
     while true; do
         show_settings_menu
@@ -323,23 +350,10 @@ manage_settings() {
     done
 }
 
-# Tamamlanma mesajı
-show_completion_message() {
-    echo
-    echo -e "${GREEN}════════════════════════════════════════${NC}"
-    echo -e "${GREEN}✓ Kurulum tamamlandı!${NC}"
-    echo -e "${GREEN}════════════════════════════════════════${NC}"
-    echo
-    echo -e "${YELLOW}Sonraki adımlar:${NC}"
-    echo "1. Terminal'i kapatıp yeniden açın (veya 'exec zsh' yazın)"
-    echo "2. Powerlevel10k yapılandırma wizard'ı otomatik başlayacak"
-    echo "3. İsterseniz daha sonra 'p10k configure' ile yeniden yapılandırabilirsiniz"
-    echo
-    echo -e "${CYAN}Yedekler: $BACKUP_DIR${NC}"
-    echo -e "${CYAN}Log dosyası: $LOG_FILE${NC}"
-}
+# ============================================================================
+# KOMUT SATIRI ARGÜMANLARI
+# ============================================================================
 
-# Komut satırı argümanları
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -380,31 +394,18 @@ parse_arguments() {
     done
 }
 
-# Yardım mesajı
-show_help() {
-    echo "Terminal Özelleştirme Kurulum Aracı v$VERSION"
-    echo
-    echo "Kullanım: $0 [SEÇENEKLER]"
-    echo
-    echo "Seçenekler:"
-    echo "  --health          Sistem sağlık kontrolü"
-    echo "  --update          Güncellemeleri kontrol et"
-    echo "  --debug           Debug modu"
-    echo "  --verbose         Detaylı çıktı"
-    echo "  --version         Versiyon bilgisi"
-    echo "  --help, -h        Bu yardım mesajı"
-    echo
-    echo "Örnekler:"
-    echo "  $0                # Normal mod"
-    echo "  $0 --health       # Sadece sağlık kontrolü"
-    echo "  $0 --debug        # Debug modu ile çalıştır"
-}
+# ============================================================================
+# ROOT KONTROLÜ
+# ============================================================================
 
-# Root kontrolü
 if [[ $EUID -eq 0 ]]; then
     log_error "Bu scripti root olarak çalıştırmayın!"
     exit 1
 fi
+
+# ============================================================================
+# BAŞLATMA
+# ============================================================================
 
 # Güvenli temp directory oluştur
 TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX)
@@ -420,7 +421,10 @@ if [[ "$AUTO_UPDATE" == "true" ]]; then
     check_for_updates --silent
 fi
 
-# Ana program döngüsü
+# ============================================================================
+# ANA PROGRAM DÖNGÜSÜ
+# ============================================================================
+
 while true; do
     show_banner
     show_menu
@@ -429,19 +433,15 @@ while true; do
     case $choice in
         1)
             perform_full_install "dracula" "Dracula"
-            read -p "Devam etmek için Enter'a basın..."
             ;;
         2)
             perform_full_install "nord" "Nord"
-            read -p "Devam etmek için Enter'a basın..."
             ;;
         3)
             perform_full_install "gruvbox" "Gruvbox"
-            read -p "Devam etmek için Enter'a basın..."
             ;;
         4)
             perform_full_install "tokyo-night" "Tokyo Night"
-            read -p "Devam etmek için Enter'a basın..."
             ;;
         5)
             check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
@@ -454,7 +454,13 @@ while true; do
             show_progress 3 3 "Shell değiştiriliyor"
             change_default_shell
             log_success "Tamamlandı"
-            read -p "Devam etmek için Enter'a basın..."
+            
+            # Zsh'e geçiş öner
+            if show_switch_shell_prompt; then
+                exec zsh
+            else
+                read -p "Devam etmek için Enter'a basın..."
+            fi
             ;;
         6)
             check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
@@ -464,6 +470,12 @@ while true; do
             show_progress 2 2 "Powerlevel10k kuruluyor"
             install_powerlevel10k
             log_success "Tamamlandı"
+            
+            # Eğer zsh aktifse source et
+            if [[ "$SHELL" == *"zsh"* ]]; then
+                echo
+                echo -e "${YELLOW}Değişiklikleri uygulamak için:${NC} ${CYAN}source ~/.zshrc${NC}"
+            fi
             read -p "Devam etmek için Enter'a basın..."
             ;;
         7)
@@ -474,6 +486,12 @@ while true; do
             create_backup
             install_plugins
             log_success "Tamamlandı"
+            
+            # Eğer zsh aktifse source et
+            if [[ "$SHELL" == *"zsh"* ]]; then
+                echo
+                echo -e "${YELLOW}Değişiklikleri uygulamak için:${NC} ${CYAN}source ~/.zshrc${NC}"
+            fi
             read -p "Devam etmek için Enter'a basın..."
             ;;
         9)
@@ -522,13 +540,16 @@ while true; do
             read -p "Devam etmek için Enter'a basın..."
             ;;
         12)
-            show_backups
+            manage_diagnostics
             ;;
         13)
+            show_backups
+            ;;
+        14)
             uninstall_all
             read -p "Devam etmek için Enter'a basın..."
             ;;
-        14)
+        15)
             manage_settings
             ;;
         0)
