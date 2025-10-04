@@ -2,37 +2,49 @@
 
 # ============================================================================
 # Terminal Setup - Yardımcı Fonksiyonlar
-# v3.2.0 - Utilities Module (Assistant entegreli)
+# v3.2.1 - Production Ready (Error Handling + Validation)
 # ============================================================================
 
 # ============================================================================
-# LOGGING SİSTEMİ
+# LOGGING SİSTEMİ - THREAD SAFE
 # ============================================================================
 
-# Log dosyasını başlat
 init_log() {
-    mkdir -p "$(dirname "$LOG_FILE")"
+    if ! mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then
+        return 1
+    fi
+    
     if [[ ! -f "$LOG_FILE" ]]; then
-        touch "$LOG_FILE"
+        if ! touch "$LOG_FILE" 2>/dev/null; then
+            return 1
+        fi
     fi
     
     # Eski logları temizle (son 1000 satır)
     if [[ -f "$LOG_FILE" ]]; then
-        local temp_log=$(mktemp)
-        tail -n 1000 "$LOG_FILE" > "$temp_log"
-        mv "$temp_log" "$LOG_FILE"
+        local temp_log
+        temp_log=$(mktemp) || return 1
+        tail -n 1000 "$LOG_FILE" > "$temp_log" 2>/dev/null
+        mv "$temp_log" "$LOG_FILE" 2>/dev/null
     fi
+    
+    return 0
 }
 
-# Log fonksiyonu
 log_message() {
     local level=$1
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    # Log dosyasına yaz
-    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+    # Thread-safe log yazma (flock kullanarak)
+    if [[ -w "$LOG_FILE" ]]; then
+        {
+            flock -x 200
+            echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+        } 200>"${LOG_FILE}.lock" 2>/dev/null
+    fi
     
     # Verbose modda konsola da yaz
     if [[ "$VERBOSE_MODE" == true ]]; then
@@ -57,7 +69,7 @@ log_warning() {
 
 log_error() {
     log_message "ERROR" "$@"
-    echo -e "${RED}✗${NC} $*"
+    echo -e "${RED}✗${NC} $*" >&2
 }
 
 log_debug() {
@@ -68,53 +80,54 @@ log_debug() {
 }
 
 # ============================================================================
-# TERMİNAL DETECTION
+# TERMİNAL DETECTION - VALİDASYON
 # ============================================================================
 
 detect_terminal() {
     # GNOME Terminal
-    if [ -n "$GNOME_TERMINAL_SERVICE" ]; then
+    if [[ -n "${GNOME_TERMINAL_SERVICE:-}" ]]; then
         echo "gnome-terminal"
-        return
+        return 0
     fi
     
     # Kitty
-    if [ -n "$KITTY_WINDOW_ID" ]; then
+    if [[ -n "${KITTY_WINDOW_ID:-}" ]]; then
         echo "kitty"
-        return
+        return 0
     fi
     
     # Alacritty
-    if [ -n "$ALACRITTY_SOCKET" ]; then
+    if [[ -n "${ALACRITTY_SOCKET:-}" ]]; then
         echo "alacritty"
-        return
+        return 0
     fi
     
     # Tilix
-    if [ "$TILIX_ID" ]; then
+    if [[ -n "${TILIX_ID:-}" ]]; then
         echo "tilix"
-        return
+        return 0
     fi
     
     # Konsole
-    if [ "$KONSOLE_VERSION" ]; then
+    if [[ -n "${KONSOLE_VERSION:-}" ]]; then
         echo "konsole"
-        return
+        return 0
     fi
     
     # iTerm2 (macOS)
-    if [ "$TERM_PROGRAM" = "iTerm.app" ]; then
+    if [[ "${TERM_PROGRAM:-}" == "iTerm.app" ]]; then
         echo "iterm2"
-        return
+        return 0
     fi
     
     # Generic check
-    if [ "$COLORTERM" = "truecolor" ]; then
+    if [[ "${COLORTERM:-}" == "truecolor" ]]; then
         echo "generic-truecolor"
-        return
+        return 0
     fi
     
     echo "unknown"
+    return 0
 }
 
 check_gnome_terminal() {
@@ -126,40 +139,49 @@ check_gnome_terminal() {
     return 0
 }
 
-# Terminal bilgilerini göster
 show_terminal_info() {
-    local terminal=$(detect_terminal)
+    local terminal
+    terminal=$(detect_terminal)
     echo -e "${CYAN}Terminal Bilgileri:${NC}"
     echo "  Tip: $terminal"
-    echo "  TERM: $TERM"
+    echo "  TERM: ${TERM:-Bilinmiyor}"
     echo "  COLORTERM: ${COLORTERM:-Yok}"
-    echo "  Shell: $SHELL"
+    echo "  Shell: ${SHELL:-Bilinmiyor}"
 }
 
 # ============================================================================
-# İNTERNET KONTROLÜ
+# İNTERNET KONTROLÜ - TIMEOUT + RETRY
 # ============================================================================
 
 check_internet() {
     log_debug "İnternet bağlantısı kontrol ediliyor..."
     
-    if ! ping -c 1 -W 5 8.8.8.8 &> /dev/null; then
-        log_error "İnternet bağlantısı yok!"
-        echo "Kurulum için internet gerekli."
-        return 1
+    # Önce DNS ile dene (daha güvenilir)
+    if timeout 5 curl -s --head --max-time 5 https://www.google.com > /dev/null 2>&1; then
+        log_debug "İnternet bağlantısı OK (curl)"
+        return 0
     fi
     
-    log_debug "İnternet bağlantısı OK"
-    return 0
+    # Fallback: ping
+    if timeout 5 ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
+        log_debug "İnternet bağlantısı OK (ping)"
+        return 0
+    fi
+    
+    log_error "İnternet bağlantısı yok!"
+    echo "Kurulum için internet gerekli."
+    return 1
 }
 
-# İnternet hızı testi (opsiyonel)
 test_internet_speed() {
     log_info "İnternet hızı test ediliyor..."
     
-    local start_time=$(date +%s%N)
-    if wget --timeout=5 -q -O /dev/null http://speedtest.tele2.net/1MB.zip 2>/dev/null; then
-        local end_time=$(date +%s%N)
+    local start_time
+    start_time=$(date +%s%N)
+    
+    if timeout 10 wget --timeout=5 -q -O /dev/null http://speedtest.tele2.net/1MB.zip 2>/dev/null; then
+        local end_time
+        end_time=$(date +%s%N)
         local duration=$(( (end_time - start_time) / 1000000 ))
         
         if [ $duration -lt 2000 ]; then
@@ -175,7 +197,7 @@ test_internet_speed() {
 }
 
 # ============================================================================
-# SAĞLIK KONTROLÜ (HEALTH CHECK)
+# SAĞLIK KONTROLÜ - VALİDASYON
 # ============================================================================
 
 system_health_check() {
@@ -191,18 +213,20 @@ system_health_check() {
     # 1. Disk alanı kontrolü
     ((total_checks++))
     echo -n "Disk alanı kontrolü... "
-    local available_space=$(df -BM "$HOME" | awk 'NR==2 {print $4}' | sed 's/M//')
-    if [ "$available_space" -gt 500 ]; then
+    local available_space
+    available_space=$(df -BM "$HOME" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/M//')
+    
+    if [[ -n "$available_space" ]] && [ "$available_space" -gt 500 ]; then
         echo -e "${GREEN}✓${NC} Yeterli ($available_space MB)"
         ((passed_checks++))
     else
-        echo -e "${RED}✗${NC} Yetersiz ($available_space MB < 500 MB)"
+        echo -e "${RED}✗${NC} Yetersiz (${available_space:-0} MB < 500 MB)"
     fi
     
     # 2. İnternet bağlantısı
     ((total_checks++))
     echo -n "İnternet bağlantısı... "
-    if timeout 5 ping -c 1 8.8.8.8 &> /dev/null; then
+    if timeout 5 ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
         echo -e "${GREEN}✓${NC} Aktif"
         ((passed_checks++))
     else
@@ -229,8 +253,9 @@ system_health_check() {
     # 4. Terminal emulator
     ((total_checks++))
     echo -n "Terminal emulator... "
-    local terminal=$(detect_terminal)
-    if [ "$terminal" != "unknown" ]; then
+    local terminal
+    terminal=$(detect_terminal)
+    if [[ "$terminal" != "unknown" ]]; then
         echo -e "${GREEN}✓${NC} $terminal"
         ((passed_checks++))
     else
@@ -242,8 +267,9 @@ system_health_check() {
     ((total_checks++))
     echo -n "Zsh... "
     if command -v zsh &> /dev/null; then
-        local zsh_version=$(zsh --version | cut -d' ' -f2)
-        echo -e "${GREEN}✓${NC} Kurulu ($zsh_version)"
+        local zsh_version
+        zsh_version=$(zsh --version 2>/dev/null | cut -d' ' -f2)
+        echo -e "${GREEN}✓${NC} Kurulu (${zsh_version:-bilinmiyor})"
         ((passed_checks++))
     else
         echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
@@ -264,7 +290,7 @@ system_health_check() {
     # 7. Font kontrolü
     ((total_checks++))
     echo -n "MesloLGS NF Font... "
-    if fc-list 2>/dev/null | grep -q "MesloLGS"; then
+    if command -v fc-list &> /dev/null && fc-list 2>/dev/null | grep -q "MesloLGS"; then
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
@@ -306,7 +332,8 @@ system_health_check() {
     ((total_checks++))
     echo -n "Yedekler... "
     if [[ -d "$BACKUP_DIR" ]] && [[ $(ls -A "$BACKUP_DIR" 2>/dev/null | wc -l) -gt 0 ]]; then
-        local backup_count=$(ls "$BACKUP_DIR" | wc -l)
+        local backup_count
+        backup_count=$(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l)
         echo -e "${GREEN}✓${NC} Var ($backup_count dosya)"
         ((passed_checks++))
     else
@@ -324,7 +351,10 @@ system_health_check() {
     echo "══════════════════════════════════════════════════════"
     
     # Durum değerlendirmesi
-    local success_rate=$((passed_checks * 100 / total_checks))
+    local success_rate=0
+    if [ $total_checks -gt 0 ]; then
+        success_rate=$((passed_checks * 100 / total_checks))
+    fi
     
     if [ $success_rate -eq 100 ]; then
         echo -e "${GREEN}✓ Sistem mükemmel durumda!${NC}"
@@ -343,27 +373,30 @@ system_health_check() {
 }
 
 # ============================================================================
-# KONFİGÜRASYON YÖNETİMİ
+# KONFİGÜRASYON YÖNETİMİ - SAFE
 # ============================================================================
 
-# Varsayılan ayarlar
 DEFAULT_THEME="dracula"
 AUTO_UPDATE="false"
 BACKUP_COUNT="5"
 
-# Config dosyasını yükle
 load_config() {
-    if [[ -f "$CONFIG_FILE" ]]; then
+    if [[ -f "$CONFIG_FILE" ]] && [[ -r "$CONFIG_FILE" ]]; then
         log_debug "Config dosyası yükleniyor: $CONFIG_FILE"
-        source "$CONFIG_FILE"
+        # shellcheck source=/dev/null
+        source "$CONFIG_FILE" 2>/dev/null || log_warning "Config yüklenemedi"
     else
         log_debug "Config dosyası bulunamadı, varsayılanlar kullanılıyor"
     fi
 }
 
-# Config dosyasını kaydet
 save_config() {
     log_debug "Config dosyası kaydediliyor: $CONFIG_FILE"
+    
+    if ! mkdir -p "$(dirname "$CONFIG_FILE")" 2>/dev/null; then
+        log_error "Config dizini oluşturulamadı"
+        return 1
+    fi
     
     cat > "$CONFIG_FILE" << EOF
 # Terminal Setup Configuration
@@ -374,11 +407,17 @@ AUTO_UPDATE="$AUTO_UPDATE"
 BACKUP_COUNT="$BACKUP_COUNT"
 EOF
     
-    log_success "Ayarlar kaydedildi"
+    if [[ $? -eq 0 ]]; then
+        log_success "Ayarlar kaydedildi"
+        return 0
+    else
+        log_error "Ayarlar kaydedilemedi"
+        return 1
+    fi
 }
 
 # ============================================================================
-# OTOMATİK GÜNCELLEME
+# OTOMATİK GÜNCELLEME - TIMEOUT + VALİDASYON
 # ============================================================================
 
 check_for_updates() {
@@ -394,9 +433,9 @@ check_for_updates() {
     
     [[ "$silent_mode" == false ]] && log_info "Güncellemeler kontrol ediliyor..."
     
-    # GitHub'dan en son versiyon bilgisini al
     local REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
-    local REMOTE_VERSION=$(curl -s --connect-timeout 5 "$REPO_URL/VERSION" 2>/dev/null)
+    local REMOTE_VERSION
+    REMOTE_VERSION=$(timeout 10 curl -s --connect-timeout 5 "$REPO_URL/VERSION" 2>/dev/null)
     
     if [[ -z "$REMOTE_VERSION" ]]; then
         [[ "$silent_mode" == false ]] && log_warning "Versiyon bilgisi alınamadı"
@@ -406,7 +445,6 @@ check_for_updates() {
     log_debug "Mevcut versiyon: $VERSION"
     log_debug "Uzak versiyon: $REMOTE_VERSION"
     
-    # Versiyon karşılaştırması
     if [[ "$REMOTE_VERSION" != "$VERSION" ]]; then
         [[ "$silent_mode" == false ]] && echo
         log_info "Yeni versiyon mevcut: $REMOTE_VERSION (Mevcut: $VERSION)"
@@ -415,31 +453,40 @@ check_for_updates() {
             echo -n "Güncellemek ister misiniz? (e/h): "
             read -r update_choice
             
-            if [[ "$update_choice" == "e" ]]; then
+            if [[ "$update_choice" =~ ^[eE]$ ]]; then
                 update_script
             fi
         fi
     else
         [[ "$silent_mode" == false ]] && log_success "En güncel versiyonu kullanıyorsunuz"
     fi
+    
+    return 0
 }
 
 update_script() {
     log_info "Script güncelleniyor..."
     
     local REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
-    local TEMP_UPDATE_DIR=$(mktemp -d -t terminal-setup-update.XXXXXXXXXX)
+    local TEMP_UPDATE_DIR
+    TEMP_UPDATE_DIR=$(mktemp -d -t terminal-setup-update.XXXXXXXXXX) || {
+        log_error "Temp dizin oluşturulamadı"
+        return 1
+    }
     
-    cd "$TEMP_UPDATE_DIR" || return 1
+    cd "$TEMP_UPDATE_DIR" || {
+        log_error "Temp dizine geçilemedi"
+        rm -rf "$TEMP_UPDATE_DIR"
+        return 1
+    }
     
-    # Dosyaları indir
     log_info "Dosyalar indiriliyor..."
     
     local files=("terminal-setup.sh" "terminal-core.sh" "terminal-utils.sh" "terminal-ui.sh" "terminal-themes.sh" "terminal-assistant.sh")
     local success_count=0
     
     for file in "${files[@]}"; do
-        if wget --timeout=15 -q "$REPO_URL/$file" -O "$file" 2>/dev/null; then
+        if timeout 30 wget --timeout=15 -q "$REPO_URL/$file" -O "$file" 2>/dev/null; then
             ((success_count++))
             log_debug "$file indirildi"
         else
@@ -448,25 +495,31 @@ update_script() {
     done
     
     if [ $success_count -eq ${#files[@]} ]; then
-        # Yedek oluştur
         log_info "Mevcut sürüm yedekleniyor..."
         local backup_update_dir="$BACKUP_DIR/update_backup_$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$backup_update_dir"
+        mkdir -p "$backup_update_dir" || {
+            log_error "Backup dizini oluşturulamadı"
+            cd - > /dev/null
+            rm -rf "$TEMP_UPDATE_DIR"
+            return 1
+        }
         
         for file in "${files[@]}"; do
             if [[ -f "$SCRIPT_DIR/$file" ]]; then
-                cp "$SCRIPT_DIR/$file" "$backup_update_dir/"
+                cp "$SCRIPT_DIR/$file" "$backup_update_dir/" 2>/dev/null
             fi
         done
         
-        # Yeni dosyaları kopyala
         log_info "Yeni versiyon kuruluyor..."
         for file in "${files[@]}"; do
-            cp "$file" "$SCRIPT_DIR/"
-            chmod +x "$SCRIPT_DIR/$file"
+            cp "$file" "$SCRIPT_DIR/" || {
+                log_error "$file kopyalanamadı"
+                continue
+            }
+            chmod +x "$SCRIPT_DIR/$file" 2>/dev/null
         done
         
-        cd - > /dev/null
+        cd - > /dev/null || true
         rm -rf "$TEMP_UPDATE_DIR"
         
         log_success "Güncelleme tamamlandı!"
@@ -475,14 +528,14 @@ update_script() {
         exec "$SCRIPT_DIR/terminal-setup.sh"
     else
         log_error "Güncelleme başarısız ($success_count/${#files[@]} dosya indirildi)"
-        cd - > /dev/null
+        cd - > /dev/null || true
         rm -rf "$TEMP_UPDATE_DIR"
         return 1
     fi
 }
 
 # ============================================================================
-# YEDEK YÖNETİMİ
+# YEDEK YÖNETİMİ - SAFE
 # ============================================================================
 
 show_backups() {
@@ -491,48 +544,47 @@ show_backups() {
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     echo
     
-    if [[ -d "$BACKUP_DIR" && $(ls -A "$BACKUP_DIR" 2>/dev/null) ]]; then
+    if [[ -d "$BACKUP_DIR" ]] && [[ $(ls -A "$BACKUP_DIR" 2>/dev/null | wc -l) -gt 0 ]]; then
         echo -e "${YELLOW}Yedek Dizini: $BACKUP_DIR${NC}"
         echo
-        ls -lh "$BACKUP_DIR" | tail -n +2
+        ls -lh "$BACKUP_DIR" 2>/dev/null | tail -n +2 || echo "Listelenemedi"
         echo
         
-        # Toplam boyut
-        local total_size=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
-        echo -e "Toplam boyut: ${CYAN}$total_size${NC}"
+        local total_size
+        total_size=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
+        echo -e "Toplam boyut: ${CYAN}${total_size:-Bilinmiyor}${NC}"
     else
         log_info "Henüz yedek yok"
     fi
-    
-    echo
-    read -p "Devam etmek için Enter'a basın..."
 }
 
-# Eski yedekleri temizle
 cleanup_old_backups() {
     if [[ ! -d "$BACKUP_DIR" ]]; then
-        return
+        return 0
     fi
     
     load_config
-    local count=$(ls -1 "$BACKUP_DIR" | wc -l)
     
-    if [ "$count" -gt "$BACKUP_COUNT" ]; then
-        log_info "Eski yedekler temizleniyor... (Son $BACKUP_COUNT tutulacak)"
+    local count
+    count=$(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l)
+    
+    if [ "$count" -gt "${BACKUP_COUNT:-5}" ]; then
+        log_info "Eski yedekler temizleniyor... (Son ${BACKUP_COUNT:-5} tutulacak)"
         
-        cd "$BACKUP_DIR" || return
-        ls -t | tail -n +$((BACKUP_COUNT + 1)) | xargs rm -rf
-        cd - > /dev/null
+        cd "$BACKUP_DIR" || return 1
+        ls -t 2>/dev/null | tail -n +$((BACKUP_COUNT + 1)) | xargs rm -rf 2>/dev/null
+        cd - > /dev/null || true
         
         log_success "Eski yedekler temizlendi"
     fi
+    
+    return 0
 }
 
 # ============================================================================
 # HATA KODLARI SİSTEMİ
 # ============================================================================
 
-# Hata kodları
 readonly ERR_SUCCESS=0
 readonly ERR_NETWORK=1
 readonly ERR_PERMISSION=2
@@ -545,7 +597,6 @@ readonly ERR_INVALID_INPUT=8
 readonly ERR_DISK_SPACE=9
 readonly ERR_UNKNOWN=99
 
-# Hata mesajlarını map et
 declare -A ERROR_MESSAGES=(
     [0]="Başarılı"
     [1]="İnternet bağlantısı hatası"
@@ -560,12 +611,11 @@ declare -A ERROR_MESSAGES=(
     [99]="Bilinmeyen hata"
 )
 
-# Hata mesajını göster
 show_error() {
     local error_code=$1
     local context="${2:-}"
     
-    log_error "Hata [${error_code}]: ${ERROR_MESSAGES[$error_code]}"
+    log_error "Hata [${error_code}]: ${ERROR_MESSAGES[$error_code]:-Bilinmeyen hata}"
     
     if [[ -n "$context" ]]; then
         log_error "Detay: $context"
@@ -573,59 +623,61 @@ show_error() {
     
     log_error "Log dosyası: $LOG_FILE"
     
-    return $error_code
+    return "$error_code"
 }
 
 # ============================================================================
-# SİSTEM KAYNAK KONTROLÜ
+# SİSTEM KAYNAK KONTROLÜ - VALİDASYON
 # ============================================================================
 
 check_system_resources() {
     log_info "Sistem kaynakları kontrol ediliyor..."
     
     # Disk alanı
-    local available_mb=$(df -BM "$HOME" | awk 'NR==2 {print $4}' | sed 's/M//')
+    local available_mb
+    available_mb=$(df -BM "$HOME" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/M//')
+    
+    if [[ -z "$available_mb" ]]; then
+        log_error "Disk alanı ölçülemedi"
+        return "$ERR_UNKNOWN"
+    fi
+    
     log_debug "Kullanılabilir disk alanı: ${available_mb}MB"
     
     if [ "$available_mb" -lt 500 ]; then
         show_error $ERR_DISK_SPACE "Yetersiz disk alanı: ${available_mb}MB (Min: 500MB)"
-        return $ERR_DISK_SPACE
+        return "$ERR_DISK_SPACE"
     fi
     
     # Bellek kontrolü
-    local available_mem=$(free -m | awk 'NR==2 {print $7}')
-    log_debug "Kullanılabilir bellek: ${available_mem}MB"
-    
-    if [ "$available_mem" -lt 100 ]; then
-        log_warning "Düşük bellek: ${available_mem}MB"
+    if command -v free &> /dev/null; then
+        local available_mem
+        available_mem=$(free -m 2>/dev/null | awk 'NR==2 {print $7}')
+        
+        if [[ -n "$available_mem" ]]; then
+            log_debug "Kullanılabilir bellek: ${available_mem}MB"
+            
+            if [ "$available_mem" -lt 100 ]; then
+                log_warning "Düşük bellek: ${available_mem}MB"
+            fi
+        fi
     fi
     
-    return $ERR_SUCCESS
+    return "$ERR_SUCCESS"
 }
 
 # ============================================================================
-# WRAPPER FONKSİYONLAR (ASSISTANT'A YÖNLENDİRİR)
+# SHELL CHECK WRAPPER
 # ============================================================================
 
-# Eski diagnose_and_fix çağrıları için wrapper
-diagnose_and_fix() {
-    # terminal-assistant.sh'taki fonksiyonu çağır
-    if type -t diagnose_and_fix &>/dev/null; then
-        command diagnose_and_fix "$@"
-    else
-        log_error "Assistant modülü yüklenmemiş"
-        return 1
-    fi
-}
-
-# Shell check wrapper
 run_comprehensive_shell_check() {
     echo "  Kapsamlı shell kontrolü:"
     echo
     
     # 1. /etc/passwd
-    local passwd_shell=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
-    echo -n "  1. /etc/passwd: $passwd_shell "
+    local passwd_shell
+    passwd_shell=$(grep "^$USER:" /etc/passwd 2>/dev/null | cut -d: -f7)
+    echo -n "  1. /etc/passwd: ${passwd_shell:-Bilinmiyor} "
     if [[ "$passwd_shell" == *"zsh"* ]]; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -633,7 +685,7 @@ run_comprehensive_shell_check() {
     fi
     
     # 2. $SHELL değişkeni
-    echo -n "  2. \$SHELL: $SHELL "
+    echo -n "  2. \$SHELL: ${SHELL:-Bilinmiyor} "
     if [[ "$SHELL" == *"zsh"* ]]; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -641,8 +693,9 @@ run_comprehensive_shell_check() {
     fi
     
     # 3. Aktif shell
-    local active_shell=$(ps -p $$ -o comm=)
-    echo -n "  3. Aktif shell: $active_shell "
+    local active_shell
+    active_shell=$(ps -p $$ -o comm= 2>/dev/null)
+    echo -n "  3. Aktif shell: ${active_shell:-Bilinmiyor} "
     if [[ "$active_shell" == *"zsh"* ]]; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -651,10 +704,13 @@ run_comprehensive_shell_check() {
     
     # 4. GNOME Terminal
     if command -v gsettings &> /dev/null; then
-        local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        local profile_id
+        profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        
         if [[ -n "$profile_id" ]]; then
-            local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
-            echo -n "  4. GNOME Terminal login-shell: $login_shell "
+            local login_shell
+            login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            echo -n "  4. GNOME Terminal login-shell: ${login_shell:-false} "
             if [[ "$login_shell" == "true" ]]; then
                 echo -e "${GREEN}✓${NC}"
             else
@@ -668,7 +724,8 @@ provide_shell_fix_commands() {
     echo "Adım adım çözüm:"
     echo
     
-    local passwd_shell=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+    local passwd_shell
+    passwd_shell=$(grep "^$USER:" /etc/passwd 2>/dev/null | cut -d: -f7)
     
     if [[ "$passwd_shell" != *"zsh"* ]]; then
         echo "1. Sistem shell'ini değiştir:"
@@ -677,9 +734,12 @@ provide_shell_fix_commands() {
     fi
     
     if command -v gsettings &> /dev/null; then
-        local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        local profile_id
+        profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        
         if [[ -n "$profile_id" ]]; then
-            local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            local login_shell
+            login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
             
             if [[ "$login_shell" != "true" ]]; then
                 echo "2. GNOME Terminal ayarla:"
@@ -700,9 +760,8 @@ provide_shell_fix_commands() {
 # İNİT
 # ============================================================================
 
-# Log sistemini başlat
-if [[ -n "$LOG_FILE" ]]; then
-    init_log
+if [[ -n "${LOG_FILE:-}" ]]; then
+    init_log || echo "UYARI: Log başlatılamadı" >&2
 fi
 
-log_debug "Terminal Utils modülü yüklendi (v3.2.0)"
+log_debug "Terminal Utils modülü yüklendi (v3.2.1)"

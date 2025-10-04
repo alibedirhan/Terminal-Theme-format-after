@@ -2,42 +2,143 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.2.0 - Modüler Yapı + Akıllı Asistan
+# v3.2.1 - Production Ready (Lock + Signal Handling + Validation)
 # ============================================================================
-# Dosya Yapısı:
-# - terminal-setup.sh      (bu dosya - orchestration)
-# - terminal-ui.sh         (görsel arayüz)
-# - terminal-themes.sh     (tema tanımları)
-# - terminal-core.sh       (kurulum fonksiyonları)
-# - terminal-utils.sh      (yardımcı fonksiyonlar)
-# - terminal-assistant.sh  (akıllı sorun giderme asistanı)
-# ============================================================================
+
+set -euo pipefail  # Strict mode: exit on error, undefined var, pipe fail
 
 # Script versiyonu
-VERSION="3.2.0"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly VERSION="3.2.1"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
-# Global değişkenler - Organize edilmiş yapı
-BASE_DIR="$HOME/.terminal-setup"
-BACKUP_DIR="$BASE_DIR/backups"
-LOG_DIR="$BASE_DIR/logs"
-CONFIG_DIR="$BASE_DIR/config"
+# Global değişkenler
+readonly BASE_DIR="$HOME/.terminal-setup"
+readonly BACKUP_DIR="$BASE_DIR/backups"
+readonly LOG_DIR="$BASE_DIR/logs"
+readonly CONFIG_DIR="$BASE_DIR/config"
+readonly LOCK_FILE="$BASE_DIR/.lock"
+readonly PID_FILE="$BASE_DIR/.pid"
+
 TEMP_DIR=""
-CONFIG_FILE="$CONFIG_DIR/settings.conf"
-LOG_FILE="$LOG_DIR/terminal-setup.log"
+readonly CONFIG_FILE="$CONFIG_DIR/settings.conf"
+readonly LOG_FILE="$LOG_DIR/terminal-setup.log"
 
 # Flags
 DEBUG_MODE=false
 VERBOSE_MODE=false
 
-# Dizinleri oluştur
-mkdir -p "$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR" || {
-    echo "HATA: Gerekli dizinler oluşturulamadı!"
+# Sudo refresh PID - tek global yönetim
+SUDO_REFRESH_PID=""
+
+# ============================================================================
+# DİZİN OLUŞTURMA - HATA KONTROLÜ
+# ============================================================================
+
+create_directories() {
+    local dirs=("$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR")
+    for dir in "${dirs[@]}"; do
+        if ! mkdir -p "$dir" 2>/dev/null; then
+            echo "HATA: $dir oluşturulamadı!" >&2
+            return 1
+        fi
+    done
+    return 0
+}
+
+if ! create_directories; then
     exit 1
+fi
+
+# ============================================================================
+# LOCK MEKANİZMASI - TEK INSTANCE
+# ============================================================================
+
+acquire_lock() {
+    local max_wait=30
+    local waited=0
+    
+    # Eski kilit dosyası kontrolü
+    if [[ -f "$LOCK_FILE" ]]; then
+        local lock_pid
+        lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        
+        if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+            echo "HATA: Başka bir instance çalışıyor (PID: $lock_pid)" >&2
+            echo "Beklemek için Enter'a basın veya Ctrl+C ile çıkın..." >&2
+            
+            while [[ $waited -lt $max_wait ]] && kill -0 "$lock_pid" 2>/dev/null; do
+                sleep 1
+                ((waited++))
+            done
+            
+            if kill -0 "$lock_pid" 2>/dev/null; then
+                echo "HATA: Timeout - diğer instance hala çalışıyor" >&2
+                return 1
+            fi
+        fi
+        
+        # Eski kilit temizle
+        rm -f "$LOCK_FILE"
+    fi
+    
+    # Yeni kilit oluştur
+    echo $$ > "$LOCK_FILE" || {
+        echo "HATA: Lock dosyası oluşturulamadı" >&2
+        return 1
+    }
+    echo $$ > "$PID_FILE"
+    
+    return 0
+}
+
+release_lock() {
+    rm -f "$LOCK_FILE" "$PID_FILE" 2>/dev/null || true
 }
 
 # ============================================================================
-# MODÜL YÜKLEME
+# CLEANUP FONKSİYONU - MERKEZİ YÖNETİM
+# ============================================================================
+
+cleanup() {
+    local exit_code=$?
+    
+    # Sudo refresh durdur
+    if [[ -n "$SUDO_REFRESH_PID" ]] && kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
+        kill "$SUDO_REFRESH_PID" 2>/dev/null || true
+        wait "$SUDO_REFRESH_PID" 2>/dev/null || true
+    fi
+    
+    # Temp dizini temizle
+    if [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR" 2>/dev/null || true
+    fi
+    
+    # Lock serbest bırak
+    release_lock
+    
+    # Exit code koru
+    exit $exit_code
+}
+
+# Signal handler
+handle_signal() {
+    local signal=$1
+    echo ""
+    echo "Signal alındı: $signal"
+    echo "Temizleniyor..."
+    cleanup
+    exit 130
+}
+
+# Trap'leri ayarla
+trap cleanup EXIT
+trap 'handle_signal INT' INT
+trap 'handle_signal TERM' TERM
+trap 'handle_signal HUP' HUP
+
+# ============================================================================
+# MODÜL YÜKLEME - HATA KONTROLÜ
 # ============================================================================
 
 load_modules() {
@@ -51,50 +152,47 @@ load_modules() {
     
     for module in "${modules[@]}"; do
         local module_path="$SCRIPT_DIR/$module"
-        if [[ -f "$module_path" ]]; then
-            # shellcheck source=/dev/null
-            source "$module_path" || {
-                echo "HATA: $module yüklenemedi!"
-                exit 1
-            }
-        else
-            echo "HATA: $module bulunamadı!"
-            echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun."
-            exit 1
+        
+        if [[ ! -f "$module_path" ]]; then
+            echo "HATA: $module bulunamadı!" >&2
+            echo "Beklenen: $module_path" >&2
+            return 1
+        fi
+        
+        if [[ ! -r "$module_path" ]]; then
+            echo "HATA: $module okunamıyor!" >&2
+            return 1
+        fi
+        
+        # shellcheck source=/dev/null
+        if ! source "$module_path"; then
+            echo "HATA: $module yüklenemedi!" >&2
+            return 1
         fi
     done
+    
+    return 0
 }
 
 # Modülleri yükle
-load_modules
+if ! load_modules; then
+    echo "Lütfen tüm dosyaların aynı dizinde olduğundan emin olun." >&2
+    exit 1
+fi
 
 # ============================================================================
-# CLEANUP FONKSİYONU
-# ============================================================================
-
-cleanup() {
-    [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
-    
-    # Sudo refresh process'ini durdur
-    if [[ -n "${SUDO_REFRESH_PID:-}" ]]; then
-        kill "$SUDO_REFRESH_PID" 2>/dev/null || true
-    fi
-    
-    # Core modülündeki cleanup'ı da çağır
-    if type cleanup_sudo &>/dev/null; then
-        cleanup_sudo
-    fi
-}
-
-trap cleanup EXIT INT TERM
-
-# ============================================================================
-# TAM KURULUM WRAPPER FONKSİYONU
+# TAM KURULUM WRAPPER - HATA KONTROLÜ
 # ============================================================================
 
 perform_full_install() {
     local theme=$1
     local theme_display=$2
+    
+    # Input validation
+    if [[ -z "$theme" ]] || [[ -z "$theme_display" ]]; then
+        log_error "Geçersiz tema parametresi"
+        return 1
+    fi
     
     # Kurulum öncesi akıllı tarama
     if ! pre_installation_scan; then
@@ -129,48 +227,56 @@ perform_full_install() {
     fi
     show_step_success "Yedek oluşturuldu"
     
-    # Kurulum adımları
+    # Kurulum adımları - her adım kontrol ediliyor
     show_section 1 7 "Zsh kuruluyor"
-    if install_zsh; then
-        post_installation_verification "zsh"
-    else
+    if ! install_zsh; then
+        log_error "Zsh kurulumu başarısız"
         return 1
+    fi
+    if ! post_installation_verification "zsh"; then
+        log_warning "Zsh doğrulaması başarısız - devam ediliyor"
     fi
     
     show_section 2 7 "Oh My Zsh kuruluyor"
-    if install_oh_my_zsh; then
-        post_installation_verification "ohmyzsh"
-    else
+    if ! install_oh_my_zsh; then
+        log_error "Oh My Zsh kurulumu başarısız"
         return 1
+    fi
+    if ! post_installation_verification "ohmyzsh"; then
+        log_warning "Oh My Zsh doğrulaması başarısız - devam ediliyor"
     fi
     
     show_section 3 7 "Fontlar kuruluyor"
     if install_fonts; then
-        post_installation_verification "fonts"
+        post_installation_verification "fonts" || true
     fi
     
     show_section 4 7 "Powerlevel10k kuruluyor"
-    if install_powerlevel10k; then
-        post_installation_verification "powerlevel10k"
-    else
+    if ! install_powerlevel10k; then
+        log_error "Powerlevel10k kurulumu başarısız"
         return 1
+    fi
+    if ! post_installation_verification "powerlevel10k"; then
+        log_warning "Powerlevel10k doğrulaması başarısız - devam ediliyor"
     fi
     
     show_section 5 7 "Pluginler kuruluyor"
     if install_plugins; then
-        post_installation_verification "plugins"
+        post_installation_verification "plugins" || true
     fi
     
     show_section 6 7 "$theme_display teması uygulanıyor"
-    install_theme "$theme"
+    install_theme "$theme" || log_warning "Tema uygulanamadı"
     
     show_section 7 7 "Shell değiştiriliyor"
-    change_default_shell
+    if ! change_default_shell; then
+        log_warning "Shell değiştirilemedi"
+    fi
     
     # Bash aliases migrasyonu
     echo
     echo -e "${CYAN}┌──── BASH ALIASES KONTROLÜ ────┐${NC}"
-    migrate_bash_aliases
+    migrate_bash_aliases || true
     
     echo
     echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
@@ -192,11 +298,17 @@ perform_full_install() {
 }
 
 # ============================================================================
-# TEMA KURULUM WRAPPER
+# TEMA KURULUM WRAPPER - VALİDASYON
 # ============================================================================
 
 install_theme_wrapper() {
     local theme=$1
+    
+    # Validation
+    if [[ -z "$theme" ]]; then
+        log_error "Tema parametresi boş"
+        return 1
+    fi
     
     case $theme in
         1|dracula)
@@ -221,7 +333,7 @@ install_theme_wrapper() {
             install_theme "solarized"
             ;;
         *)
-            log_error "Geçersiz tema seçimi"
+            log_error "Geçersiz tema seçimi: $theme"
             return 1
             ;;
     esac
@@ -235,6 +347,12 @@ change_theme_only() {
     show_theme_menu
     read -r theme_choice
     
+    # Input validation
+    if [[ ! "$theme_choice" =~ ^[0-7]$ ]]; then
+        log_error "Geçersiz seçim: $theme_choice"
+        return 1
+    fi
+    
     if [[ "$theme_choice" == "0" ]]; then
         return 0
     fi
@@ -245,30 +363,30 @@ change_theme_only() {
     if install_theme_wrapper "$theme_choice"; then
         log_success "Tema başarıyla değiştirildi!"
         
-        # Zsh aktif mi kontrol et
         if [[ "$SHELL" == *"zsh"* ]]; then
             echo
             echo -e "${YELLOW}Değişiklikleri görmek için terminali yenileyin:${NC} ${CYAN}source ~/.zshrc${NC}"
         fi
     else
         log_error "Tema değiştirme başarısız"
+        return 1
     fi
     
     echo
     read -p "Devam etmek için Enter'a basın..."
+    return 0
 }
 
 # ============================================================================
-# TEŞHİS YÖNETİMİ (Assistant'a yönlendirir)
+# TEŞHİS YÖNETİMİ
 # ============================================================================
 
 manage_diagnostics() {
-    # Artık troubleshooting_wizard kullanıyoruz
     troubleshooting_wizard
 }
 
 # ============================================================================
-# AYARLAR YÖNETİMİ
+# AYARLAR YÖNETİMİ - VALİDASYON
 # ============================================================================
 
 manage_settings() {
@@ -276,16 +394,26 @@ manage_settings() {
         show_settings_menu
         read -r setting_choice
         
+        # Input validation
+        if [[ ! "$setting_choice" =~ ^[0-5]$ ]]; then
+            log_error "Geçersiz seçim"
+            sleep 1
+            continue
+        fi
+        
         case $setting_choice in
             1)
                 echo
                 show_theme_menu
                 read -r theme_num
-                if [[ $theme_num -ge 1 && $theme_num -le 7 ]]; then
+                
+                if [[ "$theme_num" =~ ^[1-7]$ ]]; then
                     local theme_names=("dracula" "nord" "gruvbox" "tokyo-night" "catppuccin" "one-dark" "solarized")
                     DEFAULT_THEME="${theme_names[$((theme_num-1))]}"
                     save_config
                     log_success "Varsayılan tema ayarlandı: $DEFAULT_THEME"
+                else
+                    log_error "Geçersiz tema numarası"
                 fi
                 sleep 2
                 ;;
@@ -303,10 +431,13 @@ manage_settings() {
             3)
                 echo -n "Yeni yedek sayısı (1-20): "
                 read -r new_count
-                if [[ $new_count =~ ^[0-9]+$ ]] && [[ $new_count -ge 1 && $new_count -le 20 ]]; then
+                
+                if [[ "$new_count" =~ ^[0-9]+$ ]] && [[ $new_count -ge 1 && $new_count -le 20 ]]; then
                     BACKUP_COUNT=$new_count
                     save_config
                     log_success "Yedek sayısı ayarlandı: $BACKUP_COUNT"
+                else
+                    log_error "Geçersiz sayı (1-20 arası olmalı)"
                 fi
                 sleep 2
                 ;;
@@ -316,27 +447,26 @@ manage_settings() {
                 read -p "Devam etmek için Enter'a basın..."
                 ;;
             5)
-                echo -n "Ayarları sıfırlamak istediğinizden emin misiniz? (e/h): "
+                echo -n "Ayarları sıfırlamak istediğinizden emin misiniz? (evet/hayır): "
                 read -r confirm
-                if [[ "$confirm" == "e" ]]; then
+                
+                if [[ "$confirm" == "evet" ]]; then
                     rm -f "$CONFIG_FILE"
                     log_success "Ayarlar sıfırlandı"
-                    sleep 2
+                else
+                    log_info "İptal edildi"
                 fi
+                sleep 2
                 ;;
             0)
                 break
-                ;;
-            *)
-                log_error "Geçersiz seçim"
-                sleep 1
                 ;;
         esac
     done
 }
 
 # ============================================================================
-# KOMUT SATIRI ARGÜMANLARI
+# KOMUT SATIRI ARGÜMANLARI - VALİDASYON
 # ============================================================================
 
 parse_arguments() {
@@ -365,7 +495,7 @@ parse_arguments() {
             --scan)
                 show_animated_banner
                 pre_installation_scan
-                exit 0
+                exit $?
                 ;;
             --version)
                 echo "Terminal Setup v$VERSION"
@@ -376,7 +506,7 @@ parse_arguments() {
                 exit 0
                 ;;
             *)
-                log_error "Bilinmeyen parametre: $1"
+                echo "HATA: Bilinmeyen parametre: $1" >&2
                 show_help
                 exit 1
                 ;;
@@ -389,7 +519,7 @@ parse_arguments() {
 # ============================================================================
 
 if [[ $EUID -eq 0 ]]; then
-    log_error "Bu scripti root olarak çalıştırmayın!"
+    echo "HATA: Bu scripti root olarak çalıştırmayın!" >&2
     exit 1
 fi
 
@@ -397,9 +527,14 @@ fi
 # BAŞLATMA
 # ============================================================================
 
+# Lock al
+if ! acquire_lock; then
+    exit 1
+fi
+
 # Güvenli temp directory oluştur
 TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX) || {
-    echo "HATA: Geçici dizin oluşturulamadı!"
+    echo "HATA: Geçici dizin oluşturulamadı!" >&2
     exit 1
 }
 
@@ -411,14 +546,14 @@ load_config
 
 # Otomatik güncelleme kontrolü
 if [[ "${AUTO_UPDATE:-false}" == "true" ]]; then
-    check_for_updates --silent
+    check_for_updates --silent || true
 fi
 
 # ============================================================================
-# ANA PROGRAM DÖNGÜSÜ
+# ANA PROGRAM DÖNGÜSÜ - VALİDASYON
 # ============================================================================
 
-# İLK AÇILIŞ - ANİMASYONLU BANNER
+# İLK AÇILIŞ
 show_animated_banner
 sleep 1
 
@@ -427,23 +562,52 @@ while true; do
     show_menu
     read -r choice
     
+    # Input validation
+    if [[ ! "$choice" =~ ^[0-9]+$ ]]; then
+        log_error "Geçersiz seçim: sayı giriniz"
+        sleep 2
+        continue
+    fi
+    
+    if [[ $choice -lt 0 || $choice -gt 15 ]]; then
+        log_error "Geçersiz seçim: 0-15 arası olmalı"
+        sleep 2
+        continue
+    fi
+    
     case $choice in
         1)
-            perform_full_install "dracula" "Dracula"
+            perform_full_install "dracula" "Dracula" || {
+                read -p "Devam etmek için Enter'a basın..."
+            }
             ;;
         2)
-            perform_full_install "nord" "Nord"
+            perform_full_install "nord" "Nord" || {
+                read -p "Devam etmek için Enter'a basın..."
+            }
             ;;
         3)
-            perform_full_install "gruvbox" "Gruvbox"
+            perform_full_install "gruvbox" "Gruvbox" || {
+                read -p "Devam etmek için Enter'a basın..."
+            }
             ;;
         4)
-            perform_full_install "tokyo-night" "Tokyo Night"
+            perform_full_install "tokyo-night" "Tokyo Night" || {
+                read -p "Devam etmek için Enter'a basın..."
+            }
             ;;
         5)
-            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            create_backup
+            if ! check_dependencies; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            if ! setup_sudo; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            create_backup || true
             
             clear
             echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
@@ -452,23 +616,22 @@ while true; do
             
             show_section 1 3 "Zsh kuruluyor"
             if install_zsh; then
-                post_installation_verification "zsh"
+                post_installation_verification "zsh" || true
             fi
             
             show_section 2 3 "Oh My Zsh kuruluyor"
             if install_oh_my_zsh; then
-                post_installation_verification "ohmyzsh"
+                post_installation_verification "ohmyzsh" || true
             fi
             
             show_section 3 3 "Shell değiştiriliyor"
-            change_default_shell
+            change_default_shell || true
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
             
             show_contextual_help "post_zsh"
             
-            # Zsh'e geçiş öner
             if show_switch_shell_prompt; then
                 exec zsh
             else
@@ -476,8 +639,12 @@ while true; do
             fi
             ;;
         6)
-            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            create_backup
+            if ! check_dependencies; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            create_backup || true
             
             clear
             echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
@@ -486,18 +653,17 @@ while true; do
             
             show_section 1 2 "Fontlar kuruluyor"
             if install_fonts; then
-                post_installation_verification "fonts"
+                post_installation_verification "fonts" || true
             fi
             
             show_section 2 2 "Powerlevel10k kuruluyor"
             if install_powerlevel10k; then
-                post_installation_verification "powerlevel10k"
+                post_installation_verification "powerlevel10k" || true
             fi
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
             
-            # Eğer zsh aktifse source et
             if [[ "$SHELL" == *"zsh"* ]]; then
                 echo
                 echo -e "${YELLOW}Değişiklikleri uygulamak için:${NC} ${CYAN}source ~/.zshrc${NC}"
@@ -505,11 +671,15 @@ while true; do
             read -p "Devam etmek için Enter'a basın..."
             ;;
         7)
-            change_theme_only
+            change_theme_only || true
             ;;
         8)
-            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            create_backup
+            if ! check_dependencies; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            create_backup || true
             
             clear
             echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
@@ -518,13 +688,12 @@ while true; do
             echo
             
             if install_plugins; then
-                post_installation_verification "plugins"
+                post_installation_verification "plugins" || true
             fi
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
             
-            # Eğer zsh aktifse source et
             if [[ "$SHELL" == *"zsh"* ]]; then
                 echo
                 echo -e "${YELLOW}Değişiklikleri uygulamak için:${NC} ${CYAN}source ~/.zshrc${NC}"
@@ -533,8 +702,15 @@ while true; do
             ;;
         9)
             if show_terminal_tools_info; then
-                check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
-                setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
+                if ! check_dependencies; then
+                    read -p "Devam etmek için Enter'a basın..."
+                    continue
+                fi
+                
+                if ! setup_sudo; then
+                    read -p "Devam etmek için Enter'a basın..."
+                    continue
+                fi
                 
                 clear
                 echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
@@ -542,16 +718,16 @@ while true; do
                 echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
                 
                 show_section 1 4 "FZF kuruluyor"
-                install_fzf
+                install_fzf || true
                 
                 show_section 2 4 "Zoxide kuruluyor"
-                install_zoxide
+                install_zoxide || true
                 
                 show_section 3 4 "Exa kuruluyor"
-                install_exa
+                install_exa || true
                 
                 show_section 4 4 "Bat kuruluyor"
-                install_bat
+                install_bat || true
                 
                 echo
                 echo -e "${GREEN}✓ Tamamlandı${NC}"
@@ -571,6 +747,13 @@ while true; do
             echo -n "Seçiminiz (1-7): "
             read -r tmux_theme_choice
             
+            # Validation
+            if [[ ! "$tmux_theme_choice" =~ ^[1-7]$ ]]; then
+                log_error "Geçersiz seçim"
+                sleep 2
+                continue
+            fi
+            
             local tmux_theme="dracula"
             case $tmux_theme_choice in
                 1) tmux_theme="dracula" ;;
@@ -580,41 +763,44 @@ while true; do
                 5) tmux_theme="catppuccin" ;;
                 6) tmux_theme="one-dark" ;;
                 7) tmux_theme="solarized" ;;
-                *) log_error "Geçersiz seçim, Dracula kullanılıyor"; tmux_theme="dracula" ;;
             esac
             
-            check_dependencies || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
-            install_tmux_with_theme "$tmux_theme"
-            log_success "Tamamlandı"
+            if ! check_dependencies; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            if ! setup_sudo; then
+                read -p "Devam etmek için Enter'a basın..."
+                continue
+            fi
+            
+            if install_tmux_with_theme "$tmux_theme"; then
+                log_success "Tamamlandı"
+            fi
             read -p "Devam etmek için Enter'a basın..."
             ;;
         11)
             show_banner
-            system_health_check
+            system_health_check || true
             read -p "Devam etmek için Enter'a basın..."
             ;;
         12)
-            manage_diagnostics
+            manage_diagnostics || true
             ;;
         13)
-            show_backups
-            read -p "Devam etmek için Enter'a basın..."
+            show_backups || true
             ;;
         14)
-            uninstall_all
+            uninstall_all || true
             read -p "Devam etmek için Enter'a basın..."
             ;;
         15)
-            manage_settings
+            manage_settings || true
             ;;
         0)
             log_info "Çıkılıyor..."
             exit 0
-            ;;
-        *)
-            log_error "Geçersiz seçim!"
-            sleep 2
             ;;
     esac
 done
