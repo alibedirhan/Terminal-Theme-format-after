@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Yardımcı Fonksiyonlar
-# v3.1.0 - Utilities Module
+# v3.2.0 - Utilities Module (Assistant entegreli)
 # ============================================================================
 
 # ============================================================================
@@ -52,7 +52,7 @@ log_success() {
 
 log_warning() {
     log_message "WARNING" "$@"
-    echo -e "${YELLOW}⚠ ${NC} $*"
+    echo -e "${YELLOW}⚠  ${NC} $*"
 }
 
 log_error() {
@@ -179,9 +179,9 @@ test_internet_speed() {
 # ============================================================================
 
 system_health_check() {
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ               ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ                        ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     echo
     
     local total_checks=0
@@ -234,7 +234,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} $terminal"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Bilinmeyen"
+        echo -e "${YELLOW}⚠  ${NC} Bilinmeyen"
         ((warnings++))
     fi
     
@@ -246,7 +246,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu ($zsh_version)"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -257,7 +257,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -268,7 +268,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -279,7 +279,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -295,10 +295,10 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Tamam (2/2)"
         ((passed_checks++))
     elif [ $plugin_count -eq 1 ]; then
-        echo -e "${YELLOW}⚠ ${NC} Kısmi (1/2)"
+        echo -e "${YELLOW}⚠  ${NC} Kısmi (1/2)"
         ((warnings++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -310,18 +310,18 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Var ($backup_count dosya)"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠ ${NC} Yok"
+        echo -e "${YELLOW}⚠  ${NC} Yok"
         ((warnings++))
     fi
     
     # Sonuç özeti
     echo
-    echo "══════════════════════════════════════════════"
+    echo "══════════════════════════════════════════════════════"
     echo -e "Toplam Kontrol: $total_checks"
     echo -e "${GREEN}✓ Başarılı: $passed_checks${NC}"
-    echo -e "${YELLOW}⚠  Uyarı: $warnings${NC}"
+    echo -e "${YELLOW}⚠   Uyarı: $warnings${NC}"
     echo -e "${RED}✗ Hata: $((total_checks - passed_checks))${NC}"
-    echo "══════════════════════════════════════════════"
+    echo "══════════════════════════════════════════════════════"
     
     # Durum değerlendirmesi
     local success_rate=$((passed_checks * 100 / total_checks))
@@ -333,7 +333,7 @@ system_health_check() {
         echo -e "${GREEN}✓ Sistem kurulum için hazır${NC}"
         return 0
     elif [ $success_rate -ge 60 ]; then
-        echo -e "${YELLOW}⚠  Sistem kurulabilir ama bazı özellikler çalışmayabilir${NC}"
+        echo -e "${YELLOW}⚠   Sistem kurulabilir ama bazı özellikler çalışmayabilir${NC}"
         return 0
     else
         echo -e "${RED}✗ Sistem kurulum için hazır değil${NC}"
@@ -435,7 +435,7 @@ update_script() {
     # Dosyaları indir
     log_info "Dosyalar indiriliyor..."
     
-    local files=("terminal-setup.sh" "terminal-core.sh" "terminal-utils.sh" "terminal-ui.sh" "terminal-themes.sh")
+    local files=("terminal-setup.sh" "terminal-core.sh" "terminal-utils.sh" "terminal-ui.sh" "terminal-themes.sh" "terminal-assistant.sh")
     local success_count=0
     
     for file in "${files[@]}"; do
@@ -486,9 +486,9 @@ update_script() {
 # ============================================================================
 
 show_backups() {
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              MEVCUT YEDEKLER                 ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              MEVCUT YEDEKLER                          ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     echo
     
     if [[ -d "$BACKUP_DIR" && $(ls -A "$BACKUP_DIR" 2>/dev/null) ]]; then
@@ -576,105 +576,6 @@ show_error() {
     return $error_code
 }
 
-# Komut çalıştır ve hata kodu döndür
-run_with_error_handling() {
-    local description="$1"
-    shift
-    local command=("$@")
-    
-    log_debug "Çalıştırılıyor: ${command[*]}"
-    echo -n "  → $description... "
-    
-    local output
-    local exit_code
-    
-    # Komutu çalıştır ve çıktıyı yakala
-    output=$("${command[@]}" 2>&1)
-    exit_code=$?
-    
-    if [ $exit_code -eq 0 ]; then
-        echo -e "${GREEN}✓${NC}"
-        log_debug "Başarılı: $description"
-        return $ERR_SUCCESS
-    else
-        echo -e "${RED}✗${NC}"
-        log_error "Başarısız: $description (Exit Code: $exit_code)"
-        log_error "Çıktı: $output"
-        return $exit_code
-    fi
-}
-
-# ============================================================================
-# TIMEOUT İŞLEMLERİ
-# ============================================================================
-
-# Timeout ile komut çalıştır
-run_with_timeout() {
-    local timeout_seconds=$1
-    local description=$2
-    shift 2
-    local command=("$@")
-    
-    log_info "Çalıştırılıyor: $description (Timeout: ${timeout_seconds}s)"
-    
-    start_spinner "$description"
-    
-    # timeout komutu varsa kullan
-    if command -v timeout &> /dev/null; then
-        timeout "$timeout_seconds" "${command[@]}" &> /dev/null
-        local exit_code=$?
-        
-        stop_spinner
-        
-        if [ $exit_code -eq 124 ]; then
-            log_error "Zaman aşımı: $description"
-            return $ERR_TIMEOUT
-        elif [ $exit_code -ne 0 ]; then
-            log_error "Komut başarısız: $description (Exit: $exit_code)"
-            return $ERR_COMMAND_FAILED
-        else
-            log_success "$description tamamlandı"
-            return $ERR_SUCCESS
-        fi
-    else
-        # timeout komutu yoksa normal çalıştır
-        "${command[@]}" &> /dev/null
-        local exit_code=$?
-        
-        stop_spinner
-        
-        if [ $exit_code -ne 0 ]; then
-            log_error "Komut başarısız: $description"
-            return $ERR_COMMAND_FAILED
-        else
-            log_success "$description tamamlandı"
-            return $ERR_SUCCESS
-        fi
-    fi
-}
-
-# ============================================================================
-# İNTERAKTİF INPUT (TIMEOUT İLE)
-# ============================================================================
-
-# Timeout ile input al
-read_with_timeout() {
-    local prompt="$1"
-    local timeout_seconds="${2:-30}"
-    local default_value="${3:-h}"
-    local response
-    
-    echo -n "$prompt "
-    
-    if read -r -t "$timeout_seconds" response; then
-        echo "$response"
-    else
-        echo
-        log_warning "Zaman aşımı - Varsayılan değer kullanılıyor: $default_value"
-        echo "$default_value"
-    fi
-}
-
 # ============================================================================
 # SİSTEM KAYNAK KONTROLÜ
 # ============================================================================
@@ -703,361 +604,21 @@ check_system_resources() {
 }
 
 # ============================================================================
-# ROLLBACK MEKANİZMASI
+# WRAPPER FONKSİYONLAR (ASSISTANT'A YÖNLENDİRİR)
 # ============================================================================
 
-# Rollback için snapshot oluştur
-create_snapshot() {
-    local snapshot_name="snapshot_$(date +%Y%m%d_%H%M%S)"
-    local snapshot_dir="$BACKUP_DIR/$snapshot_name"
-    
-    log_info "Snapshot oluşturuluyor: $snapshot_name"
-    mkdir -p "$snapshot_dir"
-    
-    # Önemli dosyaları yedekle
-    [[ -f ~/.bashrc ]] && cp ~/.bashrc "$snapshot_dir/"
-    [[ -f ~/.zshrc ]] && cp ~/.zshrc "$snapshot_dir/"
-    [[ -f ~/.p10k.zsh ]] && cp ~/.p10k.zsh "$snapshot_dir/"
-    
-    # Snapshot bilgisini kaydet
-    echo "TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')" > "$snapshot_dir/snapshot.info"
-    echo "SHELL=$SHELL" >> "$snapshot_dir/snapshot.info"
-    echo "USER=$USER" >> "$snapshot_dir/snapshot.info"
-    
-    log_success "Snapshot oluşturuldu: $snapshot_dir"
-    echo "$snapshot_dir"
-}
-
-# Snapshot'tan geri yükle
-restore_snapshot() {
-    local snapshot_dir="$1"
-    
-    if [[ ! -d "$snapshot_dir" ]]; then
-        log_error "Snapshot bulunamadı: $snapshot_dir"
-        return $ERR_FILE_NOT_FOUND
-    fi
-    
-    log_info "Snapshot'tan geri yükleniyor: $snapshot_dir"
-    
-    [[ -f "$snapshot_dir/.bashrc" ]] && cp "$snapshot_dir/.bashrc" ~/
-    [[ -f "$snapshot_dir/.zshrc" ]] && cp "$snapshot_dir/.zshrc" ~/
-    [[ -f "$snapshot_dir/.p10k.zsh" ]] && cp "$snapshot_dir/.p10k.zsh" ~/
-    
-    log_success "Snapshot geri yüklendi"
-    return $ERR_SUCCESS
-}
-
-# ============================================================================
-# DETAYLI LOGlama
-# ============================================================================
-
-# Function entry/exit tracking
-log_function_enter() {
-    local func_name="${FUNCNAME[1]}"
-    log_debug ">>> ENTER: $func_name"
-}
-
-log_function_exit() {
-    local func_name="${FUNCNAME[1]}"
-    local exit_code=$1
-    log_debug "<<< EXIT: $func_name (Exit Code: $exit_code)"
-}
-
-# Performans ölçümü
-measure_time() {
-    local description="$1"
-    shift
-    local command=("$@")
-    
-    local start_time=$(date +%s)
-    log_info "Başlatılıyor: $description"
-    
-    "${command[@]}"
-    local exit_code=$?
-    
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-    
-    log_info "$description tamamlandı (Süre: ${duration}s, Exit: $exit_code)"
-    
-    return $exit_code
-}
-
-# ============================================================================
-# OTOMATIK TEŞHİS VE ÇÖZÜM SİSTEMİ
-# ============================================================================
-
+# Eski diagnose_and_fix çağrıları için wrapper
 diagnose_and_fix() {
-    local error_type="$1"
-    local context="${2:-}"
-    
-    echo
-    echo -e "${RED}═══════════════════════════════════════════${NC}"
-    echo -e "${RED}      HATA TESPİT EDİLDİ - OTOMATİK TEŞHİS${NC}"
-    echo -e "${RED}═══════════════════════════════════════════${NC}"
-    echo
-    
-    case "$error_type" in
-        "shell_not_changed")
-            echo -e "${YELLOW}PROBLEM:${NC} Yeni terminalde hala Bash görünüyor"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            # 1. /etc/passwd kontrolü
-            local passwd_shell=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
-            echo "  1. Sistem ayarı: $passwd_shell"
-            
-            if [[ "$passwd_shell" == *"zsh"* ]]; then
-                echo -e "     ${GREEN}✓${NC} Sistem Zsh olarak ayarlı"
-            else
-                echo -e "     ${RED}✗${NC} Sistem hala Bash"
-            fi
-            
-            # 2. GNOME Terminal kontrolü
-            if command -v gsettings &> /dev/null; then
-                local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-                local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
-                echo "  2. GNOME Terminal login shell: $login_shell"
-                
-                if [[ "$login_shell" == "true" ]]; then
-                    echo -e "     ${GREEN}✓${NC} Login shell aktif"
-                else
-                    echo -e "     ${RED}✗${NC} Login shell pasif"
-                fi
-            fi
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            
-            # Otomatik düzelt
-            if [[ "$passwd_shell" != *"zsh"* ]]; then
-                echo "1. Shell'i Zsh olarak ayarla:"
-                echo -e "   ${CYAN}sudo chsh -s \$(which zsh) $USER${NC}"
-                echo
-                echo -n "   Şimdi çalıştırayım mı? (e/h): "
-                read -r fix_choice
-                if [[ "$fix_choice" == "e" ]]; then
-                    sudo chsh -s $(which zsh) $USER
-                    echo -e "   ${GREEN}✓ Düzeltildi${NC}"
-                fi
-                echo
-            fi
-            
-            if command -v gsettings &> /dev/null; then
-                local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-                local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
-                
-                if [[ "$login_shell" != "true" ]]; then
-                    echo "2. GNOME Terminal login shell aktif et:"
-                    echo -e "   ${CYAN}gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell true${NC}"
-                    echo
-                    echo -n "   Şimdi çalıştırayım mı? (e/h): "
-                    read -r fix_choice
-                    if [[ "$fix_choice" == "e" ]]; then
-                        gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell true
-                        echo -e "   ${GREEN}✓ Düzeltildi${NC}"
-                    fi
-                    echo
-                fi
-            fi
-            
-            echo "3. Son adım: Logout/login yap"
-            echo -e "   ${CYAN}gnome-session-quit --logout${NC}"
-            echo
-            ;;
-            
-        "internet_connection")
-            echo -e "${YELLOW}PROBLEM:${NC} İnternet bağlantısı yok"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            # 1. Ping testi
-            echo -n "  1. DNS sunucu erişimi (8.8.8.8): "
-            if ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
-                echo -e "${GREEN}✓ Erişilebilir${NC}"
-            else
-                echo -e "${RED}✗ Erişilemiyor${NC}"
-            fi
-            
-            # 2. DNS çözümleme
-            echo -n "  2. DNS çözümleme (google.com): "
-            if ping -c 1 -W 2 google.com &> /dev/null; then
-                echo -e "${GREEN}✓ Çalışıyor${NC}"
-            else
-                echo -e "${RED}✗ Çalışmıyor${NC}"
-            fi
-            
-            # 3. Ağ arayüzü
-            echo "  3. Ağ arayüzleri:"
-            ip -br addr | grep -v "lo" | while read line; do
-                echo "     $line"
-            done
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            echo "1. Ağ bağlantısını kontrol edin"
-            echo "2. WiFi/Ethernet bağlantısını yeniden başlatın"
-            echo "3. Veya offline kurulum için gerekli paketleri önceden indirin"
-            echo
-            ;;
-            
-        "permission_denied")
-            echo -e "${YELLOW}PROBLEM:${NC} Yetki hatası - $context"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            # Sudo kontrolü
-            echo -n "  1. Sudo yetkisi: "
-            if sudo -n true 2>/dev/null; then
-                echo -e "${GREEN}✓ Var${NC}"
-            else
-                echo -e "${RED}✗ Yok${NC}"
-            fi
-            
-            # Kullanıcı grubu
-            echo "  2. Kullanıcı grupları:"
-            groups | tr ' ' '\n' | while read group; do
-                if [[ "$group" == "sudo" ]] || [[ "$group" == "wheel" ]]; then
-                    echo -e "     ${GREEN}✓${NC} $group"
-                else
-                    echo "     $group"
-                fi
-            done
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            echo "1. Sudo şifresi gerekiyor:"
-            echo -e "   ${CYAN}sudo -v${NC}"
-            echo
-            echo "2. Veya kullanıcıyı sudo grubuna ekle:"
-            echo -e "   ${CYAN}sudo usermod -aG sudo $USER${NC}"
-            echo
-            ;;
-            
-        "package_missing")
-            echo -e "${YELLOW}PROBLEM:${NC} Eksik paket - $context"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            local missing_pkg="$context"
-            echo "  1. Paket durumu: $missing_pkg"
-            
-            if dpkg -l | grep -q "^ii.*$missing_pkg"; then
-                echo -e "     ${GREEN}✓ Kurulu${NC}"
-            else
-                echo -e "     ${RED}✗ Kurulu değil${NC}"
-            fi
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            echo "Paketi kur:"
-            echo -e "   ${CYAN}sudo apt update && sudo apt install -y $missing_pkg${NC}"
-            echo
-            echo -n "Şimdi kurayım mı? (e/h): "
-            read -r fix_choice
-            if [[ "$fix_choice" == "e" ]]; then
-                sudo apt update && sudo apt install -y "$missing_pkg"
-                echo -e "   ${GREEN}✓ Kuruldu${NC}"
-            fi
-            echo
-            ;;
-            
-        "font_not_visible")
-            echo -e "${YELLOW}PROBLEM:${NC} Fontlar düzgün görünmüyor"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            # Font kontrolü
-            echo "  1. Font durumu:"
-            if fc-list | grep -q "MesloLGS"; then
-                echo -e "     ${GREEN}✓ MesloLGS NF kurulu${NC}"
-                fc-list | grep "MesloLGS" | head -3 | while read font; do
-                    echo "     $font"
-                done
-            else
-                echo -e "     ${RED}✗ MesloLGS NF kurulu değil${NC}"
-            fi
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            echo "1. Terminal font ayarı:"
-            echo "   Preferences → Text → Font: MesloLGS NF Regular 12"
-            echo
-            echo "2. Veya fontları yeniden kur:"
-            echo -e "   ${CYAN}./terminal-setup.sh${NC}"
-            echo "   Seçenek: 6 (Sadece Fontlar)"
-            echo
-            ;;
-            
-        "theme_not_applied")
-            echo -e "${YELLOW}PROBLEM:${NC} Tema uygulanmadı"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            
-            # Powerlevel10k kontrolü
-            echo "  1. Powerlevel10k durumu:"
-            if [[ -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]]; then
-                echo -e "     ${GREEN}✓ Kurulu${NC}"
-            else
-                echo -e "     ${RED}✗ Kurulu değil${NC}"
-            fi
-            
-            # .zshrc kontrolü
-            echo "  2. .zshrc ZSH_THEME ayarı:"
-            if [[ -f ~/.zshrc ]]; then
-                local theme=$(grep "^ZSH_THEME=" ~/.zshrc | cut -d'"' -f2)
-                echo "     Mevcut: $theme"
-                if [[ "$theme" == "powerlevel10k/powerlevel10k" ]]; then
-                    echo -e "     ${GREEN}✓ Doğru${NC}"
-                else
-                    echo -e "     ${RED}✗ Yanlış${NC}"
-                fi
-            fi
-            
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            echo "1. Powerlevel10k'ı yeniden yapılandır:"
-            echo -e "   ${CYAN}p10k configure${NC}"
-            echo
-            echo "2. Veya .zshrc'yi yenile:"
-            echo -e "   ${CYAN}source ~/.zshrc${NC}"
-            echo
-            echo "3. Tema değiştir:"
-            echo -e "   ${CYAN}./terminal-setup.sh${NC}"
-            echo "   Seçenek: 7"
-            echo
-            ;;
-            
-        "zsh_not_default")
-            echo -e "${YELLOW}PROBLEM:${NC} Zsh varsayılan shell değil"
-            echo
-            echo -e "${CYAN}TEŞHİS:${NC}"
-            run_comprehensive_shell_check
-            echo
-            echo -e "${GREEN}ÇÖZÜM:${NC}"
-            echo
-            provide_shell_fix_commands
-            ;;
-            
-        *)
-            echo -e "${YELLOW}PROBLEM:${NC} Bilinmeyen hata - $error_type"
-            echo
-            echo -e "${CYAN}Genel kontrol yapılıyor...${NC}"
-            system_health_check
-            ;;
-    esac
-    
-    echo
-    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
-    echo
+    # terminal-assistant.sh'taki fonksiyonu çağır
+    if type -t diagnose_and_fix &>/dev/null; then
+        command diagnose_and_fix "$@"
+    else
+        log_error "Assistant modülü yüklenmemiş"
+        return 1
+    fi
 }
 
+# Shell check wrapper
 run_comprehensive_shell_check() {
     echo "  Kapsamlı shell kontrolü:"
     echo
@@ -1080,7 +641,7 @@ run_comprehensive_shell_check() {
     fi
     
     # 3. Aktif shell
-    local active_shell=$(ps -p $ -o comm=)
+    local active_shell=$(ps -p $$ -o comm=)
     echo -n "  3. Aktif shell: $active_shell "
     if [[ "$active_shell" == *"zsh"* ]]; then
         echo -e "${GREEN}✓${NC}"
@@ -1091,12 +652,14 @@ run_comprehensive_shell_check() {
     # 4. GNOME Terminal
     if command -v gsettings &> /dev/null; then
         local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-        local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
-        echo -n "  4. GNOME Terminal login-shell: $login_shell "
-        if [[ "$login_shell" == "true" ]]; then
-            echo -e "${GREEN}✓${NC}"
-        else
-            echo -e "${RED}✗${NC}"
+        if [[ -n "$profile_id" ]]; then
+            local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            echo -n "  4. GNOME Terminal login-shell: $login_shell "
+            if [[ "$login_shell" == "true" ]]; then
+                echo -e "${GREEN}✓${NC}"
+            else
+                echo -e "${RED}✗${NC}"
+            fi
         fi
     fi
 }
@@ -1115,13 +678,15 @@ provide_shell_fix_commands() {
     
     if command -v gsettings &> /dev/null; then
         local profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
-        local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
-        
-        if [[ "$login_shell" != "true" ]]; then
-            echo "2. GNOME Terminal ayarla:"
-            echo -e "   ${CYAN}PROFILE=\$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d \\')${NC}"
-            echo -e "   ${CYAN}gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:\$PROFILE/ login-shell true${NC}"
-            echo
+        if [[ -n "$profile_id" ]]; then
+            local login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            
+            if [[ "$login_shell" != "true" ]]; then
+                echo "2. GNOME Terminal ayarla:"
+                echo -e "   ${CYAN}PROFILE=\$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d \\')${NC}"
+                echo -e "   ${CYAN}gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:\$PROFILE/ login-shell true${NC}"
+                echo
+            fi
         fi
     fi
     
@@ -1139,3 +704,5 @@ provide_shell_fix_commands() {
 if [[ -n "$LOG_FILE" ]]; then
     init_log
 fi
+
+log_debug "Terminal Utils modülü yüklendi (v3.2.0)"

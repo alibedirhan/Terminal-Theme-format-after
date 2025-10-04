@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.1.1 - Modüler Yapı (Modern UI)
+# v3.2.0 - Modüler Yapı + Akıllı Asistan
 # ============================================================================
 # Dosya Yapısı:
 # - terminal-setup.sh      (bu dosya - orchestration)
@@ -10,10 +10,11 @@
 # - terminal-themes.sh     (tema tanımları)
 # - terminal-core.sh       (kurulum fonksiyonları)
 # - terminal-utils.sh      (yardımcı fonksiyonlar)
+# - terminal-assistant.sh  (akıllı sorun giderme asistanı)
 # ============================================================================
 
 # Script versiyonu
-VERSION="3.1.1"
+VERSION="3.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler - Organize edilmiş yapı
@@ -45,6 +46,7 @@ load_modules() {
         "terminal-ui.sh"
         "terminal-themes.sh"
         "terminal-core.sh"
+        "terminal-assistant.sh"
     )
     
     for module in "${modules[@]}"; do
@@ -94,14 +96,20 @@ perform_full_install() {
     local theme=$1
     local theme_display=$2
     
+    # Kurulum öncesi akıllı tarama
+    if ! pre_installation_scan; then
+        log_error "Sistem kurulum için hazır değil"
+        return 1
+    fi
+    
     clear
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   ${BOLD}${theme_display^^} KURULUMU BAŞLIYOR${NC}          ${CYAN}║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   ${BOLD}${theme_display^^} KURULUMU BAŞLIYOR${NC}          ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     
     # Ön kontroller
     echo
-    echo -e "${CYAN}━━━━ HAZIRLIK ━━━━${NC}"
+    echo -e "${CYAN}┌──── HAZIRLIK ────┐${NC}"
     
     if ! check_dependencies; then
         log_error "Bağımlılık kontrolü başarısız"
@@ -123,19 +131,35 @@ perform_full_install() {
     
     # Kurulum adımları
     show_section 1 7 "Zsh kuruluyor"
-    install_zsh || return 1
+    if install_zsh; then
+        post_installation_verification "zsh"
+    else
+        return 1
+    fi
     
     show_section 2 7 "Oh My Zsh kuruluyor"
-    install_oh_my_zsh || return 1
+    if install_oh_my_zsh; then
+        post_installation_verification "ohmyzsh"
+    else
+        return 1
+    fi
     
     show_section 3 7 "Fontlar kuruluyor"
-    install_fonts
+    if install_fonts; then
+        post_installation_verification "fonts"
+    fi
     
     show_section 4 7 "Powerlevel10k kuruluyor"
-    install_powerlevel10k || return 1
+    if install_powerlevel10k; then
+        post_installation_verification "powerlevel10k"
+    else
+        return 1
+    fi
     
     show_section 5 7 "Pluginler kuruluyor"
-    install_plugins
+    if install_plugins; then
+        post_installation_verification "plugins"
+    fi
     
     show_section 6 7 "$theme_display teması uygulanıyor"
     install_theme "$theme"
@@ -145,16 +169,19 @@ perform_full_install() {
     
     # Bash aliases migrasyonu
     echo
-    echo -e "${CYAN}━━━━ BASH ALIASES KONTROLÜ ━━━━${NC}"
+    echo -e "${CYAN}┌──── BASH ALIASES KONTROLÜ ────┐${NC}"
     migrate_bash_aliases
     
     echo
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   ${GREEN}✓ KURULUM BAŞARIYLA TAMAMLANDI${NC}       ${CYAN}║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   ${GREEN}✓ KURULUM BAŞARIYLA TAMAMLANDI${NC}       ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     echo
     echo -e "${DIM}Yedekler: $BACKUP_DIR${NC}"
     echo -e "${DIM}Log dosyası: $LOG_FILE${NC}"
+    
+    # Kurulum sonrası yardım
+    show_contextual_help "post_install"
     
     # Otomatik Zsh'e geçiş
     if show_switch_shell_prompt; then
@@ -232,76 +259,12 @@ change_theme_only() {
 }
 
 # ============================================================================
-# TEŞHİS YÖNETİMİ
+# TEŞHİS YÖNETİMİ (Assistant'a yönlendirir)
 # ============================================================================
 
 manage_diagnostics() {
-    while true; do
-        show_diagnostic_menu
-        read -r diag_choice
-        
-        case $diag_choice in
-            1)
-                diagnose_and_fix "zsh_not_default"
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            2)
-                diagnose_and_fix "internet_connection"
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            3)
-                diagnose_and_fix "permission_denied" "genel"
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            4)
-                diagnose_and_fix "font_not_visible"
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            5)
-                diagnose_and_fix "theme_not_applied"
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            6)
-                echo
-                echo "Eksik paket kontrolü..."
-                check_dependencies
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            7)
-                echo
-                log_info "Kapsamlı sistem kontrolü başlatılıyor..."
-                echo
-                
-                # Tüm kontroller
-                diagnose_and_fix "zsh_not_default"
-                echo
-                echo "────────────────────────────────────"
-                echo
-                
-                diagnose_and_fix "internet_connection"
-                echo
-                echo "────────────────────────────────────"
-                echo
-                
-                diagnose_and_fix "font_not_visible"
-                echo
-                echo "────────────────────────────────────"
-                echo
-                
-                diagnose_and_fix "theme_not_applied"
-                echo
-                
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            0)
-                break
-                ;;
-            *)
-                log_error "Geçersiz seçim"
-                sleep 1
-                ;;
-        esac
-    done
+    # Artık troubleshooting_wizard kullanıyoruz
+    troubleshooting_wizard
 }
 
 # ============================================================================
@@ -399,6 +362,11 @@ parse_arguments() {
                 check_for_updates
                 exit 0
                 ;;
+            --scan)
+                show_animated_banner
+                pre_installation_scan
+                exit 0
+                ;;
             --version)
                 echo "Terminal Setup v$VERSION"
                 exit 0
@@ -478,21 +446,27 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
             
             show_section 1 3 "Zsh kuruluyor"
-            install_zsh
+            if install_zsh; then
+                post_installation_verification "zsh"
+            fi
             
             show_section 2 3 "Oh My Zsh kuruluyor"
-            install_oh_my_zsh
+            if install_oh_my_zsh; then
+                post_installation_verification "ohmyzsh"
+            fi
             
             show_section 3 3 "Shell değiştiriliyor"
             change_default_shell
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
+            
+            show_contextual_help "post_zsh"
             
             # Zsh'e geçiş öner
             if show_switch_shell_prompt; then
@@ -506,15 +480,19 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}POWERLEVEL10K KURULUMU${NC}               ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}POWERLEVEL10K KURULUMU${NC}               ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
             
             show_section 1 2 "Fontlar kuruluyor"
-            install_fonts
+            if install_fonts; then
+                post_installation_verification "fonts"
+            fi
             
             show_section 2 2 "Powerlevel10k kuruluyor"
-            install_powerlevel10k
+            if install_powerlevel10k; then
+                post_installation_verification "powerlevel10k"
+            fi
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
@@ -534,12 +512,14 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}PLUGİN KURULUMU${NC}                      ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}PLUGİN KURULUMU${NC}                      ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
             echo
             
-            install_plugins
+            if install_plugins; then
+                post_installation_verification "plugins"
+            fi
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
@@ -557,9 +537,9 @@ while true; do
                 setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
                 
                 clear
-                echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-                echo -e "${CYAN}║${NC}   ${BOLD}TERMİNAL ARAÇLARI KURULUMU${NC}          ${CYAN}║${NC}"
-                echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+                echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+                echo -e "${CYAN}║   ${BOLD}TERMİNAL ARAÇLARI KURULUMU${NC}          ${CYAN}║${NC}"
+                echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
                 
                 show_section 1 4 "FZF kuruluyor"
                 install_fzf
