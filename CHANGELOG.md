@@ -1,127 +1,180 @@
 # Changelog
 
-Bu dosya projedeki tüm önemli değişiklikleri içerir.
+Tüm önemli değişiklikler bu dosyada belgelenir.
 
-Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardını takip eder,
-ve bu proje [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
+Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardına dayanır ve bu proje [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
 
-## [3.1.0] - 2025-01-02
+## [3.2.1] - 2025-01-15
 
-### Eklenenler
-- Terminal profil ayarlarını tam sıfırlama özelliği (`reset_terminal_profile`)
-- Orijinal sistem durumunu kaydetme sistemi (`save_original_state`)
-- Orijinal duruma geri yükleme özelliği (`restore_original_state`)
-- Zorlamalı kaldırma modu (`--force` parametresi)
-- Standardize edilmiş hata kodları sistemi (ERR_SUCCESS, ERR_NETWORK, vb.)
-- Timeout'lu input alma fonksiyonu (`read_with_timeout`)
-- Spinner animasyonu (`start_spinner`, `stop_spinner`)
-- Gelişmiş progress bar (`show_advanced_progress`)
-- Hata yönetimi fonksiyonu (`run_with_error_handling`)
-- Sistem kaynak kontrolü (`check_system_resources`)
-- Snapshot sistemi (`create_snapshot`, `restore_snapshot`)
-- Function entry/exit tracking (`log_function_enter`, `log_function_exit`)
-- Performans ölçümü (`measure_time`)
-- Detaylı kaldırma özeti (hata sayacı ile)
+### Eklenen
+- **Akıllı Sorun Giderme Asistanı (terminal-assistant.sh)**
+  - Kurulum öncesi akıllı tarama sistemi
+  - 7 farklı sorun senaryosu için otomatik teşhis
+  - İnteraktif sorun giderme sihirbazı
+  - Kapsamlı shell kontrolü ve çözüm önerileri
 
-### Değiştirilenler
-- `uninstall_all()` fonksiyonu tamamen yeniden yazıldı
-- Tüm kaldırma işlemleri artık adım adım numaralandırılıyor [1/10]
-- Tüm sudo komutları önceden uyarı veriyor
-- Tüm komut çıktıları log dosyasına yazılıyor
-- Opsiyonel kaldırmalar için timeout 30 saniye olarak ayarlandı
-- Progress bar daha detaylı ve renkli
-- Log sistemi geliştirildi (son 1000 satır tutuluyor)
-- Hata mesajları daha açıklayıcı
+- **5 Yeni Tema**
+  - Gruvbox Dark - Retro sıcak tonlar
+  - Tokyo Night - Modern mavi/mor
+  - Catppuccin Mocha - Pastel renkler
+  - One Dark - Atom editor benzeri
+  - Solarized Dark - Klasik düşük kontrast
 
-### Düzeltilenler
-- Shell değiştirme işlemi artık güvenilir çalışıyor
-- Terminal renk ayarları artık tamamen temizleniyor
-- Kaldırma işleminde takılma problemi çözüldü
-- Zsh config wizard'ının gereksiz çıkması önlendi
-- Font cache güncelleme hataları düzeltildi
-- Yedek dizini oluşturma hataları giderildi
-- Sudo timeout problemi çözüldü
+- **Terminal Araçları Desteği**
+  - FZF - Fuzzy finder
+  - Zoxide - Akıllı cd komutu
+  - Exa - Modern ls alternatifi
+  - Bat - Syntax highlighting cat
+
+- **Tmux Entegrasyonu**
+  - 7 tema için Tmux konfigürasyonu
+  - Otomatik tema uygulama
+  - Özelleştirilebilir status bar
+
+- **Çoklu Terminal Desteği**
+  - Kitty terminal tam desteği
+  - Alacritty terminal tam desteği
+  - İyileştirilmiş terminal tespiti
+
+- **Gelişmiş Özellikler**
+  - Lock mekanizması (tek instance)
+  - Signal handling (INT, TERM, HUP)
+  - Timeout koruması (tüm ağ işlemleri)
+  - Input validation (tüm kullanıcı girdileri)
+  - Thread-safe logging
+  - Otomatik güncelleme sistemi
+
+- **Modüler Yapı**
+  - terminal-setup.sh - Ana script
+  - terminal-core.sh - Kurulum fonksiyonları
+  - terminal-utils.sh - Yardımcı fonksiyonlar
+  - terminal-ui.sh - UI/Görsel katman
+  - terminal-themes.sh - Tema tanımları
+  - terminal-assistant.sh - Akıllı asistan
+
+- **Komut Satırı Parametreleri**
+  - `--health` - Sistem sağlık kontrolü
+  - `--scan` - Kurulum öncesi tarama
+  - `--update` - Güncelleme kontrolü
+  - `--debug` - Debug modu
+  - `--verbose` - Detaylı çıktı
+  - `--version` - Versiyon bilgisi
+
+### Değiştirilen
+- **Tam yeniden yapılandırma (Refactoring)**
+  - Monolitik yapıdan modüler yapıya geçiş
+  - 6 ayrı modül dosyası
+  - İyileştirilmiş hata yönetimi
+  - Gelişmiş logging sistemi
+
+- **Menü Sistemi**
+  - 9 seçenekten 15 seçeneğe çıkarıldı
+  - Modern box-style tasarım
+  - Akıllı öneriler sistemi
+  - Durum çubuğu (status bar)
+  - Renk önizlemeleri
+
+- **Yedekleme Sistemi**
+  - Otomatik eski yedek temizleme
+  - Yapılandırılabilir yedek sayısı
+  - Orijinal sistem durumu kaydetme
+  - Güvenli rollback mekanizması
+
+- **Kurulum Süreci**
+  - Her adımda doğrulama (verification)
+  - Timeout koruması (max 300s)
+  - Retry mekanizması (fontlar için)
+  - İlerlik göstergesi (progress bar)
+
+- **Hata Yönetimi**
+  - 10 kategorili hata kod sistemi
+  - Detaylı hata mesajları
+  - Otomatik teşhis önerileri
+  - Log dosyası referansları
+
+### Düzeltilen
+- Zsh kurulumunda timeout sorunu (120s -> 300s)
+- Font indirmede retry mekanizması eksikliği
+- APT kilit çakışması kontrolü
+- Locale sorunları için otomatik düzeltme
+- Yarım kalmış kurulum temizleme
+- Sudo refresh background process yönetimi
+- GNOME Terminal login-shell ayarı
+- Shell değişiminde doğrulama kontrolü
 
 ### Güvenlik
-- Sudo refresh process artık cleanup ile düzgün sonlanıyor
-- Trap sinyalleri eklendi (EXIT, ERR)
-- Geçici dosyalar güvenli dizinde oluşturuluyor
-- Root olarak çalıştırma engellendi
+- Input validation (tüm kullanıcı girdileri)
+- Path traversal koruması
+- Command injection önleme
+- Safe temp directory kullanımı
+- Lock file ile race condition önleme
 
-## [3.0.0] - 2024-12-15
+### Performans
+- Paralel font indirme (4 dosya)
+- Lazy loading (modüller)
+- Optimized log rotation
+- Efficient backup cleanup
 
-### Eklenenler
-- İlk stabil sürüm
-- 7 tema desteği (Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Solarized)
-- Modüler yapı (terminal-setup.sh, terminal-core.sh, terminal-utils.sh)
-- Oh My Zsh kurulumu
-- Powerlevel10k desteği
-- Zsh pluginleri (auto-suggestions, syntax-highlighting)
-- Terminal araçları (FZF, Zoxide, Exa, Bat)
-- Tmux desteği ve tema konfigürasyonu
+## [2.0.0] - 2024-12-01
+
+### Eklenen
+- Nord teması desteği
+- Modüler kurulum seçenekleri
 - Otomatik yedekleme sistemi
-- Sistem sağlık kontrolü
-- Konfigürasyon yönetimi
-- Otomatik güncelleme kontrolü
-- Debug ve verbose modları
+- GNOME Terminal profil yönetimi
+- Plugin kurulum desteği
+  - zsh-autosuggestions
+  - zsh-syntax-highlighting
+  - colored-man-pages
 
-### Desteklenen Platformlar
-- Ubuntu 20.04+
-- Debian 10+
-- Pop!_OS
-- Linux Mint
-- Diğer Debian tabanlı dağıtımlar
+### Değiştirilen
+- İnteraktif menü sistemi eklendi
+- Hata yönetimi iyileştirildi
+- Dokümantasyon genişletildi
 
-### Desteklenen Terminal Emülatörleri
-- GNOME Terminal (tam destek)
-- Kitty (tam destek)
-- Alacritty (tam destek)
-- Diğerleri (sınırlı destek)
+### Düzeltilen
+- Font kurulumu hataları
+- Shell değiştirme sorunları
+- Internet kontrolü iyileştirildi
 
-## [2.x.x] - 2024-11-xx
+## [1.0.0] - 2024-10-15
 
-### Beta Sürümleri
-- Temel işlevsellik testleri
-- Tema sistemi denemeleri
-- Yedekleme mekanizması geliştirme
-
-## [1.x.x] - 2024-10-xx
-
-### Alpha Sürümleri
-- İlk prototip
-- Temel Zsh kurulumu
-- Basit tema desteği
+### Eklenen
+- İlk sürüm
+- Dracula teması
+- Zsh + Oh My Zsh kurulumu
+- Powerlevel10k teması
+- MesloLGS NF fontları
+- Temel yedekleme
+- Kaldırma fonksiyonu
 
 ---
 
-## Gelecek Sürümler
+## Versiyon Notasyonu
 
-### [3.2.0] - Planlanıyor
-- [ ] iTerm2 desteği (macOS)
-- [ ] Konsole desteği (KDE)
-- [ ] Özel tema yükleme
-- [ ] Plugin yöneticisi
-- [ ] Web tabanlı konfigürasyon aracı
-- [ ] Arch Linux desteği
+- **MAJOR** - Breaking changes (geriye uyumsuz)
+- **MINOR** - Yeni özellikler (geriye uyumlu)
+- **PATCH** - Bug fixes (geriye uyumlu)
 
-### [4.0.0] - Planlanıyor
-- [ ] GUI arayüz
-- [ ] Tema önizleme
-- [ ] Canlı tema değiştirme
-- [ ] Bulut senkronizasyonu
-- [ ] Çoklu profil yönetimi
+## Gelecek Sürümler (Roadmap)
 
----
+### [3.3.0] - Planlanıyor
+- [ ] Fish shell desteği
+- [ ] macOS desteği
+- [ ] Windows WSL desteği
+- [ ] Zellij terminal multiplexer desteği
+- [ ] Tema önizleme sistemi
+- [ ] Özel tema oluşturma wizard'ı
 
-## Katkıda Bulunanlar
+### [3.4.0] - Planlanıyor
+- [ ] Otomatik test suite
+- [ ] CI/CD pipeline
+- [ ] Docker container desteği
+- [ ] Ansible playbook
+- [ ] NixOS konfigürasyonu
 
-Tüm katkıda bulunanlara teşekkürler!
-
-- [@alibedirhan](https://github.com/alibedirhan) - Proje sahibi ve ana geliştirici
-
-## Notlar
-
-- Semantic Versioning kullanılıyor: MAJOR.MINOR.PATCH
-- MAJOR: Uyumsuz API değişiklikleri
-- MINOR: Geriye dönük uyumlu yeni özellikler
-- PATCH: Geriye dönük uyumlu hata düzeltmeleri
+### [4.0.0] - Gelecek
+- [ ] Web-based yapılandırma arayüzü
+- [ ] Bulut senkronizasyon
+- [ ] Topluluk tema deposu
+- [ ] Plugin ekosistemi
