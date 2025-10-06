@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.2.1 - Production Ready (Timeout + Validation + Error Handling)
+# v3.2.2 - Production Ready (Timeout + Validation + Error Handling) - FIXED
 # ============================================================================
 
 # ============================================================================
@@ -30,7 +30,7 @@ show_step_info() {
 
 show_step_skip() {
     local message=$1
-    echo -e "  ${YELLOW}→${NC} ${message}"
+    echo -e "  ${YELLOW}↷${NC} ${message}"
 }
 
 show_user_prompt() {
@@ -121,7 +121,7 @@ check_dependencies() {
 }
 
 # ============================================================================
-# SUDO YÖNETİMİ - MERKEZİ (setup.sh'ta yönetiliyor)
+# SUDO YÖNETİMİ - DÜZELTME #1 (Parent PID Düzeltmesi)
 # ============================================================================
 
 setup_sudo() {
@@ -137,14 +137,20 @@ setup_sudo() {
     
     # Background sudo refresh process - sadece bir kez başlat
     if [[ -z "$SUDO_REFRESH_PID" ]] || ! kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
+        # DÜZELTME: Parent PID'yi doğru kaydet
+        local PARENT_PID=$$
+        
         (
             while true; do
                 sleep 50
+                
+                # Sudo yenile
                 if ! sudo -n true 2>/dev/null; then
                     exit 1
                 fi
-                # Parent process var mı kontrol et
-                if ! kill -0 $$ 2>/dev/null; then
+                
+                # Parent process var mı kontrol et (DÜZELTME: PARENT_PID kullan)
+                if ! kill -0 "$PARENT_PID" 2>/dev/null; then
                     exit 0
                 fi
             done
@@ -1252,7 +1258,7 @@ uninstall_all() {
     fi
     
     echo
-    echo -e "${CYAN}═════════════════════════════════════════${NC}"
+    echo -e "${CYAN}═════════════════════════════════════${NC}"
     
     if [[ "$force_mode" == true ]]; then
         log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
@@ -1313,4 +1319,4 @@ uninstall_all() {
     return 0
 }
 
-log_debug "Terminal Core modülü yüklendi (v3.2.1)"
+log_debug "Terminal Core modülü yüklendi (v3.2.2)"

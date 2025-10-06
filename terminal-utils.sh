@@ -2,11 +2,11 @@
 
 # ============================================================================
 # Terminal Setup - Yardımcı Fonksiyonlar
-# v3.2.1 - Production Ready (Error Handling + Validation)
+# v3.2.2 - Production Ready (Error Handling + Validation) - FIXED
 # ============================================================================
 
 # ============================================================================
-# LOGGING SİSTEMİ - THREAD SAFE
+# LOGGING SİSTEMİ - THREAD SAFE (DÜZELTME #3 - Flock Düzeltmesi)
 # ============================================================================
 
 init_log() {
@@ -38,12 +38,17 @@ log_message() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    # Thread-safe log yazma (flock kullanarak)
+    # Thread-safe log yazma - DÜZELTME: FD'yi doğru kullan
     if [[ -w "$LOG_FILE" ]]; then
-        {
-            flock -x 200
+        local lockfile="${LOG_FILE}.lock"
+        
+        # File descriptor aç, kilitle, yaz, kapat
+        exec 200>"$lockfile"
+        if flock -x -w 5 200 2>/dev/null; then
             echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
-        } 200>"${LOG_FILE}.lock" 2>/dev/null
+            flock -u 200
+        fi
+        exec 200>&-
     fi
     
     # Verbose modda konsola da yaz
@@ -64,7 +69,7 @@ log_success() {
 
 log_warning() {
     log_message "WARNING" "$@"
-    echo -e "${YELLOW}⚠  ${NC} $*"
+    echo -e "${YELLOW}⚠ ${NC} $*"
 }
 
 log_error() {
@@ -259,7 +264,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} $terminal"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Bilinmeyen"
+        echo -e "${YELLOW}⚠ ${NC} Bilinmeyen"
         ((warnings++))
     fi
     
@@ -272,7 +277,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu (${zsh_version:-bilinmiyor})"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -283,7 +288,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -294,7 +299,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -305,7 +310,7 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Kurulu"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -321,10 +326,10 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Tamam (2/2)"
         ((passed_checks++))
     elif [ $plugin_count -eq 1 ]; then
-        echo -e "${YELLOW}⚠  ${NC} Kısmi (1/2)"
+        echo -e "${YELLOW}⚠ ${NC} Kısmi (1/2)"
         ((warnings++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Kurulu değil"
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
         ((warnings++))
     fi
     
@@ -337,18 +342,18 @@ system_health_check() {
         echo -e "${GREEN}✓${NC} Var ($backup_count dosya)"
         ((passed_checks++))
     else
-        echo -e "${YELLOW}⚠  ${NC} Yok"
+        echo -e "${YELLOW}⚠ ${NC} Yok"
         ((warnings++))
     fi
     
     # Sonuç özeti
     echo
-    echo "══════════════════════════════════════════════════════"
+    echo "═══════════════════════════════════════════════════════════"
     echo -e "Toplam Kontrol: $total_checks"
     echo -e "${GREEN}✓ Başarılı: $passed_checks${NC}"
     echo -e "${YELLOW}⚠   Uyarı: $warnings${NC}"
     echo -e "${RED}✗ Hata: $((total_checks - passed_checks))${NC}"
-    echo "══════════════════════════════════════════════════════"
+    echo "═══════════════════════════════════════════════════════════"
     
     # Durum değerlendirmesi
     local success_rate=0
@@ -472,13 +477,13 @@ update_script() {
     TEMP_UPDATE_DIR=$(mktemp -d -t terminal-setup-update.XXXXXXXXXX) || {
         log_error "Temp dizin oluşturulamadı"
         return 1
-    }
+    fi
     
     cd "$TEMP_UPDATE_DIR" || {
         log_error "Temp dizine geçilemedi"
         rm -rf "$TEMP_UPDATE_DIR"
         return 1
-    }
+    fi
     
     log_info "Dosyalar indiriliyor..."
     
@@ -764,4 +769,4 @@ if [[ -n "${LOG_FILE:-}" ]]; then
     init_log || echo "UYARI: Log başlatılamadı" >&2
 fi
 
-log_debug "Terminal Utils modülü yüklendi (v3.2.1)"
+log_debug "Terminal Utils modülü yüklendi (v3.2.2)"

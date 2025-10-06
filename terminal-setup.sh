@@ -2,13 +2,13 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.2.1 - Production Ready (Lock + Signal Handling + Validation)
+# v3.2.2 - Production Ready (Lock + Signal Handling + Validation) - FIXED
 # ============================================================================
 
 set -euo pipefail  # Strict mode: exit on error, undefined var, pipe fail
 
 # Script versiyonu
-readonly VERSION="3.2.1"
+readonly VERSION="3.2.2"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
@@ -51,53 +51,72 @@ if ! create_directories; then
 fi
 
 # ============================================================================
-# LOCK MEKANİZMASI - TEK INSTANCE
+# LOCK MEKANİZMASI - ATOMIC İŞLEM (DÜZELTME #2)
 # ============================================================================
 
 acquire_lock() {
-    local max_wait=30
+    local lockfile="$LOCK_FILE"
+    local timeout=30
     local waited=0
     
-    # Eski kilit dosyası kontrolü
-    if [[ -f "$LOCK_FILE" ]]; then
-        local lock_pid
-        lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
-        
-        if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
-            echo "HATA: Başka bir instance çalışıyor (PID: $lock_pid)" >&2
-            echo "Beklemek için Enter'a basın veya Ctrl+C ile çıkın..." >&2
+    # Atomic lock - noclobber ile race condition önlenir
+    if ( set -o noclobber; echo $$ > "$lockfile" ) 2>/dev/null; then
+        echo $$ > "$PID_FILE"
+        return 0
+    fi
+    
+    # Kilit varsa sahiplik kontrolü yap
+    while [[ $waited -lt $timeout ]]; do
+        if [[ -f "$lockfile" ]]; then
+            local lock_pid
+            lock_pid=$(cat "$lockfile" 2>/dev/null || echo "")
             
-            while [[ $waited -lt $max_wait ]] && kill -0 "$lock_pid" 2>/dev/null; do
-                sleep 1
-                ((waited++))
-            done
-            
-            if kill -0 "$lock_pid" 2>/dev/null; then
-                echo "HATA: Timeout - diğer instance hala çalışıyor" >&2
-                return 1
+            # PID geçersizse veya process ölüyse kilidi kır
+            if [[ -z "$lock_pid" ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+                rm -f "$lockfile" 2>/dev/null
+                
+                # Tekrar dene
+                if ( set -o noclobber; echo $$ > "$lockfile" ) 2>/dev/null; then
+                    echo $$ > "$PID_FILE"
+                    return 0
+                fi
+            fi
+        else
+            # Kilit yoksa dene
+            if ( set -o noclobber; echo $$ > "$lockfile" ) 2>/dev/null; then
+                echo $$ > "$PID_FILE"
+                return 0
             fi
         fi
         
-        # Eski kilit temizle
-        rm -f "$LOCK_FILE"
+        sleep 1
+        ((waited++))
+    done
+    
+    # Timeout
+    echo "HATA: Başka bir instance çalışıyor veya kilidi alamıyor" >&2
+    if [[ -f "$lockfile" ]]; then
+        local lock_pid
+        lock_pid=$(cat "$lockfile" 2>/dev/null || echo "bilinmiyor")
+        echo "Mevcut kilit PID: $lock_pid" >&2
     fi
     
-    # Yeni kilit oluştur
-    echo $$ > "$LOCK_FILE" || {
-        echo "HATA: Lock dosyası oluşturulamadı" >&2
-        return 1
-    }
-    echo $$ > "$PID_FILE"
-    
-    return 0
+    return 1
 }
 
 release_lock() {
-    rm -f "$LOCK_FILE" "$PID_FILE" 2>/dev/null || true
+    # Sadece kendi kilidimizi kaldır
+    if [[ -f "$LOCK_FILE" ]]; then
+        local lock_pid
+        lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        if [[ "$lock_pid" == "$$" ]]; then
+            rm -f "$LOCK_FILE" "$PID_FILE" 2>/dev/null || true
+        fi
+    fi
 }
 
 # ============================================================================
-# CLEANUP FONKSİYONU - MERKEZİ YÖNETİM
+# CLEANUP FONKSİYONU - GÜVENLİ (DÜZELTME #4)
 # ============================================================================
 
 cleanup() {
@@ -109,9 +128,12 @@ cleanup() {
         wait "$SUDO_REFRESH_PID" 2>/dev/null || true
     fi
     
-    # Temp dizini temizle
-    if [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
-        rm -rf "$TEMP_DIR" 2>/dev/null || true
+    # Temp dizini temizle - GÜVENLİK KONTROLLÜ
+    if [[ -n "${TEMP_DIR:-}" ]]; then
+        # Sadece /tmp altındaki ve var olan dizinleri sil
+        if [[ -d "$TEMP_DIR" ]] && [[ "$TEMP_DIR" == /tmp/* ]] && [[ "$TEMP_DIR" != "/tmp" ]]; then
+            rm -rf "$TEMP_DIR" 2>/dev/null || true
+        fi
     fi
     
     # Lock serbest bırak
