@@ -1,641 +1,774 @@
 #!/bin/bash
 
 # ============================================================================
-# Terminal Setup - UI/Görsel Katman
-# v3.2.0 - UI Module (Assistant entegreli)
+# Terminal Setup - Yardımcı Fonksiyonlar
+# v3.2.2 - Production Ready (Error Handling + Validation) - FIXED
 # ============================================================================
 
 # ============================================================================
-# RENKLER
-# ============================================================================
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-WHITE='\033[1;37m'
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m' # No Color
-
-# ============================================================================
-# ANİMASYONLU BANNER
+# LOGGING SİSTEMİ - THREAD SAFE (DÜZELTME #3 - Flock Düzeltmesi)
 # ============================================================================
 
-show_animated_banner() {
-    clear
+init_log() {
+    if ! mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then
+        return 1
+    fi
     
-    # Frame 1
-    echo -e "${CYAN}"
-    cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║    ████████╗███████╗██╗                                         ║
-║   ╚══██╔══╝██╔════╝██║                                         ║
-║      ██║   █████╗  ██║                                         ║
-║      ██║   ██╔══╝  ██║                                         ║
-║      ╚██████╔╝██║  ██║███████╗                                    ║
-║       ╚═════╝ ╚═╝  ╚═╝╚══════╝                                    ║
-║                                                               ║
-║                Terminal Customization Suite v3.2.0            ║
-║                    github.com/alibedirhan                     ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
-    sleep 0.3
-    
-    # Frame 2 - Glow effect
-    clear
-    echo -e "${BOLD}${CYAN}"
-    cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║    ████████╗███████╗██╗     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓         ║
-║   ╚══██╔══╝██╔════╝██║     ▓ Zsh • Oh My Zsh • P10k ▓         ║
-║      ██║   █████╗  ██║     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓         ║
-║      ██║   ██╔══╝  ██║                                         ║
-║      ╚██████╔╝██║  ██║███████╗                                    ║
-║       ╚═════╝ ╚═╝  ╚═╝╚══════╝                                    ║
-║                                                               ║
-║                Terminal Customization Suite v3.2.0            ║
-║                    github.com/alibedirhan                     ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
-    sleep 0.3
-    
-    # Frame 3 - Final
-    clear
-    echo -e "${BOLD}${CYAN}"
-    cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║    ████████╗███████╗██╗                                         ║
-║   ╚══██╔══╝██╔════╝██║     Terminal Customization Suite       ║
-║      ██║   █████╗  ██║     Zsh • Oh My Zsh • Powerlevel10k    ║
-║      ██║   ██╔══╝  ██║     7 Themes • Multi-Terminal Support  ║
-║      ╚██████╔╝██║  ██║███████╗                                    ║
-║       ╚═════╝ ╚═╝  ╚═╝╚══════╝                                    ║
-║                                                               ║
-║                        Version 3.2.0                          ║
-║                    github.com/alibedirhan                     ║
-║                  🤖 Akıllı Asistan Destekli                   ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
-    sleep 0.2
-}
-
-# ============================================================================
-# STATİK BANNER (Hızlı Geçişler İçin)
-# ============================================================================
-
-show_banner() {
-    clear
-    echo -e "${BOLD}${CYAN}"
-    cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║    ████████╗███████╗██╗                                         ║
-║   ╚══██╔══╝██╔════╝██║     Terminal Customization Suite       ║
-║      ██║   █████╗  ██║     Zsh • Oh My Zsh • Powerlevel10k    ║
-║      ██║   ██╔══╝  ██║     7 Themes • Multi-Terminal Support  ║
-║      ╚██████╔╝██║  ██║███████╗                                    ║
-║       ╚═════╝ ╚═╝  ╚═╝╚══════╝                                    ║
-║                                                               ║
-║                        Version 3.2.0                          ║
-║                    github.com/alibedirhan                     ║
-║                  🤖 Akıllı Asistan Destekli                   ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
-}
-
-# ============================================================================
-# DURUM ÇUBUĞU (STATUS BAR)
-# ============================================================================
-
-show_status_bar() {
-    local zsh_status="${RED}✗${NC}"
-    local omz_status="${RED}✗${NC}"
-    local p10k_status="${RED}✗${NC}"
-    local internet_status="${RED}✗${NC}"
-    
-    # Zsh kontrolü
-    if command -v zsh &>/dev/null; then
-        if [[ "$SHELL" == *"zsh"* ]]; then
-            zsh_status="${GREEN}✓${NC}"
-        else
-            zsh_status="${YELLOW}~${NC}"  # Kurulu ama aktif değil
+    if [[ ! -f "$LOG_FILE" ]]; then
+        if ! touch "$LOG_FILE" 2>/dev/null; then
+            return 1
         fi
     fi
     
-    # Oh My Zsh kontrolü
-    if [[ -d "$HOME/.oh-my-zsh" ]]; then
-        omz_status="${GREEN}✓${NC}"
+    # Eski logları temizle (son 1000 satır)
+    if [[ -f "$LOG_FILE" ]]; then
+        local temp_log
+        temp_log=$(mktemp) || return 1
+        tail -n 1000 "$LOG_FILE" > "$temp_log" 2>/dev/null
+        mv "$temp_log" "$LOG_FILE" 2>/dev/null
     fi
-    
-    # Powerlevel10k kontrolü
-    if [[ -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]]; then
-        p10k_status="${GREEN}✓${NC}"
-    fi
-    
-    # İnternet kontrolü (hızlı, timeout 2 saniye)
-    if ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
-        internet_status="${GREEN}✓${NC}"
-    fi
-    
-    echo -e "${CYAN}┌──────────────────────── SİSTEM DURUMU ────────────────────────┐${NC}"
-    echo -e "${WHITE}│${NC} Zsh: $zsh_status ${DIM}|${NC} Oh My Zsh: $omz_status ${DIM}|${NC} P10k: $p10k_status ${DIM}|${NC} İnternet: $internet_status     ${CYAN}│${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────────────┘${NC}"
-}
-
-# ============================================================================
-# SMART RECOMMENDATİONS (AKILLI ÖNERİLER)
-# ============================================================================
-
-show_smart_recommendations() {
-    local has_recommendations=false
-    
-    echo -e "${YELLOW}┌──────────────────── AKILLI ÖNERİLER ─────────────────────┐${NC}"
-    
-    # Zsh kurulu değilse
-    if ! command -v zsh &>/dev/null; then
-        echo -e "${WHITE}│${NC} ${CYAN}→${NC} Zsh kurulu değil. Başlamak için ${BOLD}Seçenek 5${NC} önerilir       ${YELLOW}│${NC}"
-        has_recommendations=true
-    # Zsh kurulu ama aktif değilse
-    elif [[ "$SHELL" != *"zsh"* ]]; then
-        echo -e "${WHITE}│${NC} ${CYAN}→${NC} Zsh kurulu ama aktif değil. ${BOLD}Seçenek 5${NC} ile aktifleştirin ${YELLOW}│${NC}"
-        has_recommendations=true
-    # Oh My Zsh yoksa
-    elif [[ ! -d "$HOME/.oh-my-zsh" ]]; then
-        echo -e "${WHITE}│${NC} ${CYAN}→${NC} Oh My Zsh kurulu değil. ${BOLD}Seçenek 5${NC} ile kurun          ${YELLOW}│${NC}"
-        has_recommendations=true
-    # Powerlevel10k yoksa
-    elif [[ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]]; then
-        echo -e "${WHITE}│${NC} ${CYAN}→${NC} Tema kurulu değil. ${BOLD}Seçenek 6${NC} veya ${BOLD}1-4${NC} arası tam kurulum ${YELLOW}│${NC}"
-        has_recommendations=true
-    # Herşey tamam
-    else
-        echo -e "${WHITE}│${NC} ${GREEN}✓${NC} Sistem hazır! ${BOLD}Seçenek 7${NC} ile tema değiştirebilirsiniz   ${YELLOW}│${NC}"
-        has_recommendations=true
-    fi
-    
-    # İnternet yoksa uyar
-    if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
-        echo -e "${WHITE}│${NC} ${RED}⚠  ${NC}  İnternet bağlantısı yok. Kurulum için gerekli           ${YELLOW}│${NC}"
-        has_recommendations=true
-    fi
-    
-    echo -e "${YELLOW}└───────────────────────────────────────────────────────────┘${NC}"
     
     return 0
 }
 
-# ============================================================================
-# RENK ÖNİZLEMESİ FONKSİYONLARI
-# ============================================================================
-
-# Renk kutuçuğu göster (ANSI true color kullanarak)
-show_color_box() {
-    local r=$1
-    local g=$2
-    local b=$3
-    echo -ne "\033[48;2;${r};${g};${b}m  \033[0m"
-}
-
-# Tema renk paletini göster
-show_theme_colors() {
-    local theme=$1
+log_message() {
+    local level=$1
+    shift
+    local message="$*"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    case $theme in
-        dracula)
-            echo -n "  "
-            show_color_box 40 42 54      # background
-            show_color_box 248 248 242   # foreground
-            show_color_box 255 85 85     # red
-            show_color_box 80 250 123    # green
-            show_color_box 241 250 140   # yellow
-            show_color_box 189 147 249   # blue
-            show_color_box 255 121 198   # magenta
-            show_color_box 139 233 253   # cyan
-            ;;
-        nord)
-            echo -n "  "
-            show_color_box 46 52 64      # background
-            show_color_box 216 222 233   # foreground
-            show_color_box 191 97 106    # red
-            show_color_box 163 190 140   # green
-            show_color_box 235 203 139   # yellow
-            show_color_box 129 161 193   # blue
-            show_color_box 180 142 173   # magenta
-            show_color_box 136 192 208   # cyan
-            ;;
-        gruvbox)
-            echo -n "  "
-            show_color_box 40 40 40      # background
-            show_color_box 235 219 178   # foreground
-            show_color_box 204 36 29     # red
-            show_color_box 152 151 26    # green
-            show_color_box 215 153 33    # yellow
-            show_color_box 69 133 136    # blue
-            show_color_box 177 98 134    # magenta
-            show_color_box 104 157 106   # cyan
-            ;;
-        tokyo-night)
-            echo -n "  "
-            show_color_box 26 27 38      # background
-            show_color_box 192 202 245   # foreground
-            show_color_box 247 118 142   # red
-            show_color_box 158 206 106   # green
-            show_color_box 224 175 104   # yellow
-            show_color_box 122 162 247   # blue
-            show_color_box 187 154 247   # magenta
-            show_color_box 125 207 255   # cyan
-            ;;
-        catppuccin)
-            echo -n "  "
-            show_color_box 30 30 46      # background
-            show_color_box 205 214 244   # foreground
-            show_color_box 243 139 168   # red
-            show_color_box 166 227 161   # green
-            show_color_box 249 226 175   # yellow
-            show_color_box 137 180 250   # blue
-            show_color_box 245 194 231   # magenta
-            show_color_box 148 226 213   # cyan
-            ;;
-        one-dark)
-            echo -n "  "
-            show_color_box 40 44 52      # background
-            show_color_box 171 178 191   # foreground
-            show_color_box 224 108 117   # red
-            show_color_box 152 195 121   # green
-            show_color_box 229 192 123   # yellow
-            show_color_box 97 175 239    # blue
-            show_color_box 198 120 221   # magenta
-            show_color_box 86 182 194    # cyan
-            ;;
-        solarized)
-            echo -n "  "
-            show_color_box 0 43 54       # background
-            show_color_box 131 148 150   # foreground
-            show_color_box 220 50 47     # red
-            show_color_box 133 153 0     # green
-            show_color_box 181 137 0     # yellow
-            show_color_box 38 139 210    # blue
-            show_color_box 211 54 130    # magenta
-            show_color_box 42 161 152    # cyan
-            ;;
-    esac
-}
-
-# ============================================================================
-# MODERN BOX STYLE MENÜ
-# ============================================================================
-
-show_menu() {
-    # Durum çubuğunu göster
-    show_status_bar
-    echo
+    # Thread-safe log yazma - DÜZELTME: FD'yi doğru kullan
+    if [[ -w "$LOG_FILE" ]]; then
+        local lockfile="${LOG_FILE}.lock"
+        
+        # File descriptor aç, kilitle, yaz, kapat
+        exec 200>"$lockfile"
+        if flock -x -w 5 200 2>/dev/null; then
+            echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+            flock -u 200
+        fi
+        exec 200>&-
+    fi
     
-    # Akıllı önerileri göster
-    show_smart_recommendations
-    echo
-    
-    echo -e "${YELLOW}┌─────────────────────── TAM KURULUM ───────────────────────┐${NC}"
-    echo -e "${WHITE}│  1 │${NC} 🎨 ${MAGENTA}Dracula${NC}       ${CYAN}│${NC} Mor/Pembe - Yüksek Kontrast       ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  2 │${NC} 🌊 ${BLUE}Nord${NC}          ${CYAN}│${NC} Mavi/Gri - Göze Yumuşak           ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  3 │${NC} 🍂 ${YELLOW}Gruvbox${NC}       ${CYAN}│${NC} Retro Sıcak Tonlar                ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  4 │${NC} 🌃 ${BLUE}Tokyo Night${NC}   ${CYAN}│${NC} Modern Mavi/Mor                   ${YELLOW}│${NC}"
-    echo -e "${YELLOW}└───────────────────────────────────────────────────────────┘${NC}"
-    echo
-    echo -e "${YELLOW}┌───────────────────── MODÜLER KURULUM ─────────────────────┐${NC}"
-    echo -e "${WHITE}│  5 │${NC} ⚙️  ${GREEN}Zsh + Oh My Zsh${NC}                                   ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  6 │${NC} ✨ ${GREEN}Powerlevel10k Teması${NC}                              ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  7 │${NC} 🎨 ${GREEN}Renk Teması Değiştir${NC}                              ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  8 │${NC} 🔌 ${GREEN}Pluginler${NC}                                          ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  9 │${NC} 🛠️  ${GREEN}Terminal Araçları (FZF, Zoxide, Exa, Bat)${NC}       ${YELLOW}│${NC}"
-    echo -e "${WHITE}│ 10 │${NC} 📺 ${GREEN}Tmux Kurulumu${NC}                                      ${YELLOW}│${NC}"
-    echo -e "${YELLOW}└───────────────────────────────────────────────────────────┘${NC}"
-    echo
-    echo -e "${YELLOW}┌───────────────────────── YÖNETİM ─────────────────────────┐${NC}"
-    echo -e "${WHITE}│ 11 │${NC} 🏥 ${CYAN}Sistem Sağlık Kontrolü${NC}                            ${YELLOW}│${NC}"
-    echo -e "${WHITE}│ 12 │${NC} 🤖 ${CYAN}Akıllı Sorun Giderme Asistanı${NC}                     ${YELLOW}│${NC}"
-    echo -e "${WHITE}│ 13 │${NC} 💾 ${CYAN}Yedekleri Göster${NC}                                   ${YELLOW}│${NC}"
-    echo -e "${WHITE}│ 14 │${NC} 🗑️  ${RED}Tümünü Kaldır${NC}                                     ${YELLOW}│${NC}"
-    echo -e "${WHITE}│ 15 │${NC} ⚙️  ${CYAN}Ayarlar${NC}                                           ${YELLOW}│${NC}"
-    echo -e "${WHITE}│  0 │${NC} 🚪 ${WHITE}Çıkış${NC}                                              ${YELLOW}│${NC}"
-    echo -e "${YELLOW}└───────────────────────────────────────────────────────────┘${NC}"
-    echo
-    echo -ne "${BOLD}${CYAN}Seçiminiz (0-15): ${NC}"
-}
-
-# ============================================================================
-# TEMA SEÇİM MENÜSÜ (RENK ÖNİZLEMELİ)
-# ============================================================================
-
-show_theme_menu() {
-    clear
-    show_banner
-    echo
-    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           ${BOLD}TEMA SEÇİMİ${NC}                        ${CYAN}║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}"
-    echo
-    
-    local terminal_type
-    terminal_type=$(detect_terminal)
-    echo -e "${YELLOW}Tespit edilen terminal: ${terminal_type}${NC}"
-    echo
-    
-    echo -ne "${WHITE}1)${NC} ${MAGENTA}Dracula${NC}        - Mor/Pembe tonları, yüksek kontrast"
-    show_theme_colors "dracula"
-    echo
-    
-    echo -ne "${WHITE}2)${NC} ${BLUE}Nord${NC}           - Mavi/Gri tonları, göze yumuşak"
-    show_theme_colors "nord"
-    echo
-    
-    echo -ne "${WHITE}3)${NC} ${YELLOW}Gruvbox Dark${NC}   - Retro, sıcak tonlar"
-    show_theme_colors "gruvbox"
-    echo
-    
-    echo -ne "${WHITE}4)${NC} ${BLUE}Tokyo Night${NC}    - Modern, mavi/mor tonlar"
-    show_theme_colors "tokyo-night"
-    echo
-    
-    echo -ne "${WHITE}5)${NC} ${MAGENTA}Catppuccin${NC}     - Pastel renkler"
-    show_theme_colors "catppuccin"
-    echo
-    
-    echo -ne "${WHITE}6)${NC} ${CYAN}One Dark${NC}       - Atom editor benzeri"
-    show_theme_colors "one-dark"
-    echo
-    
-    echo -ne "${WHITE}7)${NC} ${CYAN}Solarized Dark${NC} - Klasik, düşük kontrast"
-    show_theme_colors "solarized"
-    echo
-    
-    echo -e "${WHITE}0)${NC} Geri"
-    echo
-    echo -ne "${CYAN}Seçiminiz (0-7): ${NC}"
-}
-
-# ============================================================================
-# AYARLAR MENÜSÜ
-# ============================================================================
-
-show_settings_menu() {
-    clear
-    show_banner
-    echo
-    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              ${BOLD}AYARLAR${NC}                         ${CYAN}║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}"
-    echo
-    
-    load_config
-    
-    echo -e "${YELLOW}Mevcut Ayarlar:${NC}"
-    echo -e "  ${CYAN}Varsayılan Tema:${NC} ${DEFAULT_THEME:-Yok}"
-    echo -e "  ${CYAN}Otomatik Güncelleme:${NC} ${AUTO_UPDATE:-false}"
-    echo -e "  ${CYAN}Yedek Sayısı:${NC} ${BACKUP_COUNT:-5}"
-    echo -e "  ${CYAN}Debug Modu:${NC} ${DEBUG_MODE:-false}"
-    echo
-    echo -e "${WHITE}1)${NC} Varsayılan Tema Değiştir"
-    echo -e "${WHITE}2)${NC} Otomatik Güncelleme ($([ "$AUTO_UPDATE" = "true" ] && echo "Kapat" || echo "Aç"))"
-    echo -e "${WHITE}3)${NC} Yedek Sayısını Ayarla"
-    echo -e "${WHITE}4)${NC} Güncellemeleri Kontrol Et"
-    echo -e "${WHITE}5)${NC} Ayarları Sıfırla"
-    echo -e "${WHITE}0)${NC} Geri"
-    echo
-    echo -ne "${CYAN}Seçiminiz (0-5): ${NC}"
-}
-
-# ============================================================================
-# TERMİNAL ARAÇLARI BİLGİ
-# ============================================================================
-
-show_terminal_tools_info() {
-    clear
-    show_banner
-    echo
-    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           ${BOLD}MODERN TERMİNAL ARAÇLARI${NC}                   ${CYAN}║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}"
-    echo
-    
-    echo -e "${YELLOW}1) FZF - Fuzzy Finder${NC}"
-    echo "   Dosya, komut, history'de hızlı arama"
-    echo
-    echo -e "${YELLOW}2) Zoxide - Akıllı cd${NC}"
-    echo "   En çok kullandığınız dizinlere hızlıca atlama"
-    echo
-    echo -e "${YELLOW}3) Exa - Modern ls${NC}"
-    echo "   Renkli ve icon'lu dosya listeleme"
-    echo
-    echo -e "${YELLOW}4) Bat - cat with syntax${NC}"
-    echo "   Syntax highlighting ile dosya görüntüleme"
-    echo
-    
-    echo -ne "${CYAN}Tümünü kurmak ister misiniz? (e/h): ${NC}"
-    read -r install_all
-    
-    [[ "$install_all" == "e" ]]
-}
-
-# ============================================================================
-# PROGRESS BAR
-# ============================================================================
-
-show_progress() {
-    local current=$1
-    local total=$2
-    local task=$3
-    local width=40
-    local percentage=$((current * 100 / total))
-    local completed=$((width * current / total))
-    
-    # Önceki satırı temizle
-    printf "\r\033[K"
-    
-    # Progress bar'ı çiz
-    printf "${CYAN}%s${NC} [" "$task"
-    printf "%${completed}s" | tr ' ' '█'
-    printf "%$((width - completed))s" | tr ' ' '░'
-    printf "] %3d%%" "$percentage"
-    
-    # Son adımda yeni satır ekle
-    if [ "$current" -eq "$total" ]; then
-        printf " ${GREEN}✓${NC}\n"
+    # Verbose modda konsola da yaz
+    if [[ "$VERBOSE_MODE" == true ]]; then
+        echo "[$level] $message"
     fi
 }
 
-show_advanced_progress() {
-    local current=$1
-    local total=$2
-    local task=$3
-    local width=50
-    local percentage=$((current * 100 / total))
-    local completed=$((width * current / total))
+log_info() {
+    log_message "INFO" "$@"
+    echo -e "${BLUE}ℹ${NC} $*"
+}
+
+log_success() {
+    log_message "SUCCESS" "$@"
+    echo -e "${GREEN}✓${NC} $*"
+}
+
+log_warning() {
+    log_message "WARNING" "$@"
+    echo -e "${YELLOW}⚠ ${NC} $*"
+}
+
+log_error() {
+    log_message "ERROR" "$@"
+    echo -e "${RED}✗${NC} $*" >&2
+}
+
+log_debug() {
+    if [[ "$DEBUG_MODE" == true ]]; then
+        log_message "DEBUG" "$@"
+        echo -e "${MAGENTA}[DEBUG]${NC} $*"
+    fi
+}
+
+# ============================================================================
+# TERMİNAL DETECTION - VALİDASYON
+# ============================================================================
+
+detect_terminal() {
+    # GNOME Terminal
+    if [[ -n "${GNOME_TERMINAL_SERVICE:-}" ]]; then
+        echo "gnome-terminal"
+        return 0
+    fi
     
-    # Renk seçimi (ilerlemeye göre)
-    local bar_color
-    if [ $percentage -lt 33 ]; then
-        bar_color=$RED
-    elif [ $percentage -lt 66 ]; then
-        bar_color=$YELLOW
+    # Kitty
+    if [[ -n "${KITTY_WINDOW_ID:-}" ]]; then
+        echo "kitty"
+        return 0
+    fi
+    
+    # Alacritty
+    if [[ -n "${ALACRITTY_SOCKET:-}" ]]; then
+        echo "alacritty"
+        return 0
+    fi
+    
+    # Tilix
+    if [[ -n "${TILIX_ID:-}" ]]; then
+        echo "tilix"
+        return 0
+    fi
+    
+    # Konsole
+    if [[ -n "${KONSOLE_VERSION:-}" ]]; then
+        echo "konsole"
+        return 0
+    fi
+    
+    # iTerm2 (macOS)
+    if [[ "${TERM_PROGRAM:-}" == "iTerm.app" ]]; then
+        echo "iterm2"
+        return 0
+    fi
+    
+    # Generic check
+    if [[ "${COLORTERM:-}" == "truecolor" ]]; then
+        echo "generic-truecolor"
+        return 0
+    fi
+    
+    echo "unknown"
+    return 0
+}
+
+check_gnome_terminal() {
+    if ! command -v gsettings &> /dev/null; then
+        log_warning "GNOME Terminal bulunamadı"
+        log_info "Renk teması sadece GNOME Terminal'de çalışır"
+        return 1
+    fi
+    return 0
+}
+
+show_terminal_info() {
+    local terminal
+    terminal=$(detect_terminal)
+    echo -e "${CYAN}Terminal Bilgileri:${NC}"
+    echo "  Tip: $terminal"
+    echo "  TERM: ${TERM:-Bilinmiyor}"
+    echo "  COLORTERM: ${COLORTERM:-Yok}"
+    echo "  Shell: ${SHELL:-Bilinmiyor}"
+}
+
+# ============================================================================
+# İNTERNET KONTROLÜ - TIMEOUT + RETRY
+# ============================================================================
+
+check_internet() {
+    log_debug "İnternet bağlantısı kontrol ediliyor..."
+    
+    # Önce DNS ile dene (daha güvenilir)
+    if timeout 5 curl -s --head --max-time 5 https://www.google.com > /dev/null 2>&1; then
+        log_debug "İnternet bağlantısı OK (curl)"
+        return 0
+    fi
+    
+    # Fallback: ping
+    if timeout 5 ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
+        log_debug "İnternet bağlantısı OK (ping)"
+        return 0
+    fi
+    
+    log_error "İnternet bağlantısı yok!"
+    echo "Kurulum için internet gerekli."
+    return 1
+}
+
+test_internet_speed() {
+    log_info "İnternet hızı test ediliyor..."
+    
+    local start_time
+    start_time=$(date +%s%N)
+    
+    if timeout 10 wget --timeout=5 -q -O /dev/null http://speedtest.tele2.net/1MB.zip 2>/dev/null; then
+        local end_time
+        end_time=$(date +%s%N)
+        local duration=$(( (end_time - start_time) / 1000000 ))
+        
+        if [ $duration -lt 2000 ]; then
+            log_success "İnternet hızı: İyi"
+        elif [ $duration -lt 5000 ]; then
+            log_warning "İnternet hızı: Orta"
+        else
+            log_warning "İnternet hızı: Yavaş"
+        fi
     else
-        bar_color=$GREEN
-    fi
-    
-    # Önceki satırı temizle
-    printf "\r\033[K"
-    
-    # Progress bar çiz
-    printf "${CYAN}[%2d/%2d]${NC} " "$current" "$total"
-    printf "["
-    printf "${bar_color}%${completed}s${NC}" | tr ' ' '█'
-    printf "%$((width - completed))s" | tr ' ' '░'
-    printf "] ${bar_color}%3d%%${NC} - %s" "$percentage" "$task"
-    
-    # Son adımda yeni satır
-    if [ "$current" -eq "$total" ]; then
-        printf " ${GREEN}✓${NC}\n"
+        log_warning "İnternet hızı ölçülemedi"
     fi
 }
 
 # ============================================================================
-# SPINNER
+# SAĞLIK KONTROLÜ - VALİDASYON
 # ============================================================================
 
-SPINNER_CHARS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-SPINNER_PID=""
-
-start_spinner() {
-    local message="${1:-İşlem devam ediyor}"
+system_health_check() {
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║         SİSTEM SAĞLIK KONTROLÜ                        ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
+    echo
     
-    (
-        local i=0
-        while true; do
-            printf "\r${CYAN}${SPINNER_CHARS[$i]}${NC} $message"
-            i=$(( (i + 1) % ${#SPINNER_CHARS[@]} ))
-            sleep 0.1
-        done
-    ) &
+    local total_checks=0
+    local passed_checks=0
+    local warnings=0
     
-    SPINNER_PID=$!
-    log_debug "Spinner başlatıldı (PID: $SPINNER_PID)"
-}
-
-stop_spinner() {
-    local status="${1:-}"
+    # 1. Disk alanı kontrolü
+    ((total_checks++))
+    echo -n "Disk alanı kontrolü... "
+    local available_space
+    available_space=$(df -BM "$HOME" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/M//')
     
-    if [[ -n "$SPINNER_PID" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
-        kill "$SPINNER_PID" 2>/dev/null
-        wait "$SPINNER_PID" 2>/dev/null || true
-        
-        # Satırı temizle
-        printf "\r\033[K"
-        
-        # Durum göster
-        case "$status" in
-            success)
-                echo -e "${GREEN}✓${NC} Tamamlandı"
-                ;;
-            error)
-                echo -e "${RED}✗${NC} Başarısız"
-                ;;
-            warning)
-                echo -e "${YELLOW}⚠  ${NC} Uyarı"
-                ;;
-        esac
-        
-        SPINNER_PID=""
-        log_debug "Spinner durduruldu"
+    if [[ -n "$available_space" ]] && [ "$available_space" -gt 500 ]; then
+        echo -e "${GREEN}✓${NC} Yeterli ($available_space MB)"
+        ((passed_checks++))
+    else
+        echo -e "${RED}✗${NC} Yetersiz (${available_space:-0} MB < 500 MB)"
     fi
-}
-
-# ============================================================================
-# TAMAMLANMA MESAJI
-# ============================================================================
-
-show_completion_message() {
-    echo
-    echo -e "${GREEN}══════════════════════════════════${NC}"
-    echo -e "${GREEN}✓ Kurulum tamamlandı!${NC}"
-    echo -e "${GREEN}══════════════════════════════════${NC}"
-    echo
-    echo -e "${CYAN}Yedekler: $BACKUP_DIR${NC}"
-    echo -e "${CYAN}Log dosyası: $LOG_FILE${NC}"
-}
-
-show_switch_shell_prompt() {
-    echo
-    echo -e "${CYAN}═════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}DEĞİŞİKLİKLERİ GÖRMEK İÇİN ZSH'E GEÇİN${NC}"
-    echo -e "${CYAN}═════════════════════════════════════════════${NC}"
-    echo
-    echo -e "${GREEN}✓ Zsh sistem shell'i olarak ayarlandı${NC}"
-    echo -e "${GREEN}✓ GNOME Terminal login shell moduna geçirildi${NC}"
-    echo
-    echo "Seçenekler:"
-    echo -e "  ${CYAN}1)${NC} Şimdi Zsh'e geç (Powerlevel10k wizard başlar)"
-    echo -e "  ${CYAN}2)${NC} Ana menüye dön (yeni terminaller otomatik Zsh açacak)"
-    echo
-    echo -e "${YELLOW}Not:${NC} Yeni terminal pencerelerinde Zsh otomatik başlayacak"
-    echo
-    echo -ne "${CYAN}Seçiminiz (1/2) [1]: ${NC}"
-    read -r switch_choice
     
-    # Boş veya 1 ise otomatik geç
-    if [[ -z "$switch_choice" ]] || [[ "$switch_choice" == "1" ]]; then
-        echo
-        echo -e "${GREEN}Zsh'e geçiliyor...${NC}"
-        sleep 1
+    # 2. İnternet bağlantısı
+    ((total_checks++))
+    echo -n "İnternet bağlantısı... "
+    if timeout 5 ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
+        echo -e "${GREEN}✓${NC} Aktif"
+        ((passed_checks++))
+    else
+        echo -e "${RED}✗${NC} Yok"
+    fi
+    
+    # 3. Gerekli komutlar
+    ((total_checks++))
+    echo -n "Gerekli paketler... "
+    local missing_pkgs=()
+    for cmd in git curl wget; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_pkgs+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing_pkgs[@]} -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} Tamam"
+        ((passed_checks++))
+    else
+        echo -e "${RED}✗${NC} Eksik: ${missing_pkgs[*]}"
+    fi
+    
+    # 4. Terminal emulator
+    ((total_checks++))
+    echo -n "Terminal emulator... "
+    local terminal
+    terminal=$(detect_terminal)
+    if [[ "$terminal" != "unknown" ]]; then
+        echo -e "${GREEN}✓${NC} $terminal"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Bilinmeyen"
+        ((warnings++))
+    fi
+    
+    # 5. Zsh kontrolü
+    ((total_checks++))
+    echo -n "Zsh... "
+    if command -v zsh &> /dev/null; then
+        local zsh_version
+        zsh_version=$(zsh --version 2>/dev/null | cut -d' ' -f2)
+        echo -e "${GREEN}✓${NC} Kurulu (${zsh_version:-bilinmiyor})"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        ((warnings++))
+    fi
+    
+    # 6. Oh My Zsh kontrolü
+    ((total_checks++))
+    echo -n "Oh My Zsh... "
+    if [[ -d "$HOME/.oh-my-zsh" ]]; then
+        echo -e "${GREEN}✓${NC} Kurulu"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        ((warnings++))
+    fi
+    
+    # 7. Font kontrolü
+    ((total_checks++))
+    echo -n "MesloLGS NF Font... "
+    if command -v fc-list &> /dev/null && fc-list 2>/dev/null | grep -q "MesloLGS"; then
+        echo -e "${GREEN}✓${NC} Kurulu"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        ((warnings++))
+    fi
+    
+    # 8. Powerlevel10k kontrolü
+    ((total_checks++))
+    echo -n "Powerlevel10k... "
+    if [[ -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]]; then
+        echo -e "${GREEN}✓${NC} Kurulu"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        ((warnings++))
+    fi
+    
+    # 9. Pluginler kontrolü
+    ((total_checks++))
+    echo -n "Zsh Pluginleri... "
+    local plugin_count=0
+    local CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    [[ -d "$CUSTOM/plugins/zsh-autosuggestions" ]] && ((plugin_count++))
+    [[ -d "$CUSTOM/plugins/zsh-syntax-highlighting" ]] && ((plugin_count++))
+    
+    if [ $plugin_count -eq 2 ]; then
+        echo -e "${GREEN}✓${NC} Tamam (2/2)"
+        ((passed_checks++))
+    elif [ $plugin_count -eq 1 ]; then
+        echo -e "${YELLOW}⚠ ${NC} Kısmi (1/2)"
+        ((warnings++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Kurulu değil"
+        ((warnings++))
+    fi
+    
+    # 10. Yedek kontrolü
+    ((total_checks++))
+    echo -n "Yedekler... "
+    if [[ -d "$BACKUP_DIR" ]] && [[ $(ls -A "$BACKUP_DIR" 2>/dev/null | wc -l) -gt 0 ]]; then
+        local backup_count
+        backup_count=$(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l)
+        echo -e "${GREEN}✓${NC} Var ($backup_count dosya)"
+        ((passed_checks++))
+    else
+        echo -e "${YELLOW}⚠ ${NC} Yok"
+        ((warnings++))
+    fi
+    
+    # Sonuç özeti
+    echo
+    echo "═══════════════════════════════════════════════════════════"
+    echo -e "Toplam Kontrol: $total_checks"
+    echo -e "${GREEN}✓ Başarılı: $passed_checks${NC}"
+    echo -e "${YELLOW}⚠   Uyarı: $warnings${NC}"
+    echo -e "${RED}✗ Hata: $((total_checks - passed_checks))${NC}"
+    echo "═══════════════════════════════════════════════════════════"
+    
+    # Durum değerlendirmesi
+    local success_rate=0
+    if [ $total_checks -gt 0 ]; then
+        success_rate=$((passed_checks * 100 / total_checks))
+    fi
+    
+    if [ $success_rate -eq 100 ]; then
+        echo -e "${GREEN}✓ Sistem mükemmel durumda!${NC}"
+        return 0
+    elif [ $success_rate -ge 80 ]; then
+        echo -e "${GREEN}✓ Sistem kurulum için hazır${NC}"
+        return 0
+    elif [ $success_rate -ge 60 ]; then
+        echo -e "${YELLOW}⚠   Sistem kurulabilir ama bazı özellikler çalışmayabilir${NC}"
         return 0
     else
-        echo
-        echo -e "${GREEN}Ana menüye dönülüyor...${NC}"
-        echo -e "${YELLOW}İpucu:${NC} Yeni terminal penceresi açın veya 'exec zsh' yazın"
-        echo
-        sleep 2
+        echo -e "${RED}✗ Sistem kurulum için hazır değil${NC}"
+        echo "Lütfen önce eksik paketleri kurun"
         return 1
     fi
 }
 
 # ============================================================================
-# YARDIM MESAJI
+# KONFİGÜRASYON YÖNETİMİ - SAFE
 # ============================================================================
 
-show_help() {
-    echo "Terminal Özelleştirme Kurulum Aracı v$VERSION"
-    echo
-    echo "Kullanım: $0 [SEÇENEKLER]"
-    echo
-    echo "Seçenekler:"
-    echo "  --health          Sistem sağlık kontrolü"
-    echo "  --scan            Kurulum öncesi akıllı tarama"
-    echo "  --update          Güncellemeleri kontrol et"
-    echo "  --debug           Debug modu"
-    echo "  --verbose         Detaylı çıktı"
-    echo "  --version         Versiyon bilgisi"
-    echo "  --help, -h        Bu yardım mesajı"
-    echo
-    echo "Örnekler:"
-    echo "  $0                # Normal mod"
-    echo "  $0 --scan         # Kurulum öncesi tarama"
-    echo "  $0 --health       # Sadece sağlık kontrolü"
-    echo "  $0 --debug        # Debug modu ile çalıştır"
+DEFAULT_THEME="dracula"
+AUTO_UPDATE="false"
+BACKUP_COUNT="5"
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]] && [[ -r "$CONFIG_FILE" ]]; then
+        log_debug "Config dosyası yükleniyor: $CONFIG_FILE"
+        # shellcheck source=/dev/null
+        source "$CONFIG_FILE" 2>/dev/null || log_warning "Config yüklenemedi"
+    else
+        log_debug "Config dosyası bulunamadı, varsayılanlar kullanılıyor"
+    fi
+}
+
+save_config() {
+    log_debug "Config dosyası kaydediliyor: $CONFIG_FILE"
+    
+    if ! mkdir -p "$(dirname "$CONFIG_FILE")" 2>/dev/null; then
+        log_error "Config dizini oluşturulamadı"
+        return 1
+    fi
+    
+    cat > "$CONFIG_FILE" << EOF
+# Terminal Setup Configuration
+# Auto-generated on $(date)
+
+DEFAULT_THEME="$DEFAULT_THEME"
+AUTO_UPDATE="$AUTO_UPDATE"
+BACKUP_COUNT="$BACKUP_COUNT"
+EOF
+    
+    if [[ $? -eq 0 ]]; then
+        log_success "Ayarlar kaydedildi"
+        return 0
+    else
+        log_error "Ayarlar kaydedilemedi"
+        return 1
+    fi
 }
 
 # ============================================================================
-# YÜKLEME BİLGİSİ
+# OTOMATİK GÜNCELLEME - TIMEOUT + VALİDASYON
 # ============================================================================
 
-log_debug "Terminal UI modülü yüklendi (v3.2.0)"
+check_for_updates() {
+    local silent_mode=false
+    if [[ "$1" == "--silent" ]]; then
+        silent_mode=true
+    fi
+    
+    if ! check_internet; then
+        [[ "$silent_mode" == false ]] && log_warning "Güncelleme kontrolü için internet gerekli"
+        return 1
+    fi
+    
+    [[ "$silent_mode" == false ]] && log_info "Güncellemeler kontrol ediliyor..."
+    
+    local REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
+    local REMOTE_VERSION
+    REMOTE_VERSION=$(timeout 10 curl -s --connect-timeout 5 "$REPO_URL/VERSION" 2>/dev/null)
+    
+    if [[ -z "$REMOTE_VERSION" ]]; then
+        [[ "$silent_mode" == false ]] && log_warning "Versiyon bilgisi alınamadı"
+        return 1
+    fi
+    
+    log_debug "Mevcut versiyon: $VERSION"
+    log_debug "Uzak versiyon: $REMOTE_VERSION"
+    
+    if [[ "$REMOTE_VERSION" != "$VERSION" ]]; then
+        [[ "$silent_mode" == false ]] && echo
+        log_info "Yeni versiyon mevcut: $REMOTE_VERSION (Mevcut: $VERSION)"
+        
+        if [[ "$silent_mode" == false ]]; then
+            echo -n "Güncellemek ister misiniz? (e/h): "
+            read -r update_choice
+            
+            if [[ "$update_choice" =~ ^[eE]$ ]]; then
+                update_script
+            fi
+        fi
+    else
+        [[ "$silent_mode" == false ]] && log_success "En güncel versiyonu kullanıyorsunuz"
+    fi
+    
+    return 0
+}
+
+update_script() {
+    log_info "Script güncelleniyor..."
+    
+    local REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
+    local TEMP_UPDATE_DIR
+    TEMP_UPDATE_DIR=$(mktemp -d -t terminal-setup-update.XXXXXXXXXX) || {
+        log_error "Temp dizin oluşturulamadı"
+        return 1
+    fi
+    
+    cd "$TEMP_UPDATE_DIR" || {
+        log_error "Temp dizine geçilemedi"
+        rm -rf "$TEMP_UPDATE_DIR"
+        return 1
+    fi
+    
+    log_info "Dosyalar indiriliyor..."
+    
+    local files=("terminal-setup.sh" "terminal-core.sh" "terminal-utils.sh" "terminal-ui.sh" "terminal-themes.sh" "terminal-assistant.sh")
+    local success_count=0
+    
+    for file in "${files[@]}"; do
+        if timeout 30 wget --timeout=15 -q "$REPO_URL/$file" -O "$file" 2>/dev/null; then
+            ((success_count++))
+            log_debug "$file indirildi"
+        else
+            log_error "$file indirilemedi"
+        fi
+    done
+    
+    if [ $success_count -eq ${#files[@]} ]; then
+        log_info "Mevcut sürüm yedekleniyor..."
+        local backup_update_dir="$BACKUP_DIR/update_backup_$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_update_dir" || {
+            log_error "Backup dizini oluşturulamadı"
+            cd - > /dev/null
+            rm -rf "$TEMP_UPDATE_DIR"
+            return 1
+        }
+        
+        for file in "${files[@]}"; do
+            if [[ -f "$SCRIPT_DIR/$file" ]]; then
+                cp "$SCRIPT_DIR/$file" "$backup_update_dir/" 2>/dev/null
+            fi
+        done
+        
+        log_info "Yeni versiyon kuruluyor..."
+        for file in "${files[@]}"; do
+            cp "$file" "$SCRIPT_DIR/" || {
+                log_error "$file kopyalanamadı"
+                continue
+            }
+            chmod +x "$SCRIPT_DIR/$file" 2>/dev/null
+        done
+        
+        cd - > /dev/null || true
+        rm -rf "$TEMP_UPDATE_DIR"
+        
+        log_success "Güncelleme tamamlandı!"
+        echo "Script yeniden başlatılıyor..."
+        sleep 2
+        exec "$SCRIPT_DIR/terminal-setup.sh"
+    else
+        log_error "Güncelleme başarısız ($success_count/${#files[@]} dosya indirildi)"
+        cd - > /dev/null || true
+        rm -rf "$TEMP_UPDATE_DIR"
+        return 1
+    fi
+}
+
+# ============================================================================
+# YEDEK YÖNETİMİ - SAFE
+# ============================================================================
+
+show_backups() {
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║              MEVCUT YEDEKLER                          ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
+    echo
+    
+    if [[ -d "$BACKUP_DIR" ]] && [[ $(ls -A "$BACKUP_DIR" 2>/dev/null | wc -l) -gt 0 ]]; then
+        echo -e "${YELLOW}Yedek Dizini: $BACKUP_DIR${NC}"
+        echo
+        ls -lh "$BACKUP_DIR" 2>/dev/null | tail -n +2 || echo "Listelenemedi"
+        echo
+        
+        local total_size
+        total_size=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
+        echo -e "Toplam boyut: ${CYAN}${total_size:-Bilinmiyor}${NC}"
+    else
+        log_info "Henüz yedek yok"
+    fi
+}
+
+cleanup_old_backups() {
+    if [[ ! -d "$BACKUP_DIR" ]]; then
+        return 0
+    fi
+    
+    load_config
+    
+    local count
+    count=$(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l)
+    
+    if [ "$count" -gt "${BACKUP_COUNT:-5}" ]; then
+        log_info "Eski yedekler temizleniyor... (Son ${BACKUP_COUNT:-5} tutulacak)"
+        
+        cd "$BACKUP_DIR" || return 1
+        ls -t 2>/dev/null | tail -n +$((BACKUP_COUNT + 1)) | xargs rm -rf 2>/dev/null
+        cd - > /dev/null || true
+        
+        log_success "Eski yedekler temizlendi"
+    fi
+    
+    return 0
+}
+
+# ============================================================================
+# HATA KODLARI SİSTEMİ
+# ============================================================================
+
+readonly ERR_SUCCESS=0
+readonly ERR_NETWORK=1
+readonly ERR_PERMISSION=2
+readonly ERR_DEPENDENCY=3
+readonly ERR_FILE_NOT_FOUND=4
+readonly ERR_COMMAND_FAILED=5
+readonly ERR_USER_CANCELLED=6
+readonly ERR_TIMEOUT=7
+readonly ERR_INVALID_INPUT=8
+readonly ERR_DISK_SPACE=9
+readonly ERR_UNKNOWN=99
+
+declare -A ERROR_MESSAGES=(
+    [0]="Başarılı"
+    [1]="İnternet bağlantısı hatası"
+    [2]="Yetki hatası - sudo gerekli"
+    [3]="Bağımlılık hatası - paket eksik"
+    [4]="Dosya bulunamadı"
+    [5]="Komut çalıştırma hatası"
+    [6]="Kullanıcı tarafından iptal edildi"
+    [7]="Zaman aşımı"
+    [8]="Geçersiz girdi"
+    [9]="Disk alanı yetersiz"
+    [99]="Bilinmeyen hata"
+)
+
+show_error() {
+    local error_code=$1
+    local context="${2:-}"
+    
+    log_error "Hata [${error_code}]: ${ERROR_MESSAGES[$error_code]:-Bilinmeyen hata}"
+    
+    if [[ -n "$context" ]]; then
+        log_error "Detay: $context"
+    fi
+    
+    log_error "Log dosyası: $LOG_FILE"
+    
+    return "$error_code"
+}
+
+# ============================================================================
+# SİSTEM KAYNAK KONTROLÜ - VALİDASYON
+# ============================================================================
+
+check_system_resources() {
+    log_info "Sistem kaynakları kontrol ediliyor..."
+    
+    # Disk alanı
+    local available_mb
+    available_mb=$(df -BM "$HOME" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/M//')
+    
+    if [[ -z "$available_mb" ]]; then
+        log_error "Disk alanı ölçülemedi"
+        return "$ERR_UNKNOWN"
+    fi
+    
+    log_debug "Kullanılabilir disk alanı: ${available_mb}MB"
+    
+    if [ "$available_mb" -lt 500 ]; then
+        show_error $ERR_DISK_SPACE "Yetersiz disk alanı: ${available_mb}MB (Min: 500MB)"
+        return "$ERR_DISK_SPACE"
+    fi
+    
+    # Bellek kontrolü
+    if command -v free &> /dev/null; then
+        local available_mem
+        available_mem=$(free -m 2>/dev/null | awk 'NR==2 {print $7}')
+        
+        if [[ -n "$available_mem" ]]; then
+            log_debug "Kullanılabilir bellek: ${available_mem}MB"
+            
+            if [ "$available_mem" -lt 100 ]; then
+                log_warning "Düşük bellek: ${available_mem}MB"
+            fi
+        fi
+    fi
+    
+    return "$ERR_SUCCESS"
+}
+
+# ============================================================================
+# SHELL CHECK WRAPPER
+# ============================================================================
+
+run_comprehensive_shell_check() {
+    echo "  Kapsamlı shell kontrolü:"
+    echo
+    
+    # 1. /etc/passwd
+    local passwd_shell
+    passwd_shell=$(grep "^$USER:" /etc/passwd 2>/dev/null | cut -d: -f7)
+    echo -n "  1. /etc/passwd: ${passwd_shell:-Bilinmiyor} "
+    if [[ "$passwd_shell" == *"zsh"* ]]; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+    fi
+    
+    # 2. $SHELL değişkeni
+    echo -n "  2. \$SHELL: ${SHELL:-Bilinmiyor} "
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+    fi
+    
+    # 3. Aktif shell
+    local active_shell
+    active_shell=$(ps -p $$ -o comm= 2>/dev/null)
+    echo -n "  3. Aktif shell: ${active_shell:-Bilinmiyor} "
+    if [[ "$active_shell" == *"zsh"* ]]; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+    fi
+    
+    # 4. GNOME Terminal
+    if command -v gsettings &> /dev/null; then
+        local profile_id
+        profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        
+        if [[ -n "$profile_id" ]]; then
+            local login_shell
+            login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            echo -n "  4. GNOME Terminal login-shell: ${login_shell:-false} "
+            if [[ "$login_shell" == "true" ]]; then
+                echo -e "${GREEN}✓${NC}"
+            else
+                echo -e "${RED}✗${NC}"
+            fi
+        fi
+    fi
+}
+
+provide_shell_fix_commands() {
+    echo "Adım adım çözüm:"
+    echo
+    
+    local passwd_shell
+    passwd_shell=$(grep "^$USER:" /etc/passwd 2>/dev/null | cut -d: -f7)
+    
+    if [[ "$passwd_shell" != *"zsh"* ]]; then
+        echo "1. Sistem shell'ini değiştir:"
+        echo -e "   ${CYAN}sudo chsh -s \$(which zsh) $USER${NC}"
+        echo
+    fi
+    
+    if command -v gsettings &> /dev/null; then
+        local profile_id
+        profile_id=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+        
+        if [[ -n "$profile_id" ]]; then
+            local login_shell
+            login_shell=$(gsettings get org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile_id/ login-shell 2>/dev/null)
+            
+            if [[ "$login_shell" != "true" ]]; then
+                echo "2. GNOME Terminal ayarla:"
+                echo -e "   ${CYAN}PROFILE=\$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d \\')${NC}"
+                echo -e "   ${CYAN}gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:\$PROFILE/ login-shell true${NC}"
+                echo
+            fi
+        fi
+    fi
+    
+    echo "3. Değişiklikleri uygula:"
+    echo -e "   ${CYAN}gnome-session-quit --logout${NC}"
+    echo "   (veya tüm terminalleri kapatıp yeniden aç)"
+    echo
+    
+    return 0
+}
+
+# ============================================================================
+# İNİT
+# ============================================================================
+
+if [[ -n "${LOG_FILE:-}" ]]; then
+    init_log || echo "UYARI: Log başlatılamadı" >&2
+fi
+
+log_debug "Terminal Utils modülü yüklendi (v3.2.2)"
