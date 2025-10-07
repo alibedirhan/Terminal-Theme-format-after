@@ -2,24 +2,8 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.2.0 - Core Module (Clean Output)
+# v3.2.2 - Production Ready (Timeout + Validation + Error Handling) - FIXED
 # ============================================================================
-
-# Sudo refresh PID - Global değişken
-SUDO_REFRESH_PID=""
-
-# Sudo cleanup fonksiyonu
-cleanup_sudo() {
-    if [[ -n "$SUDO_REFRESH_PID" ]] && kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
-        kill "$SUDO_REFRESH_PID" 2>/dev/null
-        wait "$SUDO_REFRESH_PID" 2>/dev/null || true
-        log_debug "Sudo refresh process durduruldu (PID: $SUDO_REFRESH_PID)"
-        SUDO_REFRESH_PID=""
-    fi
-}
-
-# Trap ekle
-trap cleanup_sudo EXIT ERR INT TERM
 
 # ============================================================================
 # CLEAN OUTPUT HELPERS
@@ -30,7 +14,7 @@ show_section() {
     local total=$2
     local title=$3
     echo
-    echo -e "${CYAN}━━━━ KURULUM [${step}/${total}] ━━━━${NC}"
+    echo -e "${CYAN}┌──── KURULUM [${step}/${total}] ────┐${NC}"
     echo -e "${YELLOW}⟳${NC} ${title}..."
 }
 
@@ -46,7 +30,7 @@ show_step_info() {
 
 show_step_skip() {
     local message=$1
-    echo -e "  ${YELLOW}→${NC} ${message}"
+    echo -e "  ${YELLOW}↷${NC} ${message}"
 }
 
 show_user_prompt() {
@@ -64,7 +48,7 @@ show_user_prompt() {
 }
 
 # ============================================================================
-# BAĞIMLILIK KONTROLÜ
+# BAĞIMLILIK KONTROLÜ - VALİDASYON
 # ============================================================================
 
 check_dependencies() {
@@ -98,16 +82,22 @@ check_dependencies() {
         echo -n "Otomatik kurmak ister misiniz? (e/h): "
         read -r install_choice
         
-        if [[ "$install_choice" == "e" ]]; then
+        # Input validation
+        if [[ ! "$install_choice" =~ ^[ehEH]$ ]]; then
+            log_error "Geçersiz seçim"
+            return 1
+        fi
+        
+        if [[ "$install_choice" =~ ^[eE]$ ]]; then
             echo -e "${CYAN}→${NC} Paketler kuruluyor..."
             
-            if ! sudo apt update &>/dev/null; then
-                log_error "apt update başarısız"
+            if ! timeout 60 sudo apt update &>/dev/null; then
+                log_error "apt update başarısız veya timeout"
                 diagnose_and_fix "internet_connection"
                 return 1
             fi
             
-            if ! sudo apt install -y "${missing_required[@]}" &>/dev/null; then
+            if ! timeout 300 sudo apt install -y "${missing_required[@]}" &>/dev/null; then
                 log_error "Paket kurulumu başarısız"
                 for pkg in "${missing_required[@]}"; do
                     diagnose_and_fix "package_missing" "$pkg"
@@ -131,7 +121,7 @@ check_dependencies() {
 }
 
 # ============================================================================
-# SUDO YÖNETİMİ
+# SUDO YÖNETİMİ - DÜZELTME #1 (Parent PID Düzeltmesi)
 # ============================================================================
 
 setup_sudo() {
@@ -145,40 +135,56 @@ setup_sudo() {
     
     log_success "Sudo yetkisi alındı"
     
-    # Background sudo refresh process
-    (
-        while true; do
-            sleep 50
-            sudo -n true 2>/dev/null || exit 1
-            kill -0 "$$" 2>/dev/null || exit 0
-        done
-    ) &
-    
-    SUDO_REFRESH_PID=$!
-    log_debug "Sudo refresh başlatıldı (PID: $SUDO_REFRESH_PID)"
+    # Background sudo refresh process - sadece bir kez başlat
+    if [[ -z "$SUDO_REFRESH_PID" ]] || ! kill -0 "$SUDO_REFRESH_PID" 2>/dev/null; then
+        # DÜZELTME: Parent PID'yi doğru kaydet
+        local PARENT_PID=$$
+        
+        (
+            while true; do
+                sleep 50
+                
+                # Sudo yenile
+                if ! sudo -n true 2>/dev/null; then
+                    exit 1
+                fi
+                
+                # Parent process var mı kontrol et (DÜZELTME: PARENT_PID kullan)
+                if ! kill -0 "$PARENT_PID" 2>/dev/null; then
+                    exit 0
+                fi
+            done
+        ) &
+        
+        SUDO_REFRESH_PID=$!
+        log_debug "Sudo refresh başlatıldı (PID: $SUDO_REFRESH_PID)"
+    fi
     
     return 0
 }
 
 # ============================================================================
-# YEDEKLEME
+# YEDEKLEME - HATA KONTROLÜ
 # ============================================================================
 
 create_backup() {
     log_info "Mevcut ayarlar yedekleniyor..."
-    mkdir -p "$BACKUP_DIR" || {
+    
+    if ! mkdir -p "$BACKUP_DIR" 2>/dev/null; then
         log_error "Yedek dizini oluşturulamadı: $BACKUP_DIR"
         return 1
-    }
+    fi
     
-    local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    local TIMESTAMP
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     
-    [[ -f ~/.bashrc ]] && cp ~/.bashrc "$BACKUP_DIR/bashrc_$TIMESTAMP"
-    [[ -f ~/.zshrc ]] && cp ~/.zshrc "$BACKUP_DIR/zshrc_$TIMESTAMP"
-    [[ -f ~/.p10k.zsh ]] && cp ~/.p10k.zsh "$BACKUP_DIR/p10k_$TIMESTAMP"
-    [[ -f ~/.tmux.conf ]] && cp ~/.tmux.conf "$BACKUP_DIR/tmux_$TIMESTAMP"
+    # Dosya varsa yedekle
+    [[ -f ~/.bashrc ]] && cp ~/.bashrc "$BACKUP_DIR/bashrc_$TIMESTAMP" 2>/dev/null
+    [[ -f ~/.zshrc ]] && cp ~/.zshrc "$BACKUP_DIR/zshrc_$TIMESTAMP" 2>/dev/null
+    [[ -f ~/.p10k.zsh ]] && cp ~/.p10k.zsh "$BACKUP_DIR/p10k_$TIMESTAMP" 2>/dev/null
+    [[ -f ~/.tmux.conf ]] && cp ~/.tmux.conf "$BACKUP_DIR/tmux_$TIMESTAMP" 2>/dev/null
     
-    echo "$SHELL" > "$BACKUP_DIR/original_shell_$TIMESTAMP"
+    echo "$SHELL" > "$BACKUP_DIR/original_shell_$TIMESTAMP" 2>/dev/null
     
     if command -v gsettings &> /dev/null; then
         gsettings get org.gnome.Terminal.ProfilesList default > "$BACKUP_DIR/gnome_profile_$TIMESTAMP" 2>/dev/null || true
@@ -190,7 +196,7 @@ create_backup() {
 }
 
 # ============================================================================
-# ZSH KURULUMU
+# ZSH KURULUMU - TIMEOUT + VALİDASYON
 # ============================================================================
 
 install_zsh() {
@@ -201,13 +207,19 @@ install_zsh() {
         return 0
     fi
     
-    if ! sudo apt update &>/dev/null; then
-        log_error "apt update başarısız!"
+    if ! timeout 60 sudo apt update &>/dev/null; then
+        log_error "apt update başarısız veya timeout!"
         return 1
     fi
     
-    if ! sudo apt install -y zsh &>/dev/null; then
+    if ! timeout 300 sudo apt install -y zsh &>/dev/null; then
         log_error "Zsh kurulumu başarısız!"
+        return 1
+    fi
+    
+    # Kurulum doğrulama
+    if ! command -v zsh &> /dev/null; then
+        log_error "Zsh kuruldu ama komut bulunamadı!"
         return 1
     fi
     
@@ -216,7 +228,7 @@ install_zsh() {
 }
 
 # ============================================================================
-# OH MY ZSH KURULUMU
+# OH MY ZSH KURULUMU - TIMEOUT + ERROR HANDLING
 # ============================================================================
 
 install_oh_my_zsh() {
@@ -231,8 +243,21 @@ install_oh_my_zsh() {
         return 1
     fi
     
-    if ! RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null; then
-        log_error "Oh My Zsh kurulumu başarısız!"
+    # Timeout ile kurulum (max 120 saniye)
+    if ! timeout 120 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null; then
+        log_error "Oh My Zsh kurulumu başarısız veya timeout!"
+        
+        # Yarım kalmış kurulum temizle
+        if [[ -d ~/.oh-my-zsh ]]; then
+            rm -rf ~/.oh-my-zsh
+        fi
+        
+        return 1
+    fi
+    
+    # Kurulum doğrulama
+    if [[ ! -d ~/.oh-my-zsh ]] || [[ ! -f ~/.oh-my-zsh/oh-my-zsh.sh ]]; then
+        log_error "Oh My Zsh kurulumu tamamlanmadı!"
         return 1
     fi
     
@@ -241,7 +266,7 @@ install_oh_my_zsh() {
 }
 
 # ============================================================================
-# FONT KURULUMU
+# FONT KURULUMU - RETRY + VALİDASYON
 # ============================================================================
 
 install_fonts() {
@@ -249,25 +274,27 @@ install_fonts() {
     
     if ! command -v fc-cache &> /dev/null; then
         show_step_info "fontconfig paketi kuruluyor..."
-        sudo apt install -y fontconfig &>/dev/null || {
+        if ! timeout 60 sudo apt install -y fontconfig &>/dev/null; then
             log_warning "fontconfig kurulumu başarısız"
-        }
+        fi
     fi
     
-    sudo apt install -y fonts-powerline &>/dev/null || {
+    if ! timeout 60 sudo apt install -y fonts-powerline &>/dev/null; then
         log_warning "Powerline font kurulumu başarısız, devam ediliyor..."
-    }
+    fi
     
     local FONT_DIR=~/.local/share/fonts
-    mkdir -p "$FONT_DIR" || {
+    if ! mkdir -p "$FONT_DIR" 2>/dev/null; then
         log_error "Font dizini oluşturulamadı"
         return 1
-    }
+    fi
     
     if [[ ! -f "$FONT_DIR/MesloLGS NF Regular.ttf" ]]; then
         show_step_info "MesloLGS NF fontları indiriliyor..."
         
-        local current_dir=$(pwd)
+        local current_dir
+        current_dir=$(pwd)
+        
         if ! cd "$FONT_DIR"; then
             log_error "Font dizinine geçilemedi"
             return 1
@@ -290,8 +317,10 @@ install_fonts() {
             local retry=0
             
             while [ $retry -lt $max_retry ]; do
-                if wget --timeout=15 --tries=2 -q "$base_url/$url_name" -O "$file_name" 2>/dev/null; then
-                    local file_size=$(wc -c < "$file_name" 2>/dev/null | tr -d '[:space:]')
+                if timeout 30 wget --timeout=15 --tries=2 -q "$base_url/$url_name" -O "$file_name" 2>/dev/null; then
+                    local file_size
+                    file_size=$(wc -c < "$file_name" 2>/dev/null | tr -d '[:space:]')
+                    
                     if [[ -n "$file_size" ]] && [[ "$file_size" -gt 400000 ]]; then
                         log_debug "$file_name indirildi (${file_size} bytes)"
                         ((success_count++))
@@ -310,9 +339,7 @@ install_fonts() {
             done
         done
         
-        cd "$current_dir" || {
-            log_warning "Orijinal dizine geri dönülemedi"
-        }
+        cd "$current_dir" || log_warning "Orijinal dizine geri dönülemedi"
         
         if [ $success_count -gt 0 ]; then
             if command -v fc-cache &> /dev/null; then
@@ -326,7 +353,8 @@ install_fonts() {
                 ""
             echo -n "Font olmadan devam etmek ister misiniz? (e/h): "
             read -r continue_choice
-            if [[ "$continue_choice" != "e" ]]; then
+            
+            if [[ ! "$continue_choice" =~ ^[eE]$ ]]; then
                 return 1
             fi
         fi
@@ -338,7 +366,7 @@ install_fonts() {
 }
 
 # ============================================================================
-# POWERLEVEL10K KURULUMU
+# POWERLEVEL10K KURULUMU - TIMEOUT + VALİDASYON
 # ============================================================================
 
 install_powerlevel10k() {
@@ -352,22 +380,42 @@ install_powerlevel10k() {
     
     if [[ -d "$P10K_DIR" ]]; then
         show_step_info "Güncelleniyor..."
-        local current_dir=$(pwd)
+        local current_dir
+        current_dir=$(pwd)
+        
         if cd "$P10K_DIR"; then
-            git pull &>/dev/null || log_warning "Güncelleme başarısız"
+            if ! timeout 60 git pull &>/dev/null; then
+                log_warning "Güncelleme başarısız veya timeout"
+            fi
             cd "$current_dir" || true
         fi
         show_step_success "Tema motoru hazır"
     else
-        if ! git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" &>/dev/null; then
-            log_error "Powerlevel10k klonlama başarısız!"
+        if ! timeout 120 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" &>/dev/null; then
+            log_error "Powerlevel10k klonlama başarısız veya timeout!"
+            
+            # Yarım kalmış klonlama temizle
+            if [[ -d "$P10K_DIR" ]]; then
+                rm -rf "$P10K_DIR"
+            fi
+            
             return 1
         fi
+        
+        # Kurulum doğrulama
+        if [[ ! -f "$P10K_DIR/powerlevel10k.zsh-theme" ]]; then
+            log_error "Powerlevel10k tema dosyası bulunamadı!"
+            return 1
+        fi
+        
         show_step_success "Tema motoru kuruldu"
     fi
     
+    # .zshrc güncelle
     if [[ -f ~/.zshrc ]]; then
-        sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
+        if ! sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc 2>/dev/null; then
+            log_warning ".zshrc güncellenemedi"
+        fi
     fi
     
     log_success "Powerlevel10k kuruldu"
@@ -375,7 +423,7 @@ install_powerlevel10k() {
 }
 
 # ============================================================================
-# PLUGİNLER
+# PLUGİNLER - TIMEOUT + VALİDASYON
 # ============================================================================
 
 install_plugins() {
@@ -388,31 +436,40 @@ install_plugins() {
     local CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
     local install_errors=0
     
+    # zsh-autosuggestions
     if [[ ! -d "$CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        if git clone https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" &>/dev/null; then
+        if timeout 60 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" &>/dev/null; then
             show_step_success "zsh-autosuggestions"
         else
-            log_warning "zsh-autosuggestions kurulumu başarısız"
+            log_warning "zsh-autosuggestions kurulumu başarısız veya timeout"
             ((install_errors++))
+            
+            # Yarım kalmış klonlama temizle
+            rm -rf "$CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null
         fi
     else
         show_step_skip "zsh-autosuggestions zaten kurulu"
     fi
     
+    # zsh-syntax-highlighting
     if [[ ! -d "$CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        if git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null; then
+        if timeout 60 git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null; then
             show_step_success "zsh-syntax-highlighting"
         else
-            log_warning "zsh-syntax-highlighting kurulumu başarısız"
+            log_warning "zsh-syntax-highlighting kurulumu başarısız veya timeout"
             ((install_errors++))
+            
+            # Yarım kalmış klonlama temizle
+            rm -rf "$CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null
         fi
     else
         show_step_skip "zsh-syntax-highlighting zaten kurulu"
     fi
     
+    # .zshrc güncelle
     if [[ -f ~/.zshrc ]]; then
         if grep -q "^plugins=(" ~/.zshrc; then
-            sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc
+            sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc 2>/dev/null
         else
             echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)' >> ~/.zshrc
         fi
@@ -428,7 +485,7 @@ install_plugins() {
 }
 
 # ============================================================================
-# TERMİNAL ARAÇLARI
+# TERMİNAL ARAÇLARI - TIMEOUT + VALİDASYON
 # ============================================================================
 
 install_fzf() {
@@ -444,14 +501,15 @@ install_fzf() {
     fi
     
     if [[ ! -d ~/.fzf ]]; then
-        if ! git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf &>/dev/null; then
-            log_error "FZF klonlama başarısız!"
+        if ! timeout 60 git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf &>/dev/null; then
+            log_error "FZF klonlama başarısız veya timeout!"
+            rm -rf ~/.fzf 2>/dev/null
             return 1
         fi
     fi
     
-    if ! ~/.fzf/install --all --no-bash --no-fish &>/dev/null; then
-        log_error "FZF kurulumu başarısız!"
+    if ! timeout 60 ~/.fzf/install --all --no-bash --no-fish &>/dev/null; then
+        log_error "FZF kurulumu başarısız veya timeout!"
         return 1
     fi
     
@@ -471,11 +529,12 @@ install_zoxide() {
         return 1
     fi
     
-    if ! curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null; then
-        log_error "Zoxide kurulumu başarısız!"
+    if ! timeout 120 bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash" &>/dev/null; then
+        log_error "Zoxide kurulumu başarısız veya timeout!"
         return 1
     fi
     
+    # .zshrc'ye ekle
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "zoxide init zsh" ~/.zshrc; then
             {
@@ -498,11 +557,12 @@ install_exa() {
         return 0
     fi
     
-    if ! sudo apt install -y exa &>/dev/null; then
-        log_error "Exa kurulumu başarısız!"
+    if ! timeout 120 sudo apt install -y exa &>/dev/null; then
+        log_error "Exa kurulumu başarısız veya timeout!"
         return 1
     fi
     
+    # .zshrc'ye alias ekle
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "alias ls=" ~/.zshrc; then
             {
@@ -528,11 +588,12 @@ install_bat() {
         return 0
     fi
     
-    if ! sudo apt install -y bat &>/dev/null; then
-        log_error "Bat kurulumu başarısız!"
+    if ! timeout 120 sudo apt install -y bat &>/dev/null; then
+        log_error "Bat kurulumu başarısız veya timeout!"
         return 1
     fi
     
+    # .zshrc'ye alias ekle
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "alias cat=" ~/.zshrc; then
             {
@@ -576,7 +637,7 @@ install_all_tools() {
 }
 
 # ============================================================================
-# TMUX
+# TMUX - TIMEOUT + VALİDASYON
 # ============================================================================
 
 install_tmux() {
@@ -587,8 +648,8 @@ install_tmux() {
         return 0
     fi
     
-    if ! sudo apt install -y tmux &>/dev/null; then
-        log_error "Tmux kurulumu başarısız!"
+    if ! timeout 120 sudo apt install -y tmux &>/dev/null; then
+        log_error "Tmux kurulumu başarısız veya timeout!"
         return 1
     fi
     
@@ -598,16 +659,24 @@ install_tmux() {
 
 configure_tmux_theme() {
     local theme=$1
+    
+    # Input validation
+    if [[ -z "$theme" ]]; then
+        log_error "Tema parametresi boş"
+        return 1
+    fi
+    
     log_info "Tmux için $theme teması yapılandırılıyor..."
     
     local tmux_conf="$HOME/.tmux.conf"
     
+    # Yedek oluştur
     if [[ -f "$tmux_conf" ]]; then
         local backup_name="${tmux_conf}.backup_$(date +%Y%m%d_%H%M%S)"
-        cp "$tmux_conf" "$backup_name"
-        log_debug "Mevcut tmux.conf yedeklendi: $backup_name"
+        cp "$tmux_conf" "$backup_name" 2>/dev/null && log_debug "Mevcut tmux.conf yedeklendi: $backup_name"
     fi
     
+    # Temel ayarlar
     cat > "$tmux_conf" << 'EOF'
 unbind C-b
 set -g prefix C-a
@@ -622,6 +691,7 @@ set -g renumber-windows on
 
 EOF
     
+    # Tema ekle
     case $theme in
         dracula) get_tmux_theme_dracula >> "$tmux_conf" ;;
         nord) get_tmux_theme_nord >> "$tmux_conf" ;;
@@ -630,8 +700,13 @@ EOF
         catppuccin) get_tmux_theme_catppuccin >> "$tmux_conf" ;;
         one-dark) get_tmux_theme_one_dark >> "$tmux_conf" ;;
         solarized) get_tmux_theme_solarized >> "$tmux_conf" ;;
+        *)
+            log_error "Bilinmeyen tema: $theme"
+            return 1
+            ;;
     esac
     
+    # Status bar ayarları
     cat >> "$tmux_conf" << 'EOF'
 
 set -g status-left-length 40
@@ -648,21 +723,42 @@ EOF
 
 install_tmux_with_theme() {
     local theme=$1
-    install_tmux || return 1
-    configure_tmux_theme "$theme" || return 1
+    
+    # Input validation
+    if [[ -z "$theme" ]]; then
+        log_error "Tema parametresi boş"
+        return 1
+    fi
+    
+    if ! install_tmux; then
+        return 1
+    fi
+    
+    if ! configure_tmux_theme "$theme"; then
+        return 1
+    fi
+    
     log_info "Tmux'u test etmek için: tmux"
     return 0
 }
 
 # ============================================================================
-# TEMA KURULUMU
+# TEMA KURULUMU - VALİDASYON
 # ============================================================================
 
 install_theme() {
     local theme_name=$1
+    
+    # Input validation
+    if [[ -z "$theme_name" ]]; then
+        log_error "Tema adı boş"
+        return 1
+    fi
+    
     log_info "Tema kuruluyor: $theme_name"
     
-    local terminal=$(detect_terminal)
+    local terminal
+    terminal=$(detect_terminal)
     log_debug "Tespit edilen terminal: $terminal"
     
     case $terminal in
@@ -683,7 +779,8 @@ install_theme_gnome() {
         return 1
     fi
     
-    local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
+    local PROFILE
+    PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
     
     if [[ -z "$PROFILE" ]]; then
         log_error "Terminal profili bulunamadı"
@@ -700,7 +797,10 @@ install_theme_gnome() {
         catppuccin) apply_catppuccin_gnome "$PROFILE_PATH" ;;
         one-dark) apply_one_dark_gnome "$PROFILE_PATH" ;;
         solarized) apply_solarized_gnome "$PROFILE_PATH" ;;
-        *) log_error "Bilinmeyen tema: $theme"; return 1 ;;
+        *) 
+            log_error "Bilinmeyen tema: $theme"
+            return 1
+            ;;
     esac
     
     return 0
@@ -717,12 +817,12 @@ install_theme_kitty() {
     local kitty_conf="$HOME/.config/kitty/kitty.conf"
     local theme_dir="$HOME/.config/kitty/themes"
     
-    mkdir -p "$theme_dir" || {
+    if ! mkdir -p "$theme_dir" 2>/dev/null; then
         log_error "Tema dizini oluşturulamadı"
         return 1
-    }
+    fi
     
-    [[ -f "$kitty_conf" ]] && sed -i '/^include themes\//d' "$kitty_conf" || touch "$kitty_conf"
+    [[ -f "$kitty_conf" ]] && sed -i '/^include themes\//d' "$kitty_conf" 2>/dev/null || touch "$kitty_conf"
     
     case $theme in
         dracula)
@@ -753,6 +853,10 @@ install_theme_kitty() {
             get_kitty_theme_solarized > "$theme_dir/solarized.conf"
             echo "include themes/solarized.conf" >> "$kitty_conf"
             ;;
+        *)
+            log_error "Bilinmeyen tema: $theme"
+            return 1
+            ;;
     esac
     
     log_success "Kitty için $theme teması kuruldu"
@@ -768,12 +872,12 @@ install_theme_alacritty() {
     fi
     
     local alacritty_conf="$HOME/.config/alacritty/alacritty.yml"
-    mkdir -p "$(dirname "$alacritty_conf")" || {
+    if ! mkdir -p "$(dirname "$alacritty_conf")" 2>/dev/null; then
         log_error "Alacritty config dizini oluşturulamadı"
         return 1
-    }
+    fi
     
-    [[ -f "$alacritty_conf" ]] && sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
+    [[ -f "$alacritty_conf" ]] && sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf" 2>/dev/null
     
     case $theme in
         dracula) get_alacritty_theme_dracula >> "$alacritty_conf" ;;
@@ -783,6 +887,10 @@ install_theme_alacritty() {
         catppuccin) get_alacritty_theme_catppuccin >> "$alacritty_conf" ;;
         one-dark) get_alacritty_theme_one_dark >> "$alacritty_conf" ;;
         solarized) get_alacritty_theme_solarized >> "$alacritty_conf" ;;
+        *)
+            log_error "Bilinmeyen tema: $theme"
+            return 1
+            ;;
     esac
     
     log_success "Alacritty için $theme teması kuruldu"
@@ -817,7 +925,7 @@ migrate_bash_aliases() {
                 echo -n "Eklemek için (e/h): "
                 read -r add_aliases
                 
-                if [[ "$add_aliases" == "e" ]]; then
+                if [[ "$add_aliases" =~ ^[eE]$ ]]; then
                     {
                         echo ""
                         echo "# Bash aliases compatibility"
@@ -842,7 +950,7 @@ migrate_bash_aliases() {
 }
 
 # ============================================================================
-# SHELL DEĞİŞTİRME
+# SHELL DEĞİŞTİRME - VALİDASYON
 # ============================================================================
 
 configure_gnome_terminal_login_shell() {
@@ -884,7 +992,7 @@ change_default_shell() {
     log_info "Varsayılan shell Zsh olarak ayarlanıyor..."
     
     local ZSH_PATH
-    ZSH_PATH=$(which zsh)
+    ZSH_PATH=$(command -v zsh)
     
     if [[ -z "$ZSH_PATH" ]]; then
         log_error "Zsh bulunamadı!"
@@ -899,14 +1007,16 @@ change_default_shell() {
     else
         show_step_info "Shell değiştiriliyor: $CURRENT_SHELL → $ZSH_PATH"
         
-        if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+        if timeout 30 chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
             show_step_success "Sistem shell'i Zsh olarak ayarlandı"
             
+            # Doğrulama
             local NEW_SHELL
             NEW_SHELL=$(grep "^$USER:" /etc/passwd | cut -d: -f7)
+            
             if [[ "$NEW_SHELL" != "$ZSH_PATH" ]]; then
                 show_step_info "sudo ile deneniyor..."
-                if ! sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                if ! timeout 30 sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
                     log_error "Shell değiştirilemedi"
                     return 1
                 fi
@@ -923,7 +1033,7 @@ change_default_shell() {
 }
 
 # ============================================================================
-# KALDIRMA
+# KALDIRMA - VALİDASYON
 # ============================================================================
 
 reset_terminal_profile() {
@@ -1001,21 +1111,21 @@ restore_original_state() {
     # shellcheck source=/dev/null
     source "$state_file"
     
-    if [[ -n "$ORIGINAL_SHELL" ]] && command -v "$ORIGINAL_SHELL" &> /dev/null; then
+    if [[ -n "${ORIGINAL_SHELL:-}" ]] && command -v "$ORIGINAL_SHELL" &> /dev/null; then
         show_step_info "Shell geri yükleniyor: $ORIGINAL_SHELL"
-        sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null
+        timeout 30 sudo chsh -s "$ORIGINAL_SHELL" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null
     fi
     
-    if [[ -n "$PROFILE" ]] && command -v gsettings &> /dev/null; then
+    if [[ -n "${PROFILE:-}" ]] && command -v gsettings &> /dev/null; then
         local PATH="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$PROFILE/"
         
         show_step_info "Terminal renkleri geri yükleniyor..."
         
-        if [[ "$USE_THEME_COLORS" == "true" ]]; then
+        if [[ "${USE_THEME_COLORS:-}" == "true" ]]; then
             gsettings set "$PATH" use-theme-colors true 2>/dev/null
         else
-            [[ -n "$BG_COLOR" ]] && gsettings set "$PATH" background-color "$BG_COLOR" 2>/dev/null
-            [[ -n "$FG_COLOR" ]] && gsettings set "$PATH" foreground-color "$FG_COLOR" 2>/dev/null
+            [[ -n "${BG_COLOR:-}" ]] && gsettings set "$PATH" background-color "$BG_COLOR" 2>/dev/null
+            [[ -n "${FG_COLOR:-}" ]] && gsettings set "$PATH" foreground-color "$FG_COLOR" 2>/dev/null
         fi
     fi
     
@@ -1043,19 +1153,19 @@ uninstall_all() {
             "• Fontları silecek" \
             "• Kurulu araçları kaldıracak (opsiyonel)" \
             ""
-        echo -n "Emin misiniz? (e/h): "
+        echo -n "Emin misiniz? (evet yazın): "
         read -r confirm
         
-        if [[ "$confirm" != "e" ]]; then
+        if [[ "$confirm" != "evet" ]]; then
             log_info "İptal edildi"
             return 0
         fi
     fi
     
     echo
-    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   TAM KALDIRMA İŞLEMİ BAŞLIYOR           ${CYAN}║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   TAM KALDIRMA İŞLEMİ BAŞLIYOR                        ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     
     local total_steps=11
     local current_step=0
@@ -1078,13 +1188,13 @@ uninstall_all() {
         
         if command -v bash &> /dev/null; then
             local bash_path
-            bash_path=$(which bash)
+            bash_path=$(command -v bash)
             
             if [[ "$SHELL" == "$bash_path" ]]; then
                 show_step_skip "Zaten Bash kullanılıyor"
             else
                 show_step_info "Bash'e geçiliyor..."
-                if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                if timeout 30 sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
                     show_step_success "Shell başarıyla değiştirildi"
                 else
                     log_error "Shell değiştirilemedi"
@@ -1148,7 +1258,7 @@ uninstall_all() {
     fi
     
     echo
-    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
+    echo -e "${CYAN}═════════════════════════════════════${NC}"
     
     if [[ "$force_mode" == true ]]; then
         log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
@@ -1159,7 +1269,7 @@ uninstall_all() {
         show_section $((++current_step)) $total_steps "Zoxide kaldırılıyor"
         if command -v zoxide &> /dev/null; then
             local zoxide_bin
-            zoxide_bin=$(which zoxide)
+            zoxide_bin=$(command -v zoxide)
             [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && show_step_success "Zoxide kaldırıldı"
         fi
         
@@ -1173,22 +1283,22 @@ uninstall_all() {
         
         show_section $((++current_step)) $total_steps "Tmux kaldırılıyor"
         if command -v tmux &> /dev/null; then
-            sudo apt remove -y tmux &>/dev/null && show_step_success "Tmux kaldırıldı"
+            timeout 60 sudo apt remove -y tmux &>/dev/null && show_step_success "Tmux kaldırıldı"
         fi
         
         show_section $((++current_step)) $total_steps "Zsh paketi kaldırılıyor"
-        sudo apt remove -y zsh &>/dev/null && show_step_success "Zsh paketi kaldırıldı"
-        sudo apt autoremove -y &>/dev/null
+        timeout 60 sudo apt remove -y zsh &>/dev/null && show_step_success "Zsh paketi kaldırıldı"
+        timeout 60 sudo apt autoremove -y &>/dev/null
         
         show_section $((++current_step)) $total_steps "Sistem araçları kaldırılıyor"
-        sudo apt remove -y exa bat &>/dev/null && show_step_success "Exa ve Bat kaldırıldı"
-        sudo apt autoremove -y &>/dev/null
+        timeout 60 sudo apt remove -y exa bat &>/dev/null && show_step_success "Exa ve Bat kaldırıldı"
+        timeout 60 sudo apt autoremove -y &>/dev/null
     fi
     
     echo
-    echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   KALDIRMA ÖZET${NC}İ                        ${CYAN}║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   KALDIRMA ÖZETİ                                      ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
     echo -e "  Tamamlanan adımlar: ${current_step}/${total_steps}"
     echo -e "  Hatalar: ${errors}"
     
@@ -1208,3 +1318,5 @@ uninstall_all() {
     
     return 0
 }
+
+log_debug "Terminal Core modülü yüklendi (v3.2.2)"
