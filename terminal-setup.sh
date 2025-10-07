@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Özelleştirme Kurulum Aracı - Ana Script
-# v3.1.1 - Modüler Yapı (Modern UI)
+# v3.2.4 - Modüler Yapı (Modern UI)
 # ============================================================================
 # Dosya Yapısı:
 # - terminal-setup.sh      (bu dosya - orchestration)
@@ -10,10 +10,11 @@
 # - terminal-themes.sh     (tema tanımları)
 # - terminal-core.sh       (kurulum fonksiyonları)
 # - terminal-utils.sh      (yardımcı fonksiyonlar)
+# - terminal-assistant.sh  (otomatik teşhis ve çözüm)
 # ============================================================================
 
 # Script versiyonu
-VERSION="3.1.1"
+VERSION="3.2.4"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler - Organize edilmiş yapı
@@ -45,6 +46,7 @@ load_modules() {
         "terminal-ui.sh"
         "terminal-themes.sh"
         "terminal-core.sh"
+        "terminal-assistant.sh"
     )
     
     for module in "${modules[@]}"; do
@@ -95,13 +97,13 @@ perform_full_install() {
     local theme_display=$2
     
     clear
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   ${BOLD}${theme_display^^} KURULUMU BAŞLIYOR${NC}          ${CYAN}║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   ${BOLD}${theme_display^^} KURULUMU BAŞLIYOR${NC}          ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
     
     # Ön kontroller
     echo
-    echo -e "${CYAN}━━━━ HAZIRLIK ━━━━${NC}"
+    echo -e "${CYAN}┌──── HAZIRLIK ────┐${NC}"
     
     if ! check_dependencies; then
         log_error "Bağımlılık kontrolü başarısız"
@@ -145,13 +147,13 @@ perform_full_install() {
     
     # Bash aliases migrasyonu
     echo
-    echo -e "${CYAN}━━━━ BASH ALIASES KONTROLÜ ━━━━${NC}"
+    echo -e "${CYAN}┌──── BASH ALIASES KONTROLÜ ────┐${NC}"
     migrate_bash_aliases
     
     echo
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   ${GREEN}✓ KURULUM BAŞARIYLA TAMAMLANDI${NC}       ${CYAN}║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║   ${GREEN}✓ KURULUM BAŞARIYLA TAMAMLANDI${NC}       ${CYAN}║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
     echo
     echo -e "${DIM}Yedekler: $BACKUP_DIR${NC}"
     echo -e "${DIM}Log dosyası: $LOG_FILE${NC}"
@@ -478,9 +480,9 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
             
             show_section 1 3 "Zsh kuruluyor"
             install_zsh
@@ -506,9 +508,9 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}POWERLEVEL10K KURULUMU${NC}               ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}POWERLEVEL10K KURULUMU${NC}               ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
             
             show_section 1 2 "Fontlar kuruluyor"
             install_fonts
@@ -534,9 +536,9 @@ while true; do
             create_backup
             
             clear
-            echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║${NC}   ${BOLD}PLUGİN KURULUMU${NC}                      ${CYAN}║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+            echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║   ${BOLD}PLUGİN KURULUMU${NC}                      ${CYAN}║${NC}"
+            echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
             echo
             
             install_plugins
@@ -557,9 +559,9 @@ while true; do
                 setup_sudo || { read -p "Devam etmek için Enter'a basın..."; continue; }
                 
                 clear
-                echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-                echo -e "${CYAN}║${NC}   ${BOLD}TERMİNAL ARAÇLARI KURULUMU${NC}          ${CYAN}║${NC}"
-                echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+                echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+                echo -e "${CYAN}║   ${BOLD}TERMİNAL ARAÇLARI KURULUMU${NC}          ${CYAN}║${NC}"
+                echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
                 
                 show_section 1 4 "FZF kuruluyor"
                 install_fzf
