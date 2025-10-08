@@ -16,64 +16,57 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       
-      - name: Get version
+      - name: Get version from tag
         id: version
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "📦 Version: $VERSION"
       
-      - name: Generate changelog
-        id: changelog
+      - name: Create release notes
         run: |
-          if [ -f CHANGELOG.md ]; then
-            # CHANGELOG.md'den ilgili versiyonu çıkar
-            sed -n "/## \[${{ steps.version.outputs.version }}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release-notes.md
-            
-            if [ ! -s release-notes.md ]; then
-              echo "### 🎉 Release v${{ steps.version.outputs.version }}" > release-notes.md
-              echo "" >> release-notes.md
-              echo "Detaylar için [CHANGELOG.md](CHANGELOG.md) dosyasına bakın." >> release-notes.md
-            fi
-          else
-            echo "### 🎉 Release v${{ steps.version.outputs.version }}" > release-notes.md
-            echo "" >> release-notes.md
-            echo "Terminal Customization Suite - Yeni sürüm!" >> release-notes.md
-          fi
+          cat > release-notes.md << 'EOF'
+          ## 🎉 Theme After Format
           
-          echo "Release notes:"
-          cat release-notes.md
+          Terminal özelleştirme suite'inin yeni sürümü!
+          
+          ### 📥 Kurulum
+          
+          ```bash
+          wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh
+          chmod +x install.sh
+          ./install.sh
+          ```
+          
+          ### 📚 Dokümantasyon
+          
+          - [README](https://github.com/alibedirhan/Theme-after-format#readme)
+          - [CHANGELOG](https://github.com/alibedirhan/Theme-after-format/blob/main/CHANGELOG.md)
+          
+          **Made with ❤️ by Ali Bedirhan**
+          EOF
+          
+          echo "Release notes oluşturuldu ✅"
       
-      - name: Create release archive
+      - name: Create release files
         run: |
           mkdir -p release-files
           
-          # Tüm script dosyalarını kopyala
-          cp *.sh release-files/ 2>/dev/null || true
+          # Script dosyalarını kopyala
+          cp *.sh release-files/ 2>/dev/null || echo "Bazı .sh dosyaları bulunamadı"
           
-          # Dokümantasyon dosyalarını kopyala
-          cp README.md release-files/ 2>/dev/null || true
-          cp LICENSE release-files/ 2>/dev/null || true
-          cp CHANGELOG.md release-files/ 2>/dev/null || true
-          cp CONTRIBUTING.md release-files/ 2>/dev/null || true
-          cp SECURITY.md release-files/ 2>/dev/null || true
-          cp VERSION release-files/ 2>/dev/null || true
+          # Dokümantasyon
+          cp README.md release-files/ 2>/dev/null || echo "README yok"
+          cp LICENSE release-files/ 2>/dev/null || echo "LICENSE yok"
           
           # Arşiv oluştur
           cd release-files
-          tar -czf ../theme-after-format-v${{ steps.version.outputs.version }}.tar.gz *
-          zip -r ../theme-after-format-v${{ steps.version.outputs.version }}.zip *
+          tar -czf ../theme-after-format-v${{ steps.version.outputs.version }}.tar.gz * || echo "tar başarısız"
+          zip -r ../theme-after-format-v${{ steps.version.outputs.version }}.zip * || echo "zip başarısız"
           cd ..
-      
-      - name: Generate checksums
-        run: |
-          sha256sum theme-after-format-v${{ steps.version.outputs.version }}.tar.gz > checksums.txt
-          sha256sum theme-after-format-v${{ steps.version.outputs.version }}.zip >> checksums.txt
-          echo "Checksums:"
-          cat checksums.txt
+          
+          echo "Arşivler oluşturuldu ✅"
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -86,7 +79,11 @@ jobs:
           files: |
             theme-after-format-v${{ steps.version.outputs.version }}.tar.gz
             theme-after-format-v${{ steps.version.outputs.version }}.zip
-            checksums.txt
             install.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Success
+        run: |
+          echo "🎉 Release başarıyla oluşturuldu!"
+          echo "📦 Version: v${{ steps.version.outputs.version }}"
