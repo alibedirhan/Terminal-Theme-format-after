@@ -14,7 +14,7 @@
 # ============================================================================
 
 # Script versiyonu
-VERSION="3.2.4"
+VERSION="3.2.5"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Global değişkenler - Organize edilmiş yapı

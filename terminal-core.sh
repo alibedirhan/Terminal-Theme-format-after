@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.2.4 - Core Module (Clean Output)
+# v3.2.5 - Core Module (Clean Output)
 # ============================================================================
 
 # Sudo refresh PID - Global değişken
