@@ -1,272 +1,220 @@
-name: Terminal Setup CI/CD
+name: Release
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 3.2.4)'
+        required: true
 
 jobs:
-  lint:
-    name: Lint Check
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Install ShellCheck
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck
-    
-    - name: Run ShellCheck
-      run: |
-        echo "Running ShellCheck on all shell scripts..."
-        shellcheck -S warning terminal-setup.sh terminal-core.sh terminal-utils.sh || true
-        echo "ShellCheck completed"
-    
-    - name: Check Bash Syntax
-      run: |
-        echo "Checking bash syntax..."
-        bash -n terminal-setup.sh
-        bash -n terminal-core.sh
-        bash -n terminal-utils.sh
-        echo "Syntax check passed"
-
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    needs: lint
-    
-    strategy:
-      matrix:
-        ubuntu-version: ['20.04', '22.04']
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Set up dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git curl wget fontconfig
-    
-    - name: Make scripts executable
-      run: chmod +x *.sh
-    
-    - name: Run test suite
-      run: |
-        chmod +x test.sh
-        ./test.sh
-    
-    - name: Check VERSION file
-      run: |
-        if [ ! -f VERSION ]; then
-          echo "VERSION file missing"
-          exit 1
-        fi
-        version=$(cat VERSION)
-        if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Invalid version format: $version"
-          exit 1
-        fi
-        echo "Version: $version"
-    
-    - name: Verify module loading
-      run: |
-        # Global değişkenleri tanımla
-        export LOG_FILE="/tmp/test.log"
-        export BACKUP_DIR="/tmp/backup"
-        export CONFIG_FILE="/tmp/config"
-        export VERSION="3.1.0"
-        export SCRIPT_DIR="$(pwd)"
-        
-        # Modülleri yükle
-        source terminal-utils.sh
-        source terminal-core.sh
-        echo "Modules loaded successfully"
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Make scripts executable
+        run: |
+          chmod +x *.sh
+      
+      - name: Run syntax check
+        run: |
+          bash -n terminal-setup.sh
+          bash -n terminal-core.sh
+          bash -n terminal-utils.sh
+          bash -n terminal-ui.sh
+          bash -n terminal-themes.sh
+          bash -n terminal-assistant.sh
+          bash -n install.sh
+      
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+      
+      - name: Run ShellCheck
+        run: |
+          shellcheck -S warning terminal-setup.sh || true
+          shellcheck -S warning terminal-core.sh || true
+          shellcheck -S warning terminal-utils.sh || true
+          shellcheck -S warning terminal-ui.sh || true
+          shellcheck -S warning terminal-themes.sh || true
+          shellcheck -S warning terminal-assistant.sh || true
+          shellcheck -S warning install.sh || true
+      
+      - name: Run test suite
+        run: ./test.sh
 
-  integration-test:
-    name: Integration Test
+  validate-version:
+    name: Validate Version Consistency
     runs-on: ubuntu-latest
     needs: test
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git curl wget zsh fontconfig
-    
-    - name: Make scripts executable
-      run: chmod +x *.sh
-    
-    - name: Test health check
-      run: |
-        ./terminal-setup.sh --health || true
-    
-    - name: Test dependency check
-      run: |
-        export LOG_FILE="/tmp/test.log"
-        export BACKUP_DIR="/tmp/backup"
-        export CONFIG_FILE="/tmp/config"
-        export VERSION="3.1.0"
-        export SCRIPT_DIR="$(pwd)"
-        
-        bash -c '
-        source terminal-utils.sh
-        source terminal-core.sh
-        check_dependencies
-        '
-    
-    - name: Test terminal detection
-      run: |
-        export LOG_FILE="/tmp/test.log"
-        export BACKUP_DIR="/tmp/backup"
-        
-        bash -c '
-        source terminal-utils.sh
-        terminal=$(detect_terminal)
-        echo "Detected terminal: $terminal"
-        '
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Check VERSION file
+        run: |
+          if [ ! -f VERSION ]; then
+            echo "❌ VERSION file not found!"
+            exit 1
+          fi
+          VERSION=$(cat VERSION)
+          echo "VERSION file contains: $VERSION"
+          
+          # Extract version from tag
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "Tag version: $TAG_VERSION"
+          
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "VERSION file: $VERSION"
+            echo "Git tag: $TAG_VERSION"
+            exit 1
+          fi
+          echo "✅ Versions match!"
+      
+      - name: Check script versions
+        run: |
+          VERSION=$(cat VERSION)
+          
+          # Check terminal-setup.sh
+          SETUP_VERSION=$(grep '^VERSION=' terminal-setup.sh | cut -d'"' -f2)
+          if [ "$SETUP_VERSION" != "$VERSION" ]; then
+            echo "❌ terminal-setup.sh version mismatch: $SETUP_VERSION != $VERSION"
+            exit 1
+          fi
+          
+          # Check install.sh
+          INSTALL_VERSION=$(grep 'v[0-9]\+\.[0-9]\+\.[0-9]\+' install.sh | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          if [ "$INSTALL_VERSION" != "$VERSION" ]; then
+            echo "❌ install.sh version mismatch: $INSTALL_VERSION != $VERSION"
+            exit 1
+          fi
+          
+          echo "✅ All versions are consistent!"
 
-  security-scan:
-    name: Security Scan
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [test, validate-version]
+    permissions:
+      contents: write
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    # YENİ: Önce permission'ları düzelt
-    - name: Fix permissions
-      run: chmod +x *.sh
-    
-    - name: Check for hardcoded secrets
-      run: |
-        echo "Scanning for potential secrets..."
-        if grep -r "password\s*=\s*" *.sh; then
-          echo "Warning: Potential hardcoded password found"
-        fi
-        if grep -r "api_key\s*=\s*" *.sh; then
-          echo "Warning: Potential hardcoded API key found"
-        fi
-        echo "Secret scan completed"
-    
-    - name: Check file permissions
-      run: |
-        echo "Checking file permissions..."
-        for file in *.sh; do
-          if [ -x "$file" ]; then
-            echo "✓ $file is executable"
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get version
+        id: version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION)
           else
-            echo "⚠ $file is not executable (was fixed)"
+            VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-        done
-
-  documentation:
-    name: Documentation Check
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Check README
-      run: |
-        if [ ! -f README.md ]; then
-          echo "README.md missing"
-          exit 1
-        fi
-        echo "README.md exists"
-    
-    - name: Check CHANGELOG
-      run: |
-        if [ ! -f CHANGELOG.md ]; then
-          echo "⚠ CHANGELOG.md missing (optional)"
-        else
-          echo "✓ CHANGELOG.md exists"
-        fi
-    
-    - name: Validate links in README
-      run: |
-        if grep -q "](http" README.md; then
-          echo "✓ README contains links"
-        fi
-
-  release-check:
-    name: Release Preparation Check
-    runs-on: ubuntu-latest
-    needs: [test, integration-test, security-scan]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Check VERSION matches tag
-      run: |
-        version=$(cat VERSION)
-        echo "Current version: $version"
-        
-        # Check if this is a version bump commit
-        if git log -1 --pretty=%B | grep -q "v$version"; then
-          echo "Version commit detected"
-        fi
-    
-    - name: Verify all required files
-      run: |
-        required_files=(
-          "terminal-setup.sh"
-          "terminal-core.sh"
-          "terminal-utils.sh"
-          "VERSION"
-          "README.md"
-          "LICENSE"
-        )
-        
-        missing=()
-        for file in "${required_files[@]}"; do
-          if [ ! -f "$file" ]; then
-            missing+=("$file")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract changelog for this version
+          if [ -f CHANGELOG.md ]; then
+            # Get content between version headers
+            sed -n "/## \[${{ steps.version.outputs.version }}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release-notes.md
+            
+            # If empty, use a default message
+            if [ ! -s release-notes.md ]; then
+              echo "### Changes in v${{ steps.version.outputs.version }}" > release-notes.md
+              echo "" >> release-notes.md
+              echo "See [CHANGELOG.md](CHANGELOG.md) for details." >> release-notes.md
+            fi
+          else
+            echo "### Release v${{ steps.version.outputs.version }}" > release-notes.md
+            echo "" >> release-notes.md
+            echo "No changelog available." >> release-notes.md
           fi
-        done
-        
-        if [ ${#missing[@]} -ne 0 ]; then
-          echo "Missing required files: ${missing[*]}"
-          exit 1
-        fi
-        
-        echo "All required files present"
-    
-    - name: Create summary
-      run: |
-        echo "## CI/CD Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Lint checks passed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Tests passed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Integration tests passed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Security scan passed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ All required files present" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Version: $(cat VERSION)" >> $GITHUB_STEP_SUMMARY
+          
+          cat release-notes.md
+      
+      - name: Create release archive
+        run: |
+          mkdir -p release
+          
+          # Copy all script files
+          cp terminal-setup.sh release/
+          cp terminal-core.sh release/
+          cp terminal-utils.sh release/
+          cp terminal-ui.sh release/
+          cp terminal-themes.sh release/
+          cp terminal-assistant.sh release/
+          cp install.sh release/
+          
+          # Copy documentation
+          cp README.md release/
+          cp LICENSE release/
+          [ -f CHANGELOG.md ] && cp CHANGELOG.md release/
+          [ -f CONTRIBUTING.md ] && cp CONTRIBUTING.md release/
+          [ -f SECURITY.md ] && cp SECURITY.md release/
+          
+          # Create archive
+          cd release
+          tar -czf ../theme-after-format-v${{ steps.version.outputs.version }}.tar.gz *
+          cd ..
+          
+          # Create zip
+          cd release
+          zip -r ../theme-after-format-v${{ steps.version.outputs.version }}.zip *
+          cd ..
+      
+      - name: Generate checksums
+        run: |
+          sha256sum theme-after-format-v${{ steps.version.outputs.version }}.tar.gz > checksums.txt
+          sha256sum theme-after-format-v${{ steps.version.outputs.version }}.zip >> checksums.txt
+          cat checksums.txt
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            theme-after-format-v${{ steps.version.outputs.version }}.tar.gz
+            theme-after-format-v${{ steps.version.outputs.version }}.zip
+            checksums.txt
+            install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update latest tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f latest
+          git push -f origin latest
 
   notify:
-    name: Notify Results
+    name: Notify Release
     runs-on: ubuntu-latest
-    needs: [lint, test, integration-test, security-scan]
+    needs: create-release
     if: always()
     
     steps:
-    - name: Summary
-      run: |
-        echo "Pipeline completed"
-        echo "Results:"
-        echo "- Lint: ${{ needs.lint.result }}"
-        echo "- Test: ${{ needs.test.result }}"
-        echo "- Integration Test: ${{ needs.integration-test.result }}"
-        echo "- Security Scan: ${{ needs.security-scan.result }}"
+      - name: Send notification
+        run: |
+          if [ "${{ needs.create-release.result }}" == "success" ]; then
+            echo "✅ Release completed successfully!"
+          else
+            echo "❌ Release failed!"
+          fi
