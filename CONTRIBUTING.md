@@ -1,600 +1,404 @@
-# 🤝 Katkıda Bulunma Rehberi
+# Katkıda Bulunma Rehberi
 
-Terminal Customization Suite projesine katkıda bulunmayı düşündüğünüz için teşekkür ederiz! Bu belge, projeye nasıl katkıda bulunabileceğinizi açıklar.
+Theme After Format projesine katkıda bulunmak istediğiniz için teşekkür ederiz! 🎉
 
 ## 📋 İçindekiler
 
 - [Davranış Kuralları](#davranış-kuralları)
-- [Nasıl Katkıda Bulunurum?](#nasıl-katkıda-bulunurum)
+- [Nasıl Katkıda Bulunabilirim?](#nasıl-katkıda-bulunabilirim)
 - [Geliştirme Ortamı](#geliştirme-ortamı)
 - [Kod Standartları](#kod-standartları)
 - [Commit Mesajları](#commit-mesajları)
 - [Pull Request Süreci](#pull-request-süreci)
-- [Sorun Bildirme](#sorun-bildirme)
-- [Özellik Önerme](#özellik-önerme)
+- [Test Etme](#test-etme)
 
-## 📜 Davranış Kuralları
+## Davranış Kuralları
 
-Bu proje ve topluluğu aşağıdaki kurallara uyar:
+### Topluluk Standartlarımız
 
-- ✅ Saygılı ve yapıcı olun
-- ✅ Farklı bakış açılarına açık olun
-- ✅ Yapıcı eleştiri kabul edin
-- ✅ Topluluk odaklı düşünün
-- ❌ Kaba, aşağılayıcı veya taciz edici davranışlar yasaktır
+Bu projede:
+- ✅ Saygılı ve yapıcı iletişim
+- ✅ Farklı bakış açılarına açık olmak
+- ✅ Yapıcı eleştiri vermek ve kabul etmek
+- ✅ Topluluk çıkarlarını ön planda tutmak
 
-## 🚀 Nasıl Katkıda Bulunurum?
+Kabul edilemez davranışlar:
+- ❌ Hakaret veya aşağılama
+- ❌ Trolleme veya spam
+- ❌ Kişisel bilgileri paylaşmak
+- ❌ Profesyonel olmayan davranışlar
 
-### Katkı Türleri
+## Nasıl Katkıda Bulunabilirim?
 
-1. **Hata Düzeltme (Bug Fix)**
-   - Mevcut sorunları çözme
-   - Test yazma
-   - Dokümantasyon güncelleme
+### 🐛 Hata Bildirme
 
-2. **Yeni Özellik (Feature)**
-   - Yeni tema ekleme
-   - Yeni terminal desteği
-   - Yeni araç entegrasyonu
+Hata bulduysanız:
 
-3. **Dokümantasyon**
-   - README geliştirme
-   - Kod yorumları ekleme
-   - Wiki oluşturma
+1. **Önce kontrol edin**: [Issues](https://github.com/alibedirhan/Theme-after-format/issues) sayfasında aynı hata bildirilmiş mi?
+2. **Yeni issue açın**: Detaylı bilgi verin
+   - Hangi versiyon kullanıyorsunuz?
+   - Sisteminiz: Ubuntu version, terminal emulator
+   - Hatayı yeniden üretme adımları
+   - Beklenen davranış vs gerçek davranış
+   - Log dosyası çıktısı
+   - Ekran görüntüleri (varsa)
 
-4. **Test**
-   - Farklı dağıtımlarda test
-   - Edge case'leri bulma
-   - Performans testleri
+**Issue Template:**
+```markdown
+## Hata Açıklaması
+[Hatayı kısaca açıklayın]
 
-## 🛠️ Geliştirme Ortamı
+## Yeniden Üretme Adımları
+1. Git '...'
+2. Tıkla '....'
+3. Scroll down to '....'
+4. Hatayı gör
+
+## Beklenen Davranış
+[Ne olmasını bekliyordunuz?]
+
+## Ekran Görüntüleri
+[Varsa ekleyin]
+
+## Sistem Bilgileri
+- OS: [örn. Ubuntu 22.04]
+- Terminal: [örn. GNOME Terminal]
+- Script Version: [örn. 3.2.4]
+- Shell: [örn. Zsh 5.8]
+
+## Log Çıktısı
+```bash
+cat ~/.terminal-setup/logs/terminal-setup.log
+```
+```
+
+### ✨ Özellik Önerme
+
+Yeni özellik öneriniz varsa:
+
+1. **Feature Request issue açın**
+2. Şunları açıklayın:
+   - Özellik ne yapacak?
+   - Neden gerekli?
+   - Kullanım senaryoları
+   - Örnek implementasyon (varsa)
+
+### 🔧 Kod Katkısı
+
+#### Küçük Değişiklikler
+- Typo düzeltmeleri
+- Dokümantasyon iyileştirmeleri
+- Küçük bug fix'ler
+
+➡️ Direkt Pull Request açabilirsiniz.
+
+#### Büyük Değişiklikler
+- Yeni özellikler
+- Büyük refactoring'ler
+- Mimari değişiklikler
+
+➡️ Önce bir issue açıp tartışın.
+
+## Geliştirme Ortamı
 
 ### Gereksinimler
 
-- Ubuntu 20.04+ veya Debian tabanlı dağıtım
+```bash
+# Minimum
+- Ubuntu 20.04+ / Debian 10+
 - Bash 4.0+
 - Git
-- shellcheck (kod kalitesi için)
-- shfmt (kod formatlama için)
+- sudo yetkisi
+
+# Geliştirme için önerilen
+- ShellCheck (static analysis)
+- bats (Bash testing)
+```
 
 ### Kurulum
 
 ```bash
-# Repository'yi fork'layın ve klonlayın
+# 1. Repo'yu fork'layın
+# 2. Clone edin
 git clone https://github.com/KULLANICI-ADINIZ/Theme-after-format.git
 cd Theme-after-format
 
-# Upstream ekleyin
+# 3. Upstream'i ekleyin
 git remote add upstream https://github.com/alibedirhan/Theme-after-format.git
 
-# Geliştirme araçlarını kurun
-sudo apt install shellcheck shfmt
+# 4. Test edin
+chmod +x test.sh
+./test.sh
 ```
 
 ### Branch Stratejisi
 
 ```bash
-# Ana branch'ten yeni feature branch oluşturun
+# main branch'ten yeni bir branch oluşturun
 git checkout -b feature/yeni-ozellik
 
-# Veya bug fix için
-git checkout -b fix/hata-ismi
+# veya
+git checkout -b fix/bug-aciklamasi
 
-# Veya dokümantasyon için
+# veya
 git checkout -b docs/dokumantasyon-guncelleme
 ```
 
-## 📝 Kod Standartları
+## Kod Standartları
 
-### Bash Script Kuralları
-
-#### 1. Dosya Yapısı
+### Bash Script Standartları
 
 ```bash
+# 1. Shebang kullanın
 #!/bin/bash
 
-# ============================================================================
-# ModÜl İsmi - Kısa Açıklama
-# vX.X.X - Versiyon Bilgisi
-# ============================================================================
+# 2. Strict mode
+set -euo pipefail
 
-# ============================================================================
-# BÖLÜM BAŞLIĞI
-# ============================================================================
-
-fonksiyon_ismi() {
-    # Fonksiyon açıklaması
-    local degisken=$1
-    
-    # İşlemler
-    return 0
+# 3. Fonksiyon isimlendirme: snake_case
+install_package() {
+    local package_name="$1"
+    # ...
 }
-```
 
-#### 2. İsimlendirme Kuralları
+# 4. Değişkenler: UPPERCASE (global), lowercase (local)
+readonly GLOBAL_CONFIG="/etc/config"
+local temp_file="/tmp/file"
 
-```bash
-# Fonksiyonlar: snake_case
-install_theme() { }
-check_dependencies() { }
-
-# Değişkenler: snake_case (local scope)
-local theme_name="dracula"
-local backup_dir="$HOME/.backups"
-
-# Sabitler: UPPERCASE
-readonly VERSION="3.2.1"
-readonly SCRIPT_DIR="/path/to/script"
-
-# Renkler: UPPERCASE
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-```
-
-#### 3. Hata Yönetimi
-
-```bash
-# YANLIŞ
-rm -rf ~/.oh-my-zsh
-
-# DOĞRU - Hata kontrolü
-if [[ -d ~/.oh-my-zsh ]]; then
-    if ! rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-        log_error "Oh My Zsh kaldırılamadı"
-        return 1
-    fi
-fi
-```
-
-#### 4. Timeout ve Validation
-
-```bash
-# YANLIŞ
-sudo apt install -y zsh
-
-# DOĞRU - Timeout ve validation
-if ! timeout 300 sudo apt install -y zsh &>/dev/null; then
-    log_error "Zsh kurulumu başarısız veya timeout!"
+# 5. Hata kontrolü
+if ! command -v git &> /dev/null; then
+    log_error "Git bulunamadı"
     return 1
 fi
 
-# Kurulum doğrulama
-if ! command -v zsh &> /dev/null; then
-    log_error "Zsh kuruldu ama komut bulunamadı!"
-    return 1
-fi
-```
-
-#### 5. Input Validation
-
-```bash
-# YANLIŞ
-case $choice in
-    1) install_dracula ;;
-esac
-
-# DOĞRU
-if [[ ! "$choice" =~ ^[0-9]+$ ]]; then
-    log_error "Geçersiz seçim: sayı giriniz"
-    return 1
+# 6. String comparison
+if [[ "$var" == "value" ]]; then
+    # ...
 fi
 
-if [[ $choice -lt 0 || $choice -gt 15 ]]; then
-    log_error "Geçersiz seçim: 0-15 arası olmalı"
-    return 1
-fi
+# 7. Exit codes kullanın
+readonly ERR_NETWORK=1
+readonly ERR_PERMISSION=2
 ```
 
-#### 6. Logging
+### Linting
 
 ```bash
-# Her önemli işlem loglanmalı
-log_info "Zsh kuruluyor..."
-log_success "Zsh kuruldu"
-log_warning "Font kurulumu başarısız, devam ediliyor..."
-log_error "İnternet bağlantısı yok!"
-log_debug "Tema dosyası: $theme_file"
-```
-
-### ShellCheck Kuralları
-
-Tüm script'ler ShellCheck'ten geçmelidir:
-
-```bash
-# Script'leri kontrol et
+# ShellCheck kullanın
 shellcheck terminal-setup.sh
 shellcheck terminal-core.sh
 shellcheck terminal-utils.sh
-shellcheck terminal-ui.sh
-shellcheck terminal-themes.sh
-shellcheck terminal-assistant.sh
 
-# Veya hepsini birden
-shellcheck *.sh
+# Tüm scriptleri kontrol et
+find . -name "*.sh" -exec shellcheck {} \;
 ```
 
-### Kod Formatlama
+### Kod Organizasyonu
 
 ```bash
-# shfmt ile formatla (2 space indentation)
-shfmt -i 2 -w terminal-setup.sh
+# Dosya yapısı
+# ============================================================================
+# Script Başlığı
+# v3.2.4 - Modül Açıklaması
+# ============================================================================
+
+# Sabitler
+readonly CONFIG_DIR="$HOME/.config"
+
+# Global değişkenler
+THEME_NAME=""
+
+# Fonksiyonlar (alfabetik sıra)
+function_a() { }
+function_b() { }
+
+# Main execution
+main() { }
+
+# Script başlat
+main "$@"
 ```
 
-## 📊 Commit Mesajları
+## Commit Mesajları
 
 ### Format
 
 ```
 <tip>(<kapsam>): <kısa açıklama>
 
-<detaylı açıklama (opsiyonel)>
+<detaylı açıklama>
 
-<footer (opsiyonel)>
+<footer>
 ```
 
 ### Tipler
 
 - `feat`: Yeni özellik
-- `fix`: Hata düzeltme
-- `docs`: Dokümantasyon değişikliği
+- `fix`: Bug düzeltme
+- `docs`: Dokümantasyon
 - `style`: Kod formatı (mantık değişikliği yok)
-- `refactor`: Kod yeniden yapılandırma
-- `perf`: Performans iyileştirme
+- `refactor`: Refactoring
 - `test`: Test ekleme/düzeltme
-- `chore`: Build/config değişiklikleri
+- `chore`: Diğer (dependency güncellemeleri, vb.)
 
 ### Örnekler
 
 ```bash
-# Yeni özellik
+# İyi commit mesajları ✅
 feat(themes): Tokyo Night teması eklendi
-
-Tokyo Night teması için GNOME Terminal, Kitty ve Alacritty 
-desteği eklendi. Renk paleti ve konfigürasyon dosyaları hazırlandı.
-
-Closes #42
-
-# Hata düzeltme
-fix(core): Zsh kurulumunda timeout hatası düzeltildi
-
-Timeout süresi 120'den 300 saniyeye çıkarıldı ve 
-hata mesajları iyileştirildi.
-
-Fixes #38
-
-# Dokümantasyon
-docs(readme): Terminal araçları bölümü eklendi
-
-FZF, Zoxide, Exa ve Bat kullanım örnekleri README'ye eklendi.
-
-# Refactoring
+fix(core): Font kurulum hatası düzeltildi
+docs(readme): Kurulum adımları güncellendi
 refactor(utils): Logging sistemi iyileştirildi
 
-Thread-safe logging ve otomatik rotasyon eklendi.
+# Kötü commit mesajları ❌
+Update
+Fixed stuff
+asdasd
+WIP
 ```
 
-## 🔄 Pull Request Süreci
-
-### 1. Fork ve Clone
+### Commit Best Practices
 
 ```bash
-# Repository'yi fork edin (GitHub web arayüzünden)
+# Küçük, atomik commitler
+git add terminal-themes.sh
+git commit -m "feat(themes): Add Gruvbox theme"
 
-# Fork'unuzu klonlayın
-git clone https://github.com/KULLANICI-ADINIZ/Theme-after-format.git
-cd Theme-after-format
+# İlgisiz değişiklikleri ayırın
+git add file1.sh
+git commit -m "feat: Feature 1"
+git add file2.sh  
+git commit -m "fix: Fix for feature 2"
 
-# Upstream ekleyin
-git remote add upstream https://github.com/alibedirhan/Theme-after-format.git
+# Commit'ten önce test edin
+./test.sh
+git commit -m "..."
 ```
 
-### 2. Feature Branch Oluştur
+## Pull Request Süreci
+
+### 1. Kodu Hazırlayın
 
 ```bash
-# Main'den güncel çekin
-git checkout main
-git pull upstream main
+# Upstream'den güncel çekin
+git fetch upstream
+git rebase upstream/main
 
-# Yeni branch oluşturun
-git checkout -b feature/yeni-tema
-```
+# Testleri çalıştırın
+./test.sh
 
-### 3. Değişiklikleri Yap
-
-```bash
-# Kodunuzu yazın
-# ShellCheck ve shfmt ile kontrol edin
+# ShellCheck kontrolü
 shellcheck *.sh
-shfmt -i 2 -w *.sh
 
-# Test edin
-./terminal-setup.sh --health
-./terminal-setup.sh --scan
-```
-
-### 4. Commit
-
-```bash
-# Değişiklikleri stage'e ekleyin
+# Değişikliklerinizi commit edin
 git add .
-
-# Commit edin (yukarıdaki commit kurallarına göre)
-git commit -m "feat(themes): Gruvbox teması eklendi"
+git commit -m "feat: Yeni özellik"
 ```
 
-### 5. Push ve PR
+### 2. Pull Request Açın
 
-```bash
-# Branch'inizi push edin
-git push origin feature/yeni-tema
-
-# GitHub'da Pull Request açın
-```
-
-### PR Checklist
-
-Pull Request açmadan önce:
-
-- [ ] Kod ShellCheck'ten geçiyor
-- [ ] Kod shfmt ile formatlanmış
-- [ ] Tüm yeni fonksiyonlar test edildi
-- [ ] README güncellenmiş (gerekiyorsa)
-- [ ] CHANGELOG.md güncellenmiş
-- [ ] Commit mesajları kurallara uygun
-- [ ] Branch ismi açıklayıcı
-- [ ] PR açıklaması detaylı
-
-### PR Şablonu
+**PR Template:**
 
 ```markdown
-## Değişiklik Türü
+## Değişiklik Tipi
 - [ ] Bug fix
 - [ ] Yeni özellik
-- [ ] Dokümantasyon
 - [ ] Refactoring
+- [ ] Dokümantasyon
 
 ## Açıklama
-Bu PR ne yapıyor? Neden gerekli?
+[Değişikliklerinizi detaylı açıklayın]
 
-## Test Edilen Ortamlar
-- [ ] Ubuntu 22.04
-- [ ] Ubuntu 20.04
-- [ ] Debian 11
-- [ ] Linux Mint 21
+## Motivasyon
+[Neden bu değişiklik gerekli?]
 
-## Test Edilen Terminaller
-- [ ] GNOME Terminal
-- [ ] Kitty
-- [ ] Alacritty
+## Test Edildi mi?
+- [ ] Lokal olarak test edildi
+- [ ] test.sh başarıyla geçti
+- [ ] ShellCheck kontrolünden geçti
+- [ ] Ubuntu 22.04'te test edildi
+- [ ] Ubuntu 20.04'te test edildi
 
-## İlgili Issue'lar
-Closes #42
-Fixes #38
+## İlgili Issue
+Fixes #123
 
-## Ekran Görüntüleri (varsa)
+## Ekran Görüntüleri
+[Varsa ekleyin]
+
+## Checklist
+- [ ] Kod standartlarına uygun
+- [ ] Dokümantasyon güncellendi
+- [ ] CHANGELOG.md güncellendi
+- [ ] Geriye dönük uyumluluk korundu
 ```
 
-## 🐛 Sorun Bildirme
+### 3. Code Review
 
-### Nasıl İyi Bir Sorun Bildirimi Yapılır?
+- Sabırlı olun - review zaman alabilir
+- Geri bildirimlere açık olun
+- Gerekli değişiklikleri yapın
+- Tartışmalara katılın
 
-#### 1. Önce Arayın
+### 4. Merge
 
-Sorunun daha önce bildirilip bildirilmediğini kontrol edin:
-- [Açık Issues](https://github.com/alibedirhan/Theme-after-format/issues)
-- [Kapalı Issues](https://github.com/alibedirhan/Theme-after-format/issues?q=is%3Aissue+is%3Aclosed)
+Merge şartları:
+- ✅ En az 1 onay
+- ✅ Tüm testler geçmeli
+- ✅ Conflict yok
+- ✅ CI/CD başarılı
 
-#### 2. Bilgi Toplayın
-
-```bash
-# Sistem bilgisi
-uname -a
-lsb_release -a
-
-# Terminal bilgisi
-echo $TERM
-echo $COLORTERM
-
-# Script versiyonu
-./terminal-setup.sh --version
-
-# Log dosyası
-cat ~/.terminal-setup/logs/terminal-setup.log
-```
-
-#### 3. Issue Şablonu
-
-```markdown
-### Sorun Açıklaması
-Ne oldu? Ne olması bekleniyordu?
-
-### Adımlar
-1. Script'i çalıştırdım
-2. Menüden 1'i seçtim
-3. Hata aldım
-
-### Ortam
-- OS: Ubuntu 22.04 LTS
-- Terminal: GNOME Terminal 3.44.0
-- Shell: bash 5.1.16
-- Script Version: v3.2.1
-
-### Hata Mesajı
-```
-ERROR: Zsh kurulumu başarısız
-```
-
-### Log
-```
-[2025-01-15 10:30:45] [ERROR] Timeout - Zsh kurulumu
-```
-
-### Ekran Görüntüsü
-(varsa)
-
-### Ek Bilgi
-- İnternet hızı: 50 Mbps
-- Disk alanı: 20 GB
-```
-
-## 💡 Özellik Önerme
-
-### Özellik İsteği Şablonu
-
-```markdown
-### Özellik Açıklaması
-Ne istiyorsunuz?
-
-### Motivasyon
-Neden bu özellik gerekli?
-
-### Önerilen Çözüm
-Nasıl implemente edilebilir?
-
-### Alternatifler
-Başka ne yapılabilir?
-
-### Ek Bilgi
-İlgili linkler, örnekler, ekran görüntüleri
-```
-
-## 🎨 Yeni Tema Ekleme
-
-### Tema Ekleme Adımları
-
-1. **terminal-themes.sh'a tema fonksiyonları ekleyin**
-
-```bash
-# GNOME Terminal için
-apply_yeni_tema_gnome() {
-    local path=$1
-    gsettings set "$path" visible-name "Yeni Tema"
-    gsettings set "$path" background-color '#XXXXXX'
-    gsettings set "$path" foreground-color '#XXXXXX'
-    # ... diğer renkler
-}
-
-# Kitty için
-get_kitty_theme_yeni_tema() {
-    cat << 'EOF'
-foreground #XXXXXX
-background #XXXXXX
-# ... diğer renkler
-EOF
-}
-
-# Alacritty için
-get_alacritty_theme_yeni_tema() {
-    cat << 'EOF'
-colors:
-  primary:
-    background: '#XXXXXX'
-    foreground: '#XXXXXX'
-  # ... diğer renkler
-EOF
-}
-
-# Tmux için
-get_tmux_theme_yeni_tema() {
-    cat << 'EOF'
-set -g status-style bg='#XXXXXX',fg='#XXXXXX'
-# ... diğer ayarlar
-EOF
-}
-```
-
-2. **terminal-core.sh'ta tema uygulama fonksiyonlarını güncelleyin**
-
-```bash
-install_theme() {
-    # ...
-    case $theme_name in
-        # ... mevcut temalar
-        yeni-tema) install_theme_gnome "$theme_name" ;;
-    esac
-}
-```
-
-3. **terminal-ui.sh'ta menüye ekleyin**
-
-```bash
-show_theme_menu() {
-    # ...
-    echo -ne "${WHITE}8)${NC} ${CYAN}Yeni Tema${NC}   - Açıklama"
-    show_theme_colors "yeni-tema"
-    echo
-}
-```
-
-4. **README.md'yi güncelleyin**
-
-### Tema Gereksinimleri
-
-- ✅ 16 renk tanımlanmalı (normal + bright)
-- ✅ GNOME Terminal desteği zorunlu
-- ✅ Kitty ve Alacritty desteği önerilen
-- ✅ Tmux desteği opsiyonel
-- ✅ Renk paleti dokümante edilmeli
-- ✅ Test edilmiş olmalı
-
-## 🧪 Test
+## Test Etme
 
 ### Manuel Test
 
 ```bash
-# Her menü seçeneğini test edin
+# Test scriptini çalıştırın
+./test.sh
+
+# Belirli bir senaryoyu test edin
 ./terminal-setup.sh
-
-# Farklı dağıtımlarda test edin
-# - Ubuntu 22.04, 20.04
-# - Debian 11, 12
-# - Linux Mint 21
-
-# Farklı terminallerde test edin
-# - GNOME Terminal
-# - Kitty
-# - Alacritty
-
-# Edge case'leri test edin
-# - İnternetsiz
-# - Düşük disk alanı
-# - Mevcut kurulum var
+# Menüden ilgili seçeneği test edin
 ```
 
-### Automated Test (Gelecek)
+### Otomatik Test
 
 ```bash
-# Planlanıyor: Otomasyon testleri
-./test/run-tests.sh
+# test.sh içerikler:
+# - Dosya varlık kontrolleri
+# - Sözdizimi kontrolleri
+# - Bağımlılık kontrolleri
+# - Fonksiyon kontrolleri
+# - Versiyon kontrolleri
+# - ShellCheck analizi
 ```
 
-## 📦 Release Süreci
+### Test Senaryoları
 
-### Version Numaralama
+1. **Temiz kurulum** (format sonrası)
+2. **Upgrade** (mevcut kurulum üzerine)
+3. **Tema değiştirme**
+4. **Kaldırma ve rollback**
+5. **Farklı Ubuntu versiyonları**
+6. **Farklı terminal emulatorler**
 
-Semantic Versioning (SemVer) kullanıyoruz: `MAJOR.MINOR.PATCH`
+## Sürüm Yönetimi
+
+Semantic Versioning kullanıyoruz: `MAJOR.MINOR.PATCH`
 
 - **MAJOR**: Breaking changes
 - **MINOR**: Yeni özellikler (geriye uyumlu)
-- **PATCH**: Bug fixes (geriye uyumlu)
+- **PATCH**: Bug fixes
 
-### Release Checklist
+## İletişim
 
-- [ ] CHANGELOG.md güncellendi
-- [ ] VERSION dosyası güncellendi
-- [ ] README.md güncellendi
-- [ ] Tüm testler geçiyor
-- [ ] Tag oluşturuldu: `git tag v3.2.1`
-- [ ] GitHub Release oluşturuldu
+- 💬 [Discussions](https://github.com/alibedirhan/Theme-after-format/discussions) - Soru sormak için
+- 🐛 [Issues](https://github.com/alibedirhan/Theme-after-format/issues) - Bug raporu için
+- 📧 E-posta: [e-postanız]
 
-## 🤔 Sorular?
+## Lisans
 
-Takıldığınız bir yer mi var? 
-
-- 💬 [Discussions](https://github.com/alibedirhan/Theme-after-format/discussions)
-- 🐛 [Issues](https://github.com/alibedirhan/Theme-after-format/issues)
-- 📧 GitHub profilimden ulaşabilirsiniz
+Katkıda bulunarak, katkılarınızın MIT lisansı altında lisanslanmasını kabul edersiniz.
 
 ---
 
-**Teşekkürler! Katkılarınız projeyi daha iyi hale getirir.** ❤️
+**Teşekkürler! 🙏 Her katkı değerlidir.**

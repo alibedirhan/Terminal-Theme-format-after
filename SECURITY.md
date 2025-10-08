@@ -2,221 +2,145 @@
 
 ## Desteklenen Versiyonlar
 
-Şu anda aşağıdaki versiyonlar güvenlik güncellemeleri alır:
+Şu anda güvenlik güncellemeleri alan versiyonlar:
 
 | Versiyon | Destekleniyor          |
 | -------- | ---------------------- |
 | 3.2.x    | :white_check_mark:     |
 | 3.1.x    | :white_check_mark:     |
 | 3.0.x    | :x:                    |
-| 2.x      | :x:                    |
-| 1.x      | :x:                    |
+| < 3.0    | :x:                    |
 
 ## Güvenlik Açığı Bildirme
 
-### Lütfen Güvenlik Açıklarını HERKESE AÇIK Bildirmeyin
+Eğer bir güvenlik açığı keşfettiyseniz, lütfen **herkese açık issue açmayın**. Bunun yerine:
 
-Güvenlik açığı keşfettiyseniz, lütfen bunu genel issue tracker'da **AÇMAYIN**. Bunun yerine:
+### 📧 Özel Bildirim
 
-1. **GitHub Security Advisory** kullanın
-   - Repository → Security → Advisories → New draft security advisory
+1. **E-posta ile bildirin:** [güvenlik e-postanızı ekleyin]
+2. **GitHub Security Advisory** kullanın: [Security tab](https://github.com/alibedirhan/Theme-after-format/security)
 
-2. **Veya bana doğrudan ulaşın**
-   - GitHub profilim üzerinden
+### 📋 Bildirimde Bulunması Gerekenler
 
-### Beklenen Süreç
+- Güvenlik açığının detaylı açıklaması
+- Yeniden üretme adımları
+- Etkilenen versiyon(lar)
+- Olası etki analizi
+- Varsa önerilen çözüm
 
-1. **Rapor**: Güvenlik açığını detaylı bildirin
-2. **Onay**: 48 saat içinde yanıt
-3. **Değerlendirme**: 7 gün içinde risk analizi
-4. **Düzeltme**: Kritik sorunlar için 30 gün, diğerleri için 90 gün
-5. **Açıklama**: Düzeltme yayınlandıktan sonra koordineli açıklama
+### ⏱️ Yanıt Süresi
 
-### Raporunuzda Bulunması Gerekenler
+- **İlk yanıt:** 48 saat içinde
+- **Durum güncellemesi:** 7 gün içinde
+- **Yama/düzeltme:** Ciddiyete göre 30 gün içinde
 
-- Güvenlik açığının tipi (örn: code injection, privilege escalation)
-- Etkilenen dosya(lar) ve satır numaraları
-- Yeniden oluşturma adımları
-- Potansiyel etki
-- Önerilen düzeltme (varsa)
+## Güvenlik En İyi Uygulamaları
 
-## Güvenlik Önlemleri
+### 🔒 Script Kullanımı
 
-Bu proje aşağıdaki güvenlik önlemlerini içerir:
+1. **Root olarak çalıştırmayın**
+   ```bash
+   # ❌ YANLIŞ
+   sudo ./terminal-setup.sh
+   
+   # ✅ DOĞRU
+   ./terminal-setup.sh  # Gerektiğinde sudo isteyecektir
+   ```
 
-### Input Validation
+2. **Scripti doğrulayın**
+   ```bash
+   # Scripti indirmeden önce GitHub'da inceleyin
+   cat terminal-setup.sh | less
+   
+   # SHA256 kontrolü (gelecekte eklenecek)
+   sha256sum -c checksums.txt
+   ```
 
-```bash
-# Tüm kullanıcı girdileri validate edilir
-if [[ ! "$choice" =~ ^[0-9]+$ ]]; then
-    log_error "Geçersiz seçim"
-    return 1
-fi
-```
+3. **Güvenilir kaynaktan indirin**
+   ```bash
+   # ✅ Resmi repo
+   wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh
+   
+   # ❌ Bilinmeyen kaynak
+   wget http://example.com/random-script.sh
+   ```
 
-### Path Traversal Koruması
+### 🛡️ Bizim Güvenlik Önlemlerimiz
 
-```bash
-# Güvenli dosya yolları
-readonly BACKUP_DIR="$HOME/.terminal-setup/backups"
-readonly LOG_DIR="$HOME/.terminal-setup/logs"
+- ✅ Root kontrolü (script root olarak çalışmaz)
+- ✅ Input validation
+- ✅ Otomatik yedekleme
+- ✅ Güvenli cleanup (trap handlers)
+- ✅ Network timeout'ları
+- ✅ Dosya permission kontrolleri
+- ✅ Sudo refresh ile güvenli yetki yönetimi
 
-# Path traversal önleme
-if [[ "$file_path" != "$BACKUP_DIR"/* ]]; then
-    log_error "Geçersiz dosya yolu"
-    return 1
-fi
-```
+### 🔐 Depolanan Veriler
 
-### Command Injection Önleme
+Script şunları depolar:
+- ✅ Yerel config dosyaları (`~/.terminal-setup/`)
+- ✅ Yedek dosyaları (`~/.terminal-setup-backup/`)
+- ✅ Log dosyaları (`~/.terminal-setup/logs/`)
 
-```bash
-# YANLIŞ (vulnerable)
-eval "rm -rf $user_input"
+**Hiçbir veri harici sunuculara gönderilmez.**
 
-# DOĞRU (safe)
-if [[ -d "$validated_path" ]]; then
-    rm -rf "$validated_path"
-fi
-```
+### 🌐 Ağ İstekleri
 
-### Timeout Koruması
+Script sadece şu kaynaklardan veri çeker:
+- `github.com` - Oh My Zsh, Powerlevel10k, plugins
+- `raw.githubusercontent.com` - Tema dosyaları, güncellemeler
+- `8.8.8.8` - İnternet bağlantı kontrolü (ping)
 
-```bash
-# Tüm ağ işlemleri timeout ile
-timeout 300 sudo apt install -y zsh
-timeout 30 wget "$url" -O "$file"
-timeout 60 git clone --depth=1 "$repo"
-```
+## Bilinen Kısıtlamalar
 
-### Lock File Mekanizması
+### ⚠️ Terminal Emulator Desteği
 
-```bash
-# Race condition önleme
-if [[ -f "$LOCK_FILE" ]]; then
-    local lock_pid=$(cat "$LOCK_FILE")
-    if kill -0 "$lock_pid" 2>/dev/null; then
-        echo "Başka instance çalışıyor"
-        exit 1
-    fi
-fi
-echo $$ > "$LOCK_FILE"
-```
+- **Tam Destek:** GNOME Terminal
+- **Kısmi Destek:** Tilix, Konsole (renk temaları çalışmayabilir)
+- **Desteklenmiyor:** Diğer terminal emulatorler
 
-### Safe Temp Directory
+### ⚠️ Sudo Gereksinimleri
 
-```bash
-# Güvenli geçici dizin
-TEMP_DIR=$(mktemp -d -t terminal-setup.XXXXXXXXXX)
-trap 'rm -rf "$TEMP_DIR"' EXIT
-```
-
-## Bilinen Güvenlik Konuları
-
-### Sudo Kullanımı
-
-Script, aşağıdaki işlemler için sudo yetkisi gerektirir:
-
+Script şu durumlarda sudo gerektirir:
 - Paket kurulumu (`apt install`)
 - Shell değiştirme (`chsh`)
-- Sistem genelinde konfigürasyon
+- Font kurulumu (sistem fontlarına yazarken)
 
-**Risk Azaltma:**
-- Sudo sadece gerektiğinde istenir
-- Tüm sudo komutları loglanır
-- Kullanıcı onayı alınır
+## Sorumluluk Reddi
 
-### Ağ İndirmeleri
-
-Script, GitHub ve diğer kaynaklardan dosya indirir.
-
-**Risk Azaltma:**
-- HTTPS kullanımı (MITM koruması)
-- Dosya boyutu kontrolü
-- Timeout koruması
-- Hash doğrulama (gelecek sürümlerde)
-
-### Shell Script Execution
-
-Script, shell kodu çalıştırır.
-
-**Risk Azaltma:**
-- ShellCheck ile kod analizi
-- Input validation
-- Error handling
-- Safe defaults
-
-## Güvenlik En İyi Pratikleri (Kullanıcılar İçin)
-
-### Script'i İndirirken
-
-```bash
-# GÜVENLI: Doğrudan GitHub'dan indir
-wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/terminal-setup.sh
-
-# GÜVENSIZ: Bilinmeyen kaynaklardan indirme
-wget http://random-site.com/script.sh
-```
-
-### Çalıştırmadan Önce
-
-```bash
-# 1. Kodu incele
-cat terminal-setup.sh
-
-# 2. ShellCheck ile kontrol et
-shellcheck terminal-setup.sh
-
-# 3. Syntax check
-bash -n terminal-setup.sh
-```
-
-### Çalıştırırken
-
-```bash
-# DOĞRU: Normal kullanıcı olarak çalıştır
-./terminal-setup.sh
-
-# YANLIŞ: Root olarak çalıştırma
-sudo ./terminal-setup.sh  # YAPMAYIN!
-```
-
-### Kurulumdan Sonra
-
-```bash
-# Log dosyasını incele
-cat ~/.terminal-setup/logs/terminal-setup.log
-
-# Yedekleri kontrol et
-ls -la ~/.terminal-setup/backups/
-
-# Değişiklikleri gözden geçir
-diff ~/.bashrc ~/.terminal-setup/backups/bashrc_*
-```
+- Script "OLDUĞU GİBİ" sağlanmaktadır
+- Kullanım riski kullanıcıya aittir
+- Üretim sistemlerinde kullanmadan önce test edin
+- Önemli verileri yedekleyin
 
 ## Güvenlik Güncellemeleri
 
-Güvenlik güncellemeleri:
+Güvenlik güncellemelerinden haberdar olmak için:
+- ⭐ Repo'yu "Watch" edin
+- 📢 [Releases](https://github.com/alibedirhan/Theme-after-format/releases) sayfasını takip edin
+- 🔔 GitHub Security Advisories'i etkinleştirin
 
-1. **Kritik**: 24-48 saat içinde
-2. **Yüksek**: 7 gün içinde
-3. **Orta**: 30 gün içinde
-4. **Düşük**: Bir sonraki minor release'de
+## Kabul Edilen Güvenlik Açıkları
 
-## Teşekkürler
+Şu tür raporlar kabul edilir:
+- ✅ Kod injection
+- ✅ Privilege escalation
+- ✅ Unauthorized file access
+- ✅ Command injection
+- ✅ Path traversal
 
-Güvenlik araştırmacılarına ve sorumlu açıklama yapan herkese teşekkür ederiz.
-
-### Hall of Fame (Gelecekte)
-
-Güvenlik açığı bildiren kişiler buraya eklenecek.
+Şu tür raporlar kabul **edilmez**:
+- ❌ Sosyal mühendislik
+- ❌ DoS (script zaten lokal çalışıyor)
+- ❌ Rate limiting issues
+- ❌ Kullanıcı hatası kaynaklı sorunlar
 
 ## İletişim
 
-Güvenlik soruları için:
-- GitHub Security Advisory (tercih edilir)
-- GitHub profilim üzerinden
+- 🐛 Genel hatalar: [Issues](https://github.com/alibedirhan/Theme-after-format/issues)
+- 🔒 Güvenlik açıkları: [Security Advisory](https://github.com/alibedirhan/Theme-after-format/security)
+- 💬 Tartışmalar: [Discussions](https://github.com/alibedirhan/Theme-after-format/discussions)
 
 ---
 
-**Not:** Bu bir açık kaynak projedir. Kodu inceleyebilir, test edebilir ve güvenlik iyileştirmeleri önerebilirsiniz.
+**Güvenliğiniz bizim önceliğimiz. Sorumlu açıklama için teşekkür ederiz!** 🙏
