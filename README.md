@@ -1,4 +1,4 @@
-# 🎨 Terminal Customization Suite v3.2.5
+# 🎨 Terminal Customization Suite v3.2.7
 
 > Format sonrası terminal özelleştirmelerini tek komutla geri yükleyin - Artık **7 tema** ve **akıllı asistan** ile!
 
@@ -64,7 +64,7 @@ Script'i çalıştırdığınızda interaktif menü açılır:
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║    Terminal Customization Suite v3.2.5                   ║
+║    Terminal Customization Suite v3.2.7                   ║
 ╚═══════════════════════════════════════════════════════════╝
 
 ┌──────────────────── TAM KURULUM ────────────────────────┐

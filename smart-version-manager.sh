@@ -282,43 +282,142 @@ scan_version_files() {
     echo -e "${CYAN}${MAGNIFY} Dosyalar taranıyor...${NC}"
     echo
     
-    # Master VERSION dosyasını oku
-    local master_version=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
-    
-    local files=(
-        "VERSION:cat VERSION 2>/dev/null | tr -d '[:space:]'"
-        "terminal-setup.sh:cat VERSION 2>/dev/null | tr -d '[:space:]'"
-        "install.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' install.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "terminal-ui.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-ui.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "terminal-core.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-core.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "terminal-utils.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-utils.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "terminal-assistant.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-assistant.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "terminal-themes.sh:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-themes.sh 2>/dev/null | head -1 | sed 's/v//'"
-        "README.md:grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' README.md 2>/dev/null | head -1 | sed 's/v//'"
-    )
-    
     local inconsistent=0
     
-    for file_cmd in "${files[@]}"; do
-        local file="${file_cmd%%:*}"
-        local cmd="${file_cmd##*:}"
-        
-        if [[ -f "$file" ]]; then
-            local ver=$(eval "$cmd" 2>/dev/null || echo "N/A")
-            
-            printf "  ${DIM}%-25s${NC} " "$file"
-            if [[ "$ver" != "N/A" && -n "$ver" ]]; then
-                echo -e "${GREEN}$ver${NC}"
-            else
-                echo -e "${YELLOW}Bulunamadı${NC}"
-                ((inconsistent++))
-            fi
+    # VERSION dosyası
+    printf "  ${DIM}%-25s${NC} " "VERSION"
+    if [[ -f VERSION ]]; then
+        local ver=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
         else
-            printf "  ${DIM}%-25s${NC} " "$file"
-            echo -e "${RED}Dosya yok${NC}"
+            echo -e "${YELLOW}Boş${NC}"
             ((inconsistent++))
         fi
-    done
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-setup.sh (VERSION dosyasından okuyor)
+    printf "  ${DIM}%-25s${NC} " "terminal-setup.sh"
+    if [[ -f terminal-setup.sh ]] && [[ -f VERSION ]]; then
+        local ver=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC} ${DIM}(VERSION'dan)${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # install.sh
+    printf "  ${DIM}%-25s${NC} " "install.sh"
+    if [[ -f install.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' install.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-ui.sh
+    printf "  ${DIM}%-25s${NC} " "terminal-ui.sh"
+    if [[ -f terminal-ui.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-ui.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-core.sh
+    printf "  ${DIM}%-25s${NC} " "terminal-core.sh"
+    if [[ -f terminal-core.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-core.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-utils.sh
+    printf "  ${DIM}%-25s${NC} " "terminal-utils.sh"
+    if [[ -f terminal-utils.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-utils.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-assistant.sh
+    printf "  ${DIM}%-25s${NC} " "terminal-assistant.sh"
+    if [[ -f terminal-assistant.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-assistant.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # terminal-themes.sh
+    printf "  ${DIM}%-25s${NC} " "terminal-themes.sh"
+    if [[ -f terminal-themes.sh ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' terminal-themes.sh 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
+    
+    # README.md
+    printf "  ${DIM}%-25s${NC} " "README.md"
+    if [[ -f README.md ]]; then
+        local ver=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' README.md 2>/dev/null | head -1 | sed 's/v//')
+        if [[ -n "$ver" ]]; then
+            echo -e "${GREEN}$ver${NC}"
+        else
+            echo -e "${YELLOW}Bulunamadı${NC}"
+            ((inconsistent++))
+        fi
+    else
+        echo -e "${RED}Dosya yok${NC}"
+        ((inconsistent++))
+    fi
     
     echo
     return $inconsistent
