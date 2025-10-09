@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Smart Version Manager - Interactive Version Sync Tool
-# v1.1.0 - Basit Yardım Sistemi Eklendi
+# v1.2.0 - Enhanced with Git Integration & Cross-Platform Support
 # ============================================================================
 
 set -euo pipefail
@@ -38,21 +38,21 @@ TROPHY="🏆"
 show_simple_help() {
     clear
     echo -e "${BOLD}${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "╔═══════════════════════════════════════════════════════╗"
     echo "║            SMART VERSION MANAGER - YARDIM                 ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "╚═══════════════════════════════════════════════════════╝"
     echo -e "${NC}"
     echo
     
     echo -e "${ROBOT} ${BOLD}BU SCRIPT NE İŞE YARAR?${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "Tüm dosyalardaki versiyon numaralarını (v3.2.5 gibi)"
     echo -e "tek seferde günceller. Manuel olarak 9 dosyayı"
     echo -e "tek tek düzenlemenize gerek kalmaz!"
     echo
     
     echo -e "${ROCKET} ${BOLD}NASIL KULLANILIR?${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "${GREEN}1.${NC} Scripti çalıştır:"
     echo -e "   ${CYAN}./smart-version-manager.sh${NC}"
     echo
@@ -68,7 +68,7 @@ show_simple_help() {
     echo
     
     echo -e "${SPARKLES} ${BOLD}ÖZELLİKLER${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "${CHECKMARK} Mevcut versiyonu otomatik bulur"
     echo -e "${CHECKMARK} Akıllı öneriler yapar (3.2.6, 3.3.0, 4.0.0)"
     echo -e "${CHECKMARK} 9 dosyayı aynı anda günceller"
@@ -77,7 +77,7 @@ show_simple_help() {
     echo
     
     echo -e "${LIGHTBULB} ${BOLD}HIZLI ÖRNEK${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}./smart-version-manager.sh${NC}"
     echo -e "  ${DIM}↓${NC}"
     echo -e "  Mevcut: ${YELLOW}v3.2.5${NC}"
@@ -89,7 +89,7 @@ show_simple_help() {
     echo
     
     echo -e "${BOOK} ${BOLD}HANGİ DOSYALARI GÜNCELLİYOR?${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "  • VERSION"
     echo -e "  • install.sh"
     echo -e "  • terminal-setup.sh"
@@ -102,7 +102,7 @@ show_simple_help() {
     echo
     
     echo -e "${TROPHY} ${BOLD}İPUÇLARI${NC}"
-    echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}────────────────────────────────────────────────────────${NC}"
     echo -e "• ${YELLOW}Patch:${NC} Hata düzeltmeleri için (3.2.5 → 3.2.6)"
     echo -e "• ${YELLOW}Minor:${NC} Yeni özellikler için (3.2.5 → 3.3.0)"
     echo -e "• ${YELLOW}Major:${NC} Büyük değişiklikler için (3.2.5 → 4.0.0)"
@@ -110,7 +110,7 @@ show_simple_help() {
     echo -e "${DIM}Semantic Versioning: MAJOR.MINOR.PATCH${NC}"
     echo
     
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${BOLD}Devam etmek için Enter'a basın...${NC}"
     read -r
 }
@@ -123,26 +123,26 @@ show_banner() {
     clear
     echo -e "${BOLD}${CYAN}"
     cat << 'EOF'
-    ╔══════════════════════════════════════════════════════════╗
+    ╔═══════════════════════════════════════════════════════╗
     ║                                                          ║
-    ║     ███████╗███╗   ███╗ █████╗ ██████╗ ████████╗        ║
-    ║     ██╔════╝████╗ ████║██╔══██╗██╔══██╗╚══██╔══╝        ║
-    ║     ███████╗██╔████╔██║███████║██████╔╝   ██║           ║
-    ║     ╚════██║██║╚██╔╝██║██╔══██║██╔══██╗   ██║           ║
-    ║     ███████║██║ ╚═╝ ██║██║  ██║██║  ██║   ██║           ║
-    ║     ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝           ║
+    ║     █████╗ ███╗   ███╗ █████╗ ███████╗███████╗        ║
+    ║    ██╔══██╗████╗ ████║██╔══██╗██╔════╝██╔════╝        ║
+    ║    ███████║██╔████╔██║███████║█████╗  █████╗          ║
+    ║    ██╔══██║██║╚██╔╝██║██╔══██║██╔══╝  ██╔══╝          ║
+    ║    ██║  ██║██║ ╚═╝ ██║██║  ██║███████╗███████╗        ║
+    ║    ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝        ║
     ║                                                          ║
-    ║            Version Manager - AI Assistant                ║
-    ║                  v1.1.0 | 2024                           ║
+    ║           Version Manager - AI Assistant                 ║
+    ║                  v1.2.0 | 2024                           ║
     ║                                                          ║
-    ╚══════════════════════════════════════════════════════════╝
+    ╚═══════════════════════════════════════════════════════╝
 EOF
     echo -e "${NC}"
     sleep 0.3
 }
 
 # ============================================================================
-# DİĞER FONKSİYONLAR (Önceki artifact'taki gibi)
+# YARDIMCI FONKSİYONLAR
 # ============================================================================
 
 show_spinner() {
@@ -176,11 +176,71 @@ show_progress_bar() {
     fi
 }
 
+# ============================================================================
+# GIT FONKSİYONLARI (YENİ - İYİLEŞTİRİLMİŞ)
+# ============================================================================
+
+# Git repo kontrolü
+check_git_repo() {
+    if ! git rev-parse --git-dir &> /dev/null; then
+        echo -e "${RED}✗${NC} Bu bir git repository değil!"
+        return 1
+    fi
+    return 0
+}
+
+# Git remote kontrolü
+check_git_remote() {
+    if ! git remote get-url origin &> /dev/null; then
+        echo -e "${YELLOW}⚠ ${NC} Git remote (origin) bulunamadı"
+        echo -e "${DIM}Push işlemi yapılamayacak${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# Working tree temiz mi kontrol et
+check_working_tree() {
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        echo -e "${YELLOW}⚠ ${NC} Working tree temiz değil!"
+        echo
+        echo -e "${DIM}Uncommitted değişiklikler:${NC}"
+        git status --short | head -10
+        echo
+        echo -n "Devam etmek ister misiniz? (e/h): "
+        read -r continue_choice
+        if [[ "$continue_choice" != "e" ]]; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Mevcut branch'i al
+get_current_branch() {
+    git branch --show-current 2>/dev/null || echo "main"
+}
+
+# ============================================================================
+# VERSİYON FONKSİYONLARI
+# ============================================================================
+
+# Version validation (Semantic Versioning)
+validate_version() {
+    local version=$1
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo -e "${RED}✗${NC} Geçersiz versiyon formatı: $version"
+        echo -e "${DIM}Beklenen format: MAJOR.MINOR.PATCH (örn: 3.2.5)${NC}"
+        return 1
+    fi
+    return 0
+}
+
 detect_current_version() {
     local version=""
     
     if [[ -f VERSION ]]; then
-        version=$(cat VERSION 2>/dev/null || echo "")
+        version=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
     fi
     
     if [[ -z "$version" ]] && [[ -f terminal-setup.sh ]]; then
@@ -210,6 +270,10 @@ suggest_next_version() {
     
     echo "$patch_bump|$minor_bump|$major_bump"
 }
+
+# ============================================================================
+# DOSYA TARAMA
+# ============================================================================
 
 scan_version_files() {
     echo -e "${CYAN}${MAGNIFY} Dosyalar taranıyor...${NC}"
@@ -250,10 +314,32 @@ scan_version_files() {
     return $inconsistent
 }
 
+# ============================================================================
+# VERSİYON GÜNCELLEME (İYİLEŞTİRİLMİŞ)
+# ============================================================================
+
+# Sed wrapper - macOS ve Linux uyumlu
+sed_inplace() {
+    local pattern=$1
+    local file=$2
+    
+    # DÜZELTME: macOS uyumluluğu
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "$pattern" "$file" 2>/dev/null
+    else
+        sed -i "$pattern" "$file" 2>/dev/null
+    fi
+}
+
 update_versions() {
     local target_version=$1
     local total_files=9
     local current=0
+    
+    # DÜZELTME: Version validation
+    if ! validate_version "$target_version"; then
+        return 1
+    fi
     
     echo -e "${WRENCH} ${CYAN}Versiyonlar güncelleniyor...${NC}"
     echo
@@ -265,48 +351,53 @@ update_versions() {
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" install.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" install.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/^VERSION=\"[0-9]\+\.[0-9]\+\.[0-9]\+\"/VERSION=\"${target_version}\"/g" terminal-setup.sh 2>/dev/null || true
+    sed_inplace "s/^VERSION=\"[0-9]\+\.[0-9]\+\.[0-9]\+\"/VERSION=\"${target_version}\"/g" terminal-setup.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-ui.sh 2>/dev/null || true
-    sed -i "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+/Version ${target_version}/g" terminal-ui.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-ui.sh
+    sed_inplace "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+/Version ${target_version}/g" terminal-ui.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-core.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-core.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-utils.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-utils.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-assistant.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-assistant.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-themes.sh 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" terminal-themes.sh
     sleep 0.2
     
     ((current++))
     show_progress_bar $current $total_files
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" README.md 2>/dev/null || true
+    sed_inplace "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${target_version}/g" README.md
     sleep 0.2
     
     echo
     echo -e "${GREEN}${CHECKMARK} Tüm dosyalar güncellendi!${NC}"
+    return 0
 }
+
+# ============================================================================
+# GIT İŞLEMLERİ (İYİLEŞTİRİLMİŞ)
+# ============================================================================
 
 git_operations() {
     local version=$1
@@ -316,24 +407,61 @@ git_operations() {
     echo -e "${PACKAGE} ${CYAN}Git işlemleri...${NC}"
     echo
     
+    # DÜZELTME: Git repo kontrolü
+    if ! check_git_repo; then
+        echo -e "${YELLOW}Git repository değil, git işlemleri atlanıyor${NC}"
+        return 0
+    fi
+    
     echo -e "${DIM}Değişen dosyalar:${NC}"
     git status --short | while read line; do
         echo -e "  ${GREEN}•${NC} $line"
     done
     echo
     
+    # DÜZELTME: Git add error handling
+    echo -ne "${CYAN}⠋${NC} Staging yapılıyor..."
+    if ! git add . > /dev/null 2>&1; then
+        echo -e "\r${RED}✗${NC} Git add başarısız!        "
+        return 1
+    fi
+    echo -e "\r${GREEN}✓${NC} Staged!              "
+    
+    # DÜZELTME: Git commit error handling
     echo -ne "${CYAN}⠋${NC} Commit yapılıyor..."
-    git add . > /dev/null 2>&1
-    git commit -m "chore: Update all versions to v${version}
+    if ! git commit -m "chore: Update all versions to v${version}
 
-Auto-generated by Smart Version Manager" > /dev/null 2>&1
-    echo -e "\r${GREEN}${CHECKMARK}${NC} Commit yapıldı!        "
+Auto-generated by Smart Version Manager
+
+- Updated VERSION file
+- Updated all shell scripts
+- Updated README.md" > /dev/null 2>&1; then
+        echo -e "\r${RED}✗${NC} Git commit başarısız!    "
+        return 1
+    fi
+    echo -e "\r${GREEN}✓${NC} Commit yapıldı!      "
     
     if [[ "$auto_push" == "true" ]]; then
-        echo -ne "${CYAN}⠋${NC} GitHub'a gönderiliyor..."
-        git push origin main > /dev/null 2>&1
-        echo -e "\r${GREEN}${CHECKMARK}${NC} GitHub'a gönderildi!    "
+        # DÜZELTME: Remote kontrolü
+        if ! check_git_remote; then
+            echo -e "${YELLOW}Remote bulunamadı, push atlanıyor${NC}"
+            return 0
+        fi
+        
+        # DÜZELTME: Dinamik branch detection
+        local current_branch
+        current_branch=$(get_current_branch)
+        
+        echo -ne "${CYAN}⠋${NC} GitHub'a gönderiliyor ($current_branch)..."
+        if ! git push origin "$current_branch" > /dev/null 2>&1; then
+            echo -e "\r${RED}✗${NC} Git push başarısız!      "
+            echo -e "${YELLOW}Manuel push yapabilirsiniz:${NC} git push origin $current_branch"
+            return 1
+        fi
+        echo -e "\r${GREEN}✓${NC} GitHub'a gönderildi!    "
     fi
+    
+    return 0
 }
 
 # ============================================================================
@@ -363,6 +491,20 @@ main() {
     echo
     sleep 0.5
     
+    # Git kontrolü
+    if ! check_git_repo; then
+        echo -e "${YELLOW}⚠ ${NC} Git repository değil, sadece dosyaları güncelleyeceğim"
+        echo
+    fi
+    
+    # Working tree kontrolü
+    if check_git_repo; then
+        if ! check_working_tree; then
+            echo -e "${RED}İptal edildi.${NC}"
+            exit 1
+        fi
+    fi
+    
     echo -e "${MAGNIFY} ${CYAN}Sistem analiz ediliyor...${NC}"
     echo
     sleep 1
@@ -372,7 +514,7 @@ main() {
     if [[ -n "$current_version" ]]; then
         echo -e "${GREEN}${CHECKMARK} Mevcut versiyon: ${BOLD}v${current_version}${NC}"
     else
-        echo -e "${YELLOW}⚠ Versiyon tespit edilemedi${NC}"
+        echo -e "${YELLOW}⚠  Versiyon tespit edilemedi${NC}"
         current_version="0.0.0"
     fi
     echo
@@ -382,13 +524,13 @@ main() {
     local scan_result=$?
     
     if [[ $scan_result -gt 0 ]]; then
-        echo -e "${YELLOW}⚠ Bazı dosyalarda versiyon tutarsızlığı var!${NC}"
+        echo -e "${YELLOW}⚠  Bazı dosyalarda versiyon tutarsızlığı var!${NC}"
         echo
     fi
     
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}────────────────────────────────────────────────${NC}"
     echo -e "${BOLD}Hangi versiyonu kullanmak istersiniz?${NC}"
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}────────────────────────────────────────────────${NC}"
     echo
     
     IFS='|' read -r patch_bump minor_bump major_bump <<< "$(suggest_next_version "$current_version")"
@@ -424,6 +566,12 @@ main() {
             echo -ne "${BOLD}Versiyon numarası:${NC} "
             read -r custom_version
             target_version="$custom_version"
+            
+            # Validation
+            if ! validate_version "$target_version"; then
+                echo -e "${RED}İptal edildi.${NC}"
+                exit 1
+            fi
             echo -e "${GREEN}${CHECKMARK} Özel versiyon: v${target_version}${NC}"
             ;;
         5)
@@ -439,9 +587,9 @@ main() {
     echo
     sleep 0.5
     
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}────────────────────────────────────────────────${NC}"
     echo -e "${BOLD}TÜM DOSYALAR v${target_version} OLARAK GÜNCELLENECEK${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}────────────────────────────────────────────────${NC}"
     echo
     echo -ne "${BOLD}Devam? (e/h):${NC} "
     read -r confirm
@@ -456,37 +604,49 @@ main() {
     echo
     sleep 0.5
     
-    update_versions "$target_version"
+    if ! update_versions "$target_version"; then
+        echo -e "${RED}Versiyon güncelleme başarısız!${NC}"
+        exit 1
+    fi
     
     echo
     sleep 0.5
     
-    echo -ne "${BOLD}Git commit ve push yapılsın mı? (e/h):${NC} "
-    read -r git_choice
-    
-    if [[ "$git_choice" =~ ^[eE]$ ]]; then
-        echo -ne "${BOLD}Otomatik push? (e/h):${NC} "
-        read -r push_choice
+    # Git işlemleri (sadece git repo ise)
+    if check_git_repo; then
+        echo -ne "${BOLD}Git commit ve push yapılsın mı? (e/h):${NC} "
+        read -r git_choice
         
-        if [[ "$push_choice" =~ ^[eE]$ ]]; then
-            git_operations "$target_version" true
-        else
-            git_operations "$target_version" false
-            echo
-            echo -e "${YELLOW}ℹ Push manuel yapılacak:${NC} ${DIM}git push origin main${NC}"
+        if [[ "$git_choice" =~ ^[eE]$ ]]; then
+            echo -ne "${BOLD}Otomatik push? (e/h):${NC} "
+            read -r push_choice
+            
+            if [[ "$push_choice" =~ ^[eE]$ ]]; then
+                git_operations "$target_version" true
+            else
+                git_operations "$target_version" false
+                echo
+                local current_branch=$(get_current_branch)
+                echo -e "${YELLOW}ℹ Push manuel yapılacak:${NC} ${DIM}git push origin $current_branch${NC}"
+            fi
         fi
     fi
     
     echo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}────────────────────────────────────────────────${NC}"
     echo -e "${ROCKET} ${BOLD}${GREEN}TAMAMLANDI!${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}────────────────────────────────────────────────${NC}"
     echo
     echo -e "${BOLD}Yeni versiyon:${NC} ${CYAN}v${target_version}${NC}"
     echo
     echo -e "${DIM}Sonraki adımlar:${NC}"
-    echo -e "  ${GREEN}•${NC} git tag v${target_version}"
-    echo -e "  ${GREEN}•${NC} git push origin v${target_version}"
+    if check_git_repo && check_git_remote &>/dev/null; then
+        echo -e "  ${GREEN}•${NC} git tag v${target_version}"
+        echo -e "  ${GREEN}•${NC} git push origin v${target_version}"
+    else
+        echo -e "  ${GREEN}•${NC} Dosyalar güncellendi!"
+        echo -e "  ${GREEN}•${NC} Manuel git işlemlerini yapabilirsiniz"
+    fi
     echo
 }
 
