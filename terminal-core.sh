@@ -2,11 +2,12 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.2.5 - Core Module (Clean Output)
+# v3.2.5 - Core Module (Enhanced & Cross-Platform)
 # ============================================================================
 
 # Sudo refresh PID - Global değişken
 SUDO_REFRESH_PID=""
+MAIN_SHELL_PID=$$  # Ana process PID'yi kaydet (subshell öncesi)
 
 # Sudo cleanup fonksiyonu
 cleanup_sudo() {
@@ -30,7 +31,7 @@ show_section() {
     local total=$2
     local title=$3
     echo
-    echo -e "${CYAN}━━━━ KURULUM [${step}/${total}] ━━━━${NC}"
+    echo -e "${CYAN}┌─── KURULUM [${step}/${total}] ────┐${NC}"
     echo -e "${YELLOW}⟳${NC} ${title}..."
 }
 
@@ -46,7 +47,7 @@ show_step_info() {
 
 show_step_skip() {
     local message=$1
-    echo -e "  ${YELLOW}→${NC} ${message}"
+    echo -e "  ${YELLOW}↷${NC} ${message}"
 }
 
 show_user_prompt() {
@@ -55,12 +56,12 @@ show_user_prompt() {
     local messages=("$@")
     
     echo
-    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────┐${NC}"
     echo -e "${YELLOW}│${NC} ${BOLD}${title}${NC}"
     for msg in "${messages[@]}"; do
         echo -e "${YELLOW}│${NC} ${msg}"
     done
-    echo -e "${YELLOW}└─────────────────────────────────────────────────────────┘${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────┘${NC}"
 }
 
 # ============================================================================
@@ -146,11 +147,12 @@ setup_sudo() {
     log_success "Sudo yetkisi alındı"
     
     # Background sudo refresh process
+    # DÜZELTME: Ana process PID'yi kullan
     (
         while true; do
             sleep 50
             sudo -n true 2>/dev/null || exit 1
-            kill -0 "$$" 2>/dev/null || exit 0
+            kill -0 "$MAIN_SHELL_PID" 2>/dev/null || exit 0
         done
     ) &
     
@@ -166,10 +168,11 @@ setup_sudo() {
 
 create_backup() {
     log_info "Mevcut ayarlar yedekleniyor..."
-    mkdir -p "$BACKUP_DIR" || {
+    
+    if ! mkdir -p "$BACKUP_DIR"; then
         log_error "Yedek dizini oluşturulamadı: $BACKUP_DIR"
         return 1
-    }
+    fi
     
     local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     
@@ -231,7 +234,8 @@ install_oh_my_zsh() {
         return 1
     fi
     
-    if ! RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null; then
+    # DÜZELTME: Timeout ve error handling
+    if ! timeout 120 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null; then
         log_error "Oh My Zsh kurulumu başarısız!"
         return 1
     fi
@@ -259,10 +263,11 @@ install_fonts() {
     }
     
     local FONT_DIR=~/.local/share/fonts
-    mkdir -p "$FONT_DIR" || {
+    
+    if ! mkdir -p "$FONT_DIR"; then
         log_error "Font dizini oluşturulamadı"
         return 1
-    }
+    fi
     
     if [[ ! -f "$FONT_DIR/MesloLGS NF Regular.ttf" ]]; then
         show_step_info "MesloLGS NF fontları indiriliyor..."
@@ -290,7 +295,8 @@ install_fonts() {
             local retry=0
             
             while [ $retry -lt $max_retry ]; do
-                if wget --timeout=15 --tries=2 -q "$base_url/$url_name" -O "$file_name" 2>/dev/null; then
+                # DÜZELTME: HTTPS doğrulama eklendi
+                if wget --timeout=15 --tries=2 --https-only -q "$base_url/$url_name" -O "$file_name" 2>/dev/null; then
                     local file_size=$(wc -c < "$file_name" 2>/dev/null | tr -d '[:space:]')
                     if [[ -n "$file_size" ]] && [[ "$file_size" -gt 400000 ]]; then
                         log_debug "$file_name indirildi (${file_size} bytes)"
@@ -354,12 +360,14 @@ install_powerlevel10k() {
         show_step_info "Güncelleniyor..."
         local current_dir=$(pwd)
         if cd "$P10K_DIR"; then
-            git pull &>/dev/null || log_warning "Güncelleme başarısız"
+            # DÜZELTME: Timeout eklendi
+            timeout 60 git pull &>/dev/null || log_warning "Güncelleme başarısız"
             cd "$current_dir" || true
         fi
         show_step_success "Tema motoru hazır"
     else
-        if ! git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" &>/dev/null; then
+        # DÜZELTME: Timeout ve depth eklendi
+        if ! timeout 120 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" &>/dev/null; then
             log_error "Powerlevel10k klonlama başarısız!"
             return 1
         fi
@@ -367,7 +375,12 @@ install_powerlevel10k() {
     fi
     
     if [[ -f ~/.zshrc ]]; then
-        sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
+        # DÜZELTME: macOS uyumluluğu
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
+        else
+            sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
+        fi
     fi
     
     log_success "Powerlevel10k kuruldu"
@@ -389,7 +402,8 @@ install_plugins() {
     local install_errors=0
     
     if [[ ! -d "$CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        if git clone https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" &>/dev/null; then
+        # DÜZELTME: Timeout ve depth eklendi
+        if timeout 120 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$CUSTOM/plugins/zsh-autosuggestions" &>/dev/null; then
             show_step_success "zsh-autosuggestions"
         else
             log_warning "zsh-autosuggestions kurulumu başarısız"
@@ -400,7 +414,8 @@ install_plugins() {
     fi
     
     if [[ ! -d "$CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        if git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null; then
+        # DÜZELTME: Timeout ve depth eklendi
+        if timeout 120 git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null; then
             show_step_success "zsh-syntax-highlighting"
         else
             log_warning "zsh-syntax-highlighting kurulumu başarısız"
@@ -411,8 +426,13 @@ install_plugins() {
     fi
     
     if [[ -f ~/.zshrc ]]; then
+        # DÜZELTME: macOS uyumluluğu
         if grep -q "^plugins=(" ~/.zshrc; then
-            sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc
+            else
+                sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)/' ~/.zshrc
+            fi
         else
             echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting colored-man-pages)' >> ~/.zshrc
         fi
@@ -444,7 +464,8 @@ install_fzf() {
     fi
     
     if [[ ! -d ~/.fzf ]]; then
-        if ! git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf &>/dev/null; then
+        # DÜZELTME: Timeout eklendi
+        if ! timeout 120 git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf &>/dev/null; then
             log_error "FZF klonlama başarısız!"
             return 1
         fi
@@ -476,6 +497,7 @@ install_zoxide() {
         return 1
     fi
     
+    # DÜZELTME: File existence check
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "zoxide init zsh" ~/.zshrc; then
             {
@@ -503,17 +525,16 @@ install_exa() {
         return 1
     fi
     
-    if [[ -f ~/.zshrc ]]; then
-        if ! grep -q "alias ls=" ~/.zshrc; then
-            {
-                echo ''
-                echo '# Exa aliases'
-                echo 'alias ls="exa --icons"'
-                echo 'alias ll="exa -l --icons"'
-                echo 'alias la="exa -la --icons"'
-                echo 'alias lt="exa --tree --icons"'
-            } >> ~/.zshrc
-        fi
+    # DÜZELTME: File existence check eklendi
+    if [[ -f ~/.zshrc ]] && ! grep -q "alias ls=" ~/.zshrc; then
+        {
+            echo ''
+            echo '# Exa aliases'
+            echo 'alias ls="exa --icons"'
+            echo 'alias ll="exa -l --icons"'
+            echo 'alias la="exa -la --icons"'
+            echo 'alias lt="exa --tree --icons"'
+        } >> ~/.zshrc
     fi
     
     log_success "Exa kuruldu"
@@ -533,14 +554,13 @@ install_bat() {
         return 1
     fi
     
-    if [[ -f ~/.zshrc ]]; then
-        if ! grep -q "alias cat=" ~/.zshrc; then
-            {
-                echo ''
-                echo '# Bat alias'
-                echo 'alias cat="batcat"'
-            } >> ~/.zshrc
-        fi
+    # DÜZELTME: File existence check eklendi
+    if [[ -f ~/.zshrc ]] && ! grep -q "alias cat=" ~/.zshrc; then
+        {
+            echo ''
+            echo '# Bat alias'
+            echo 'alias cat="batcat"'
+        } >> ~/.zshrc
     fi
     
     log_success "Bat kuruldu"
@@ -717,12 +737,21 @@ install_theme_kitty() {
     local kitty_conf="$HOME/.config/kitty/kitty.conf"
     local theme_dir="$HOME/.config/kitty/themes"
     
-    mkdir -p "$theme_dir" || {
+    if ! mkdir -p "$theme_dir"; then
         log_error "Tema dizini oluşturulamadı"
         return 1
-    }
+    fi
     
-    [[ -f "$kitty_conf" ]] && sed -i '/^include themes\//d' "$kitty_conf" || touch "$kitty_conf"
+    # DÜZELTME: macOS uyumluluğu
+    if [[ -f "$kitty_conf" ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' '/^include themes\//d' "$kitty_conf"
+        else
+            sed -i '/^include themes\//d' "$kitty_conf"
+        fi
+    else
+        touch "$kitty_conf"
+    fi
     
     case $theme in
         dracula)
@@ -768,12 +797,20 @@ install_theme_alacritty() {
     fi
     
     local alacritty_conf="$HOME/.config/alacritty/alacritty.yml"
-    mkdir -p "$(dirname "$alacritty_conf")" || {
+    
+    if ! mkdir -p "$(dirname "$alacritty_conf")"; then
         log_error "Alacritty config dizini oluşturulamadı"
         return 1
-    }
+    fi
     
-    [[ -f "$alacritty_conf" ]] && sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
+    # DÜZELTME: macOS uyumluluğu
+    if [[ -f "$alacritty_conf" ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
+        else
+            sed -i '/^colors:/,/^[^ ]/{ /^colors:/d; /^[^ ]/!d }' "$alacritty_conf"
+        fi
+    fi
     
     case $theme in
         dracula) get_alacritty_theme_dracula >> "$alacritty_conf" ;;
@@ -807,7 +844,8 @@ migrate_bash_aliases() {
             local alias_basename
             alias_basename=$(basename "$alias_file")
             
-            if grep -q "source.*${alias_basename}" ~/.zshrc 2>/dev/null; then
+            # DÜZELTME: File check eklendi
+            if [[ -f ~/.zshrc ]] && grep -q "source.*${alias_basename}" ~/.zshrc 2>/dev/null; then
                 show_step_skip "${alias_basename} zaten .zshrc içinde tanımlı"
             else
                 show_user_prompt "BASH ALIASES BULUNDU" \
@@ -1148,7 +1186,7 @@ uninstall_all() {
     fi
     
     echo
-    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
+    echo -e "${CYAN}═════════════════════════════════════════${NC}"
     
     if [[ "$force_mode" == true ]]; then
         log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
@@ -1187,7 +1225,7 @@ uninstall_all() {
     
     echo
     echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}   KALDIRMA ÖZET${NC}İ                        ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}   KALDIRMA ÖZETİ                        ${CYAN}║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     echo -e "  Tamamlanan adımlar: ${current_step}/${total_steps}"
     echo -e "  Hatalar: ${errors}"
