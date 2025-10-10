@@ -1,0 +1,585 @@
+{
+  "themes": {
+    "arc": {
+      "name": "Arc",
+      "display_name": "Arc Dark",
+      "description": "Flat theme with transparent elements and modern design",
+      "category": "modern",
+      "variants": ["Arc", "Arc-Dark", "Arc-Darker", "Arc-Lighter"],
+      "default_variant": "Arc-Dark",
+      "icons": {
+        "recommended": "Papirus",
+        "alternatives": ["Papirus-Dark", "Adwaita"]
+      },
+      "cursor": "Adwaita",
+      "sources": {
+        "primary": {
+          "type": "apt",
+          "package": "arc-theme",
+          "icons_package": "papirus-icon-theme"
+        },
+        "secondary": {
+          "type": "github",
+          "repo": "jnsh/arc-theme",
+          "url": "https://github.com/jnsh/arc-theme"
+        }
+      },
+      "compatibility": {
+        "GNOME": {
+          "supported": true,
+          "min_version": "3.38",
+          "features": ["gtk3", "gtk4", "shell"]
+        },
+        "KDE": {
+          "supported": true,
+          "min_version": "5.20",
+          "features": ["gtk3", "gtk4"]
+        },
+        "XFCE": {
+          "supported": true,
+          "features": ["gtk3", "xfwm4"]
+        },
+        "MATE": {
+          "supported": true,
+          "features": ["gtk3", "metacity"]
+        },
+        "Cinnamon": {
+          "supported": true,
+          "features": ["gtk3", "cinnamon"]
+        },
+        "Budgie": {
+          "supported": true,
+          "features": ["gtk3"]
+        }
+      },
+      "metadata": {
+        "popularity": 95,
+        "maintenance": "active",
+        "license": "GPL-3.0",
+        "author": "jnsh (original by horst3180)",
+        "year": 2021,
+        "downloads": "1M+",
+        "rating": 4.8
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": true,
+        "cinnamon_theme": true,
+        "metacity_theme": true,
+        "xfwm4_theme": true
+      },
+      "colors": {
+        "accent": "#5294e2",
+        "selection": "#5294e2",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["beginners", "minimalists", "professionals"],
+        "use_cases": ["daily_use", "office", "development"],
+        "system_requirements": {
+          "ram_min": "2GB",
+          "de_weight": "medium"
+        }
+      }
+    },
+    
+    "yaru": {
+      "name": "Yaru",
+      "display_name": "Yaru (Ubuntu)",
+      "description": "Ubuntu's official modern theme with accent color variants",
+      "category": "official",
+      "variants": [
+        "Yaru", "Yaru-dark", "Yaru-light",
+        "Yaru-blue", "Yaru-blue-dark", "Yaru-blue-light",
+        "Yaru-red", "Yaru-red-dark", "Yaru-red-light",
+        "Yaru-green", "Yaru-green-dark", "Yaru-green-light",
+        "Yaru-purple", "Yaru-purple-dark", "Yaru-purple-light"
+      ],
+      "default_variant": "Yaru-dark",
+      "icons": {
+        "recommended": "Yaru",
+        "alternatives": ["Yaru-dark"]
+      },
+      "cursor": "Yaru",
+      "sources": {
+        "primary": {
+          "type": "apt",
+          "package": "yaru-theme-gtk",
+          "icons_package": "yaru-theme-icon",
+          "sound_package": "yaru-theme-sound"
+        }
+      },
+      "compatibility": {
+        "GNOME": {
+          "supported": true,
+          "min_version": "3.36",
+          "features": ["gtk3", "gtk4", "shell", "color_accents"]
+        },
+        "Budgie": {
+          "supported": true,
+          "features": ["gtk3", "gtk4"]
+        },
+        "Unity": {
+          "supported": true,
+          "features": ["gtk3"]
+        }
+      },
+      "metadata": {
+        "popularity": 98,
+        "maintenance": "active",
+        "license": "GPL-3.0 / CC-BY-SA-4.0",
+        "author": "Ubuntu Design Team",
+        "year": 2018,
+        "ubuntu_official": true,
+        "default_in": ["Ubuntu 22.04+", "Ubuntu 24.04"]
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": true,
+        "gnome_shell": true,
+        "color_variants": true,
+        "sound_theme": true
+      },
+      "colors": {
+        "accent": "#0073e5",
+        "accent_variants": ["blue", "red", "green", "purple"],
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["ubuntu_users", "beginners", "professionals"],
+        "use_cases": ["daily_use", "office", "development"],
+        "native_to": "Ubuntu"
+      }
+    },
+    
+    "pop": {
+      "name": "Pop",
+      "display_name": "Pop!_OS",
+      "description": "System76's professional theme with orange accents",
+      "category": "professional",
+      "variants": ["Pop", "Pop-dark", "Pop-light"],
+      "default_variant": "Pop-dark",
+      "icons": {
+        "recommended": "Pop",
+        "alternatives": ["Papirus", "Adwaita"]
+      },
+      "cursor": "Pop",
+      "sources": {
+        "primary": {
+          "type": "ppa",
+          "ppa": "ppa:system76/pop",
+          "package": "pop-gtk-theme",
+          "icons_package": "pop-icon-theme"
+        }
+      },
+      "compatibility": {
+        "GNOME": {
+          "supported": true,
+          "min_version": "3.36",
+          "features": ["gtk3", "gtk4", "shell"]
+        },
+        "Budgie": {"supported": true},
+        "Unity": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 92,
+        "maintenance": "active",
+        "license": "GPL-3.0 / CC-BY-SA-4.0",
+        "author": "System76",
+        "year": 2017,
+        "default_in": ["Pop!_OS"],
+        "nvidia_optimized": true
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": true,
+        "gnome_shell": true,
+        "flatpak_theme": true
+      },
+      "colors": {
+        "primary": "#48B9C7",
+        "secondary": "#FFA500",
+        "accent": "#FF6B00",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["developers", "professionals", "nvidia_users"],
+        "use_cases": ["development", "ai_ml", "data_science"],
+        "system_requirements": {
+          "nvidia_gpu": "recommended"
+        }
+      }
+    },
+    
+    "dracula": {
+      "name": "Dracula",
+      "display_name": "Dracula",
+      "description": "Dark theme using the Dracula color palette",
+      "category": "community",
+      "variants": ["Dracula"],
+      "default_variant": "Dracula",
+      "icons": {
+        "recommended": "Papirus-Dark",
+        "alternatives": ["Dracula (optional)"]
+      },
+      "cursor": "Adwaita",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "dracula/gtk",
+          "url": "https://github.com/dracula/gtk"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true, "features": ["gtk3", "gtk4"]},
+        "KDE": {"supported": true, "features": ["gtk3", "gtk4"]},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 96,
+        "maintenance": "active",
+        "license": "MIT",
+        "author": "Dracula Theme",
+        "year": 2016,
+        "community_size": "large",
+        "ports_available": "700+",
+        "website": "https://draculatheme.com"
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": false,
+        "dark_only": true
+      },
+      "colors": {
+        "background": "#282a36",
+        "foreground": "#f8f8f2",
+        "purple": "#bd93f9",
+        "pink": "#ff79c6",
+        "cyan": "#8be9fd",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["developers", "designers", "night_users"],
+        "use_cases": ["coding", "night_work", "long_sessions"],
+        "time_of_use": ["evening", "night"]
+      }
+    },
+    
+    "nord": {
+      "name": "Nord",
+      "display_name": "Nord (Nordic)",
+      "description": "Arctic, north-bluish color palette theme",
+      "category": "community",
+      "variants": ["Nordic", "Nordic-darker", "Nordic-Polar", "Nordic-bluish-accent"],
+      "default_variant": "Nordic",
+      "icons": {
+        "recommended": "Papirus-Dark",
+        "alternatives": ["Zafiro-Nord", "Numix-Circle"]
+      },
+      "cursor": "Adwaita",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "EliverLara/Nordic",
+          "url": "https://github.com/EliverLara/Nordic"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true},
+        "KDE": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 94,
+        "maintenance": "active",
+        "license": "MIT",
+        "author": "EliverLara",
+        "year": 2019,
+        "palette_name": "Nord by Arctic Ice Studio"
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": true
+      },
+      "colors": {
+        "primary_bg": "#2e3440",
+        "primary_fg": "#eceff4",
+        "accent": "#81a1c1",
+        "frost": "#88c0d0",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["minimalists", "designers", "nordic_fans"],
+        "use_cases": ["long_sessions", "design_work", "photography"],
+        "mood": ["calm", "professional", "cold"]
+      }
+    },
+    
+    "catppuccin": {
+      "name": "Catppuccin",
+      "display_name": "Catppuccin",
+      "description": "Soothing pastel theme for coders and designers",
+      "category": "trending",
+      "variants": [
+        "Catppuccin-Latte",
+        "Catppuccin-Frappe",
+        "Catppuccin-Macchiato",
+        "Catppuccin-Mocha"
+      ],
+      "default_variant": "Catppuccin-Mocha",
+      "icons": {
+        "recommended": "Papirus",
+        "alternatives": ["Tela"]
+      },
+      "cursor": "Catppuccin-Cursors",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "catppuccin/gtk",
+          "url": "https://github.com/catppuccin/gtk"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true, "features": ["gtk3", "gtk4", "shell"]},
+        "KDE": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 97,
+        "maintenance": "active",
+        "license": "MIT",
+        "author": "Catppuccin Community",
+        "year": 2021,
+        "community_size": "very_large",
+        "ports_available": "200+",
+        "website": "https://catppuccin.com",
+        "trending": "high"
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": true,
+        "accent_colors": 14,
+        "flavors": 4
+      },
+      "colors": {
+        "mocha_base": "#1e1e2e",
+        "mocha_text": "#cdd6f4",
+        "mocha_blue": "#89b4fa",
+        "mocha_mauve": "#cba6f7",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["developers", "designers", "artists"],
+        "use_cases": ["development", "creative_work", "social_media"],
+        "aesthetic": ["pastel", "soothing", "instagram"]
+      }
+    },
+    
+    "gruvbox": {
+      "name": "Gruvbox",
+      "display_name": "Gruvbox",
+      "description": "Retro groove color scheme with warm, earthy tones",
+      "category": "retro",
+      "variants": [
+        "Gruvbox-Dark",
+        "Gruvbox-Dark-BL",
+        "Gruvbox-Dark-B",
+        "Gruvbox-Light"
+      ],
+      "default_variant": "Gruvbox-Dark",
+      "icons": {
+        "recommended": "Papirus-Dark",
+        "alternatives": ["Numix-Circle"]
+      },
+      "cursor": "Adwaita",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "Fausto-Korpsvart/Gruvbox-GTK-Theme",
+          "url": "https://github.com/Fausto-Korpsvart/Gruvbox-GTK-Theme"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true},
+        "KDE": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 93,
+        "maintenance": "active",
+        "license": "MIT",
+        "author": "Fausto Korpsvart (original by morhetz)",
+        "year": 2022,
+        "original_for": "Vim editor",
+        "vim_heritage": true
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": false
+      },
+      "colors": {
+        "dark_bg": "#282828",
+        "dark_fg": "#ebdbb2",
+        "orange": "#d65d0e",
+        "yellow": "#d79921",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["vim_users", "retro_lovers", "developers"],
+        "use_cases": ["coding", "terminal_work", "long_sessions"],
+        "mood": ["warm", "nostalgic", "comfortable"]
+      }
+    },
+    
+    "tokyonight": {
+      "name": "TokyoNight",
+      "display_name": "Tokyo Night",
+      "description": "Dark and vibrant theme inspired by Tokyo at night",
+      "category": "vibrant",
+      "variants": [
+        "Tokyonight-Dark",
+        "Tokyonight-Storm",
+        "Tokyonight-Light"
+      ],
+      "default_variant": "Tokyonight-Storm",
+      "icons": {
+        "recommended": "Papirus-Dark",
+        "alternatives": ["Tela-dark"]
+      },
+      "cursor": "Adwaita",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "Fausto-Korpsvart/Tokyo-Night-GTK-Theme",
+          "url": "https://github.com/Fausto-Korpsvart/Tokyo-Night-GTK-Theme"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true},
+        "KDE": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 95,
+        "maintenance": "active",
+        "license": "MIT",
+        "author": "Fausto Korpsvart (original by enkia)",
+        "year": 2022,
+        "original_for": "VS Code",
+        "vscode_heritage": true
+      },
+      "features": {
+        "gtk2": false,
+        "gtk3": true,
+        "gtk4": true,
+        "shell_theme": false
+      },
+      "colors": {
+        "bg": "#24283b",
+        "fg": "#c0caf5",
+        "blue": "#7aa2f7",
+        "purple": "#9d7cd8",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["developers", "night_coders", "anime_fans"],
+        "use_cases": ["night_coding", "creative_work", "streaming"],
+        "aesthetic": ["cyberpunk", "neon", "japanese"]
+      }
+    },
+    
+    "cyberpunk": {
+      "name": "Cyberpunk",
+      "display_name": "Cyberpunk Neon",
+      "description": "Futuristic neon theme inspired by cyberpunk aesthetics",
+      "category": "neon",
+      "variants": ["Cyberpunk-Neon"],
+      "default_variant": "Cyberpunk-Neon",
+      "icons": {
+        "recommended": "Cyberpunk-Neon",
+        "alternatives": ["Papirus-Dark"]
+      },
+      "cursor": "Breeze",
+      "sources": {
+        "primary": {
+          "type": "github",
+          "repo": "Roboron3042/Cyberpunk-Neon",
+          "url": "https://github.com/Roboron3042/Cyberpunk-Neon"
+        }
+      },
+      "compatibility": {
+        "GNOME": {"supported": true},
+        "KDE": {"supported": true},
+        "XFCE": {"supported": true},
+        "MATE": {"supported": true},
+        "Cinnamon": {"supported": true},
+        "Budgie": {"supported": true}
+      },
+      "metadata": {
+        "popularity": 89,
+        "maintenance": "active",
+        "license": "GPL-3.0",
+        "author": "Roboron3042",
+        "year": 2020,
+        "theme_of": "Cyberpunk 2077 inspired"
+      },
+      "features": {
+        "gtk2": true,
+        "gtk3": true,
+        "gtk4": false,
+        "shell_theme": true,
+        "rgb_friendly": true
+      },
+      "colors": {
+        "bg": "#000b1e",
+        "cyan": "#0abdc6",
+        "purple": "#ea00d9",
+        "pink": "#ff006d",
+        "scheme": "dark"
+      },
+      "recommendations": {
+        "target_audience": ["gamers", "cyberpunk_fans", "streamers"],
+        "use_cases": ["gaming", "entertainment", "night_use"],
+        "aesthetic": ["cyberpunk", "neon", "blade_runner"]
+      }
+    }
+  },
+  
+  "metadata": {
+    "version": "2.0",
+    "last_updated": "2025-01-09",
+    "total_themes": 9,
+    "format_version": "1.0"
+  }
+}
