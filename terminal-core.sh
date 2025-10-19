@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Setup - Kurulum Fonksiyonları
-# v3.2.8 - Core Module (Enhanced & Cross-Platform)
+# v3.2.9 - Core Module (Enhanced & Cross-Platform)
 # ============================================================================
 
 # Sudo refresh PID - Global değişken

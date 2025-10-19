@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Terminal Customization Suite - One-Line Installer
-# v3.2.8 - Quick Installation Script
+# v3.2.9 - Quick Installation Script
 # ============================================================================
 # Usage:
 #   wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh
@@ -45,7 +45,7 @@ show_banner() {
 ║                                                           ║
 ║    ████████╗███████╗██╗                                   ║
 ║   ╚══██╔══╝██╔════╝██║     Terminal Customization        ║
-║      ██║   █████╗  ██║     Suite v3.2.8                  ║
+║      ██║   █████╗  ██║     Suite v3.2.9                  ║
 ║      ██║   ██╔══╝  ██║                                    ║
 ║      ╚████████╔╝██║  ██║███████╗                          ║
 ║       ╚═════╝ ╚═╝  ╚═╝╚══════╝                          ║
