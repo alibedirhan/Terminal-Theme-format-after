@@ -180,7 +180,7 @@ check_dependencies() {
                 return 1
             fi
             
-            if ! sudo apt install -y "${missing_required[@]}" &>/dev/null; then
+            if ! sudo -E apt install -y -qq "${missing_required[@]}" &>/dev/null; then
                 log_error "Paket kurulumu başarısız"
                 for pkg in "${missing_required[@]}"; do
                     diagnose_and_fix "package_missing" "$pkg"
@@ -279,13 +279,13 @@ _install_zsh_impl() {
     fi
     
     # apt update (retry ile)
-    if ! retry_command 3 60 sudo apt update; then
+    if ! retry_command 3 30 sudo apt update; then
         log_error "apt update başarısız!"
         return 1
     fi
     
     # Zsh kurulumu (retry ile)
-    if ! retry_command 3 120 sudo apt install -y zsh; then
+    if ! retry_command 3 30 sudo -E apt install -y -qq zsh; then
         log_error "Zsh kurulumu başarısız!"
         return 1
     fi
@@ -334,7 +334,7 @@ _install_oh_my_zsh_impl() {
     local install_script_url="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
     
     # 3 deneme, 120 saniye timeout
-    if ! retry_command 3 120 sh -c "$(curl -fsSL $install_script_url)" "" --unattended; then
+    if ! retry_command 3 30 sh -c "$(curl -fsSL $install_script_url)" "" --unattended; then
         log_error "Oh My Zsh kurulumu başarısız!"
         
         # Network hatası olabilir
@@ -369,12 +369,12 @@ install_fonts() {
     
     if ! command -v fc-cache &> /dev/null; then
         show_step_info "fontconfig paketi kuruluyor..."
-        sudo apt install -y fontconfig &>/dev/null || {
+        sudo -E apt install -y -qq fontconfig &>/dev/null || {
             log_warning "fontconfig kurulumu başarısız"
         }
     fi
     
-    sudo apt install -y fonts-powerline &>/dev/null || {
+    sudo -E apt install -y -qq fonts-powerline &>/dev/null || {
         log_warning "Powerline font kurulumu başarısız, devam ediliyor..."
     }
     
@@ -638,7 +638,7 @@ install_fzf() {
     fi
     
     # Install (retry ile)
-    if ! retry_command 3 60 ~/.fzf/install --all --no-bash --no-fish; then
+    if ! retry_command 3 30 ~/.fzf/install --all --no-bash --no-fish; then
         log_error "FZF kurulumu başarısız!"
         return 1
     fi
@@ -684,7 +684,7 @@ install_zoxide() {
     
     # Kurulum scripti (retry ile)
     local install_cmd='curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash'
-    if ! retry_command 3 120 bash -c "$install_cmd"; then
+    if ! retry_command 3 30 bash -c "$install_cmd"; then
         log_error "Zoxide kurulumu başarısız!"
         return 1
     fi
@@ -741,7 +741,7 @@ install_exa() {
     local cmd=""
     
     # Önce eza paketini dene (Ubuntu 24.04+)
-    if retry_command 3 60 sudo apt install -y eza; then
+    if retry_command 3 30 sudo -E apt install -y -qq eza; then
         cmd="eza"
     else
         # Apt'den kurulamadı, GitHub'dan indir
@@ -808,7 +808,7 @@ install_bat() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y bat; then
+    if ! retry_command 3 30 sudo -E apt install -y -qq bat; then
         log_error "Bat kurulumu başarısız!"
         return 1
     fi
@@ -846,7 +846,7 @@ install_ripgrep() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y ripgrep; then
+    if ! retry_command 3 30 sudo -E apt install -y -qq ripgrep; then
         log_error "Ripgrep kurulumu başarısız!"
         return 1
     fi
@@ -888,7 +888,7 @@ install_fd() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y fd-find; then
+    if ! retry_command 3 30 sudo -E apt install -y -qq fd-find; then
         log_error "Fd kurulumu başarısız!"
         return 1
     fi
@@ -936,7 +936,7 @@ install_delta() {
     fi
     
     # Önce apt'den dene (retry ile)
-    if retry_command 3 60 sudo apt install -y git-delta; then
+    if retry_command 3 30 sudo -E apt install -y -qq git-delta; then
         log_success "Delta apt'den kuruldu"
     else
         # Apt başarısız, cargo ile dene
@@ -1001,49 +1001,100 @@ install_delta() {
 install_lazygit() {
     log_info "Lazygit kuruluyor..."
     
-    # Zaten kurulu mu?
     if command -v lazygit &> /dev/null; then
         log_warning "Lazygit zaten kurulu, atlanıyor..."
         return 0
     fi
     
-    # Internet kontrolü
     if ! check_internet; then
-        if ! handle_network_error "Lazygit kurulumu"; then
-            return 1
-        fi
-        if ! check_internet; then
-            return 1
-        fi
-    fi
-    
-    # Version al (retry ile)
-    local LAZYGIT_VERSION=$(retry_command 3 30 bash -c 'curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po "\"tag_name\": \"v\K[^\"]*"')
-    
-    if [[ -z "$LAZYGIT_VERSION" ]]; then
-        log_error "Lazygit versiyonu alınamadı!"
+        log_error "İnternet bağlantısı gerekli!"
         return 1
     fi
     
-    # Binary indir (safe_download ile)
-    if ! safe_download "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" "lazygit.tar.gz" "Lazygit indiriliyor"; then
-        log_error "Lazygit indirilemedi!"
+    log_info "Lazygit latest version indiriliyor..."
+    
+    # GitHub API ile son versiyonu al
+    local version=$(curl -s https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    
+    if [[ -z "$version" ]]; then
+        log_warning "GitHub API başarısız, v0.43.1 kullanılıyor..."
+        version="0.43.1"
+    fi
+    
+    log_debug "Lazygit version: v$version"
+    
+    # URL oluştur
+    local url="https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_Linux_x86_64.tar.gz"
+    
+    # İndir
+    log_info "İndiriliyor: lazygit v$version"
+    
+    if command -v wget &>/dev/null; then
+        if ! wget -q --show-progress -O /tmp/lazygit.tar.gz "$url" 2>&1; then
+            log_warning "wget başarısız, curl deneniyor..."
+            if ! curl -fsSL -o /tmp/lazygit.tar.gz "$url" 2>&1; then
+                log_error "İndirme başarısız!"
+                return 1
+            fi
+        fi
+    else
+        if ! curl -fsSL -o /tmp/lazygit.tar.gz "$url" 2>&1; then
+            log_error "İndirme başarısız!"
+            return 1
+        fi
+    fi
+    
+    # Dosya kontrolü
+    if [[ ! -f /tmp/lazygit.tar.gz ]]; then
+        log_error "İndirilen dosya bulunamadı!"
         return 1
     fi
     
-    # Extract ve kur
-    tar xf lazygit.tar.gz lazygit &>/dev/null
-    sudo install lazygit /usr/local/bin &>/dev/null
-    rm -f lazygit lazygit.tar.gz &>/dev/null
+    # Dosya boyutu kontrolü
+    local size=$(stat -f%z /tmp/lazygit.tar.gz 2>/dev/null || stat -c%s /tmp/lazygit.tar.gz 2>/dev/null)
+    if [[ "$size" -lt 1000 ]]; then
+        log_error "İndirilen dosya çok küçük (hatalı): ${size} bytes"
+        rm -f /tmp/lazygit.tar.gz
+        return 1
+    fi
+    
+    log_debug "İndirildi: ${size} bytes"
+    
+    # Extract
+    log_info "Arşiv açılıyor..."
+    if ! tar -xzf /tmp/lazygit.tar.gz -C /tmp/ 2>&1; then
+        log_error "Arşiv açılamadı! Dosya bozuk olabilir."
+        rm -f /tmp/lazygit.tar.gz
+        return 1
+    fi
+    
+    # Binary kontrolü
+    if [[ ! -f /tmp/lazygit ]]; then
+        log_error "Lazygit binary'si arşivde bulunamadı!"
+        rm -f /tmp/lazygit.tar.gz
+        return 1
+    fi
+    
+    # Kurulum
+    log_info "Kuruluyor..."
+    if ! sudo install -m 755 /tmp/lazygit /usr/local/bin/lazygit 2>&1; then
+        log_error "Kurulum başarısız (izin hatası?)!"
+        rm -f /tmp/lazygit.tar.gz /tmp/lazygit
+        return 1
+    fi
+    
+    # Temizlik
+    rm -f /tmp/lazygit.tar.gz /tmp/lazygit
     
     # Doğrulama
-    if ! verify_command_installed "lazygit" "Lazygit"; then
-        log_error "Lazygit kuruldu ancak doğrulanamadı!"
+    if command -v lazygit &>/dev/null; then
+        local installed_version=$(lazygit --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        log_success "Lazygit kuruldu: v${installed_version:-$version}"
+        return 0
+    else
+        log_error "Lazygit kuruldu ama çalıştırılamıyor!"
         return 1
     fi
-    
-    log_success "Lazygit kuruldu ve doğrulandı"
-    return 0
 }
 
 # ============================================================================
@@ -1060,8 +1111,11 @@ install_tldr() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y tldr; then
+    export DEBIAN_FRONTEND=noninteractive
+    
+    if ! retry_command 3 30 sudo -E apt install -y -qq tldr; then
         log_error "TLDR kurulumu başarısız!"
+        unset DEBIAN_FRONTEND
         return 1
     fi
     
@@ -1071,10 +1125,13 @@ install_tldr() {
     # Doğrulama
     if ! verify_command_installed "tldr" "TLDR"; then
         log_error "TLDR kuruldu ancak doğrulanamadı!"
+        unset DEBIAN_FRONTEND
         return 1
     fi
     
     log_success "TLDR kuruldu ve doğrulandı"
+    unset DEBIAN_FRONTEND
+    
     return 0
 }
 
@@ -1091,11 +1148,17 @@ install_btop() {
         return 0
     fi
     
-    # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y btop; then
+    # ← EKLE BURAYA
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # Kurulum (retry ile) - sudo'ya -E ekle, -qq ekle
+    if ! retry_command 3 30 sudo -E apt install -y -qq btop; then
         log_error "Btop kurulumu başarısız!"
+        unset DEBIAN_FRONTEND  # ← EKLE BURAYA
         return 1
     fi
+    
+    unset DEBIAN_FRONTEND  # ← EKLE BURAYA
     
     # Doğrulama
     if ! verify_command_installed "btop" "Btop"; then
@@ -1117,12 +1180,17 @@ install_dust() {
     fi
     
     # Önce apt'den dene (retry ile)
-    if retry_command 3 60 sudo apt install -y du-dust; then
+    export DEBIAN_FRONTEND=noninteractive
+    
+    if retry_command 3 30 sudo -E apt install -y -qq du-dust; then
+        unset DEBIAN_FRONTEND
         if verify_command_installed "dust" "Dust"; then
             log_success "Dust apt'den kuruldu ve doğrulandı"
             return 0
         fi
     fi
+    
+    unset DEBIAN_FRONTEND
     
     # Apt başarısız, GitHub'dan indir
     log_info "Apt'den kurulamadı, GitHub'dan indiriliyor..."
@@ -1134,39 +1202,53 @@ install_dust() {
         fi
     fi
     
-    # Version al (retry ile)
-    local DUST_VERSION=$(retry_command 3 30 bash -c 'curl -s "https://api.github.com/repos/bootandy/dust/releases/latest" | grep -Po "\"tag_name\": \"v\K[^\"]*"')
+    # Version al (retry ile) - DÜZELTİLMİŞ REGEX
+    local DUST_VERSION=$(curl -s "https://api.github.com/repos/bootandy/dust/releases/latest" 2>/dev/null | grep -Po '"tag_name":\s*"v\K[0-9.]+' | head -1)
     
     if [[ -z "$DUST_VERSION" ]]; then
         log_error "Dust versiyonu alınamadı!"
         return 1
     fi
     
+    log_debug "Dust versiyonu: v${DUST_VERSION}"
+    
     # Binary indir (safe_download ile)
-    if ! safe_download "https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" "dust.tar.gz" "Dust indiriliyor"; then
+    local download_url="https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+    
+    if ! safe_download "$download_url" "dust.tar.gz" "Dust v${DUST_VERSION} indiriliyor"; then
         log_error "Dust indirilemedi!"
         return 1
     fi
     
     # Extract ve kur
-    tar xf dust.tar.gz &>/dev/null
+    if ! tar xf dust.tar.gz &>/dev/null; then
+        log_error "Dust arşivi açılamadı!"
+        rm -f dust.tar.gz
+        return 1
+    fi
+    
     local dust_bin=$(find . -name "dust" -type f 2>/dev/null | head -1)
     
     if [[ -n "$dust_bin" ]]; then
-        sudo install -m 755 "$dust_bin" /usr/local/bin/dust &>/dev/null
-        rm -rf dust.tar.gz dust-* &>/dev/null
-        
-        # Doğrulama
-        if ! verify_command_installed "dust" "Dust"; then
-            log_error "Dust kuruldu ancak doğrulanamadı!"
+        if sudo install -m 755 "$dust_bin" /usr/local/bin/dust &>/dev/null; then
+            rm -rf dust.tar.gz dust-v* &>/dev/null
+            
+            # Doğrulama
+            if verify_command_installed "dust" "Dust"; then
+                log_success "Dust GitHub'dan kuruldu ve doğrulandı"
+                return 0
+            else
+                log_error "Dust kuruldu ancak doğrulanamadı!"
+                return 1
+            fi
+        else
+            log_error "Dust kurulamadı (izin hatası)"
+            rm -rf dust.tar.gz dust-v* &>/dev/null
             return 1
         fi
-        
-        log_success "Dust kuruldu ve doğrulandı"
-        return 0
     else
-        log_error "Dust binary'si bulunamadı!"
-        rm -f dust.tar.gz &>/dev/null
+        log_error "Dust binary'si arşivde bulunamadı!"
+        rm -rf dust.tar.gz dust-v* &>/dev/null
         return 1
     fi
 }
@@ -1181,18 +1263,24 @@ install_duf() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 60 sudo apt install -y duf; then
+    export DEBIAN_FRONTEND=noninteractive
+    
+    if ! retry_command 3 30 sudo -E apt install -y -qq duf; then
         log_error "Duf kurulumu başarısız!"
+        unset DEBIAN_FRONTEND
         return 1
     fi
     
     # Doğrulama
     if ! verify_command_installed "duf" "Duf"; then
         log_error "Duf kuruldu ancak doğrulanamadı!"
+        unset DEBIAN_FRONTEND
         return 1
     fi
     
     log_success "Duf kuruldu ve doğrulandı"
+    unset DEBIAN_FRONTEND
+    
     return 0
 }
 
@@ -1212,7 +1300,7 @@ install_procs() {
     fi
     
     # Kurulum (retry ile)
-    if ! retry_command 3 120 sudo snap install procs; then
+    if ! retry_command 3 30 sudo snap install procs; then
         log_error "Procs kurulumu başarısız!"
         return 1
     fi
@@ -1234,61 +1322,66 @@ install_procs() {
 install_atuin() {
     log_info "Atuin kuruluyor..."
     
-    # Zaten kurulu mu?
     if command -v atuin &> /dev/null; then
         log_warning "Atuin zaten kurulu, atlanıyor..."
         return 0
     fi
     
-    # Internet kontrolü
     if ! check_internet; then
-        if ! handle_network_error "Atuin kurulumu"; then
-            return 1
-        fi
-        if ! check_internet; then
-            return 1
-        fi
-    fi
-    
-    # Installer çalıştır (retry ile)
-    if ! retry_command 3 120 bash -c 'bash <(curl https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh)'; then
-        log_error "Atuin kurulumu başarısız!"
+        log_error "İnternet bağlantısı gerekli!"
         return 1
     fi
     
-    # PATH ve init ekle
-    if [[ -f ~/.zshrc ]]; then
-        if ! grep -q 'export PATH="$HOME/.atuin/bin:$PATH"' ~/.zshrc && [[ -d "$HOME/.atuin/bin" ]]; then
-            sed -i '/# Enable Powerlevel10k instant prompt/i export PATH="$HOME/.atuin/bin:$PATH"\n' ~/.zshrc
+    log_info "Atuin install script indiriliyor..."
+    
+    # Geçici script dosyasına indir
+    if ! curl -fsSL https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh -o /tmp/atuin-install.sh 2>&1; then
+        log_error "Atuin install script indirilemedi!"
+        return 1
+    fi
+    
+    # Script'i çalıştır
+    if ! bash /tmp/atuin-install.sh 2>&1 | tee -a "$LOG_FILE"; then
+        log_error "Atuin kurulumu başarısız!"
+        rm -f /tmp/atuin-install.sh
+        return 1
+    fi
+    
+    rm -f /tmp/atuin-install.sh
+    
+
+# PATH'e ekle (kurulum sonrası doğrulama için)
+if [[ -f "$HOME/.atuin/bin/env" ]]; then
+    # shellcheck disable=SC1090
+    source "$HOME/.atuin/bin/env"
+elif [[ -x "$HOME/.atuin/bin/atuin" ]]; then
+    export PATH="$HOME/.atuin/bin:$PATH"
+fi
+hash -r
+
+        # Doğrulama
+    if command -v atuin &>/dev/null; then
+        local version=$(atuin --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        log_success "Atuin kuruldu: v${version:-unknown}"
+        
+        # Zsh entegrasyonu
+        if [[ -f "$HOME/.zshrc" ]] && ! grep -q "atuin init zsh" "$HOME/.zshrc"; then
+            echo '' >> "$HOME/.zshrc"
+            echo '# Atuin' >> "$HOME/.zshrc"
+            echo 'if [ -f "$HOME/.atuin/bin/env" ]; then' >> "$HOME/.zshrc"
+            echo '  source "$HOME/.atuin/bin/env"' >> "$HOME/.zshrc"
+            echo 'else' >> "$HOME/.zshrc"
+            echo '  export PATH="$HOME/.atuin/bin:$PATH"' >> "$HOME/.zshrc"
+            echo 'fi' >> "$HOME/.zshrc"
+            echo 'eval "$(atuin init zsh)"' >> "$HOME/.zshrc"
+            log_info "Atuin .zshrc'ye eklendi"
         fi
         
-        if ! grep -q "atuin init zsh" ~/.zshrc; then
-            {
-                echo ''
-                echo '# Atuin shell history'
-                echo 'eval "$(atuin init zsh)"'
-            } >> ~/.zshrc
-        fi
-    fi
-    
-    # PATH'e ekle
-    export PATH="$HOME/.atuin/bin:$PATH"
-    
-    # Doğrulama
-    if ! verify_command_installed "atuin" "Atuin"; then
-        log_error "Atuin kuruldu ancak PATH'te bulunamıyor!"
-        log_warning 'Manuel çözüm: export PATH="$HOME/.atuin/bin:$PATH"'
+        return 0
+    else
+        log_error "Atuin kuruldu ama doğrulanamadı!"
         return 1
     fi
-    
-    # Çalışma testi
-    if ! atuin --version &>/dev/null; then
-        log_error "Atuin kuruldu ancak çalıştırılamıyor!"
-        return 1
-    fi
-    
-    log_success "Atuin kuruldu ve doğrulandı ($(atuin --version))"
-    return 0
 }
 
 # ============================================================================
@@ -1495,7 +1588,7 @@ install_tmux() {
         return 0
     fi
     
-    if ! sudo apt install -y tmux &>/dev/null; then
+    if ! sudo -E apt install -y -qq tmux &>/dev/null; then
         log_error "Tmux kurulumu başarısız!"
         return 1
     fi
