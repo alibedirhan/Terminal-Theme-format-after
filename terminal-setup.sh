@@ -54,10 +54,12 @@ load_modules() {
         "terminal-utils.sh"
         "terminal-ui.sh"
         "terminal-themes.sh"
-        "terminal-core.sh"
+        "core/terminal-base.sh"     # ← Yeni modüller
+        "core/terminal-tools.sh"
+        "core/terminal-config.sh"
         "terminal-assistant.sh"
     )
-    
+        
     for module in "${modules[@]}"; do
         local module_path="$SCRIPT_DIR/$module"
         if [[ -f "$module_path" ]]; then
