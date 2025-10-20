@@ -51,21 +51,21 @@ mkdir -p "$BACKUP_DIR" "$LOG_DIR" "$CONFIG_DIR" || {
 
 load_modules() {
     local modules=(
-        "terminal-utils.sh"
-        "terminal-ui.sh"
-        "terminal-themes.sh"
-        "core/terminal-base.sh"     # ← Yeni modüller
-        "core/terminal-tools.sh"
-        "core/terminal-config.sh"
-        "terminal-assistant.sh"
+        "utils/helpers.sh"           # 1. Logging sistemi (EN ÖNCE!)
+        "utils/system.sh"             # 2. Terminal detection, internet
+        "utils/config.sh"             # 3. Config, backup, snapshot
+        "terminal-ui.sh"              # 4. UI fonksiyonları
+        "core/terminal-base.sh"       # 5. Zsh, Oh My Zsh, P10k
+        "core/terminal-tools.sh"      # 6. 14 CLI aracı
+        "core/terminal-config.sh"     # 7. Tmux, tema uygulama
+        "terminal-assistant.sh"       # 8. Diagnostic (opsiyonel)
     )
-        
+    
     for module in "${modules[@]}"; do
         local module_path="$SCRIPT_DIR/$module"
         if [[ -f "$module_path" ]]; then
             # shellcheck source=/dev/null
             if ! source "$module_path"; then
-                # DÜZELTME: İngilizce hata mesajı (henüz log fonksiyonu yok)
                 echo "ERROR: Failed to load module: $module" >&2
                 echo "Please ensure all files are in the same directory." >&2
                 exit 1

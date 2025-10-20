@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_catppuccin_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Catppuccin Mocha" 2>/dev/null
     gsettings set "$path" background-color '#1E1E2E' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_catppuccin() {
     cat << 'KITTY_EOF'
 foreground #cdd6f4
 background #1e1e2e
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_catppuccin() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_catppuccin() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#1e1e2e',fg='#cdd6f4'
 set -g window-status-current-style bg='#89b4fa',fg='#1e1e2e'

@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_solarized_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Solarized Dark" 2>/dev/null
     gsettings set "$path" background-color '#002B36' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_solarized() {
     cat << 'KITTY_EOF'
 foreground #839496
 background #002b36
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_solarized() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_solarized() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#002b36',fg='#839496'
 set -g window-status-current-style bg='#268bd2',fg='#fdf6e3'

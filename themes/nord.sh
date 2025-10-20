@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_nord_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Nord" 2>/dev/null
     gsettings set "$path" background-color '#2E3440' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_nord() {
     cat << 'KITTY_EOF'
 foreground #d8dee9
 background #2e3440
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_nord() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_nord() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#2e3440',fg='#d8dee9'
 set -g window-status-current-style bg='#88c0d0',fg='#2e3440'

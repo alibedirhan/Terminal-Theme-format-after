@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_gruvbox_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Gruvbox Dark" 2>/dev/null
     gsettings set "$path" background-color '#282828' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_gruvbox() {
     cat << 'KITTY_EOF'
 foreground #ebdbb2
 background #282828
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_gruvbox() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_gruvbox() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#282828',fg='#ebdbb2'
 set -g window-status-current-style bg='#fabd2f',fg='#282828'

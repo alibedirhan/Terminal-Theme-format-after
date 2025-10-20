@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_one_dark_gnome() {
     local path=$1
     gsettings set "$path" visible-name "One Dark" 2>/dev/null
     gsettings set "$path" background-color '#282C34' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_one_dark() {
     cat << 'KITTY_EOF'
 foreground #abb2bf
 background #282c34
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_one_dark() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_one_dark() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#282c34',fg='#abb2bf'
 set -g window-status-current-style bg='#61afef',fg='#282c34'

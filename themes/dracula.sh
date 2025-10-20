@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_dracula_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Dracula" 2>/dev/null
     gsettings set "$path" background-color '#282A36' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_dracula() {
     cat << 'KITTY_EOF'
 foreground #f8f8f2
 background #282a36
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_dracula() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_dracula() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#282a36',fg='#f8f8f2'
 set -g window-status-current-style bg='#bd93f9',fg='#282a36'

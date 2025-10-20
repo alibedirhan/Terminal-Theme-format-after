@@ -6,7 +6,7 @@
 # ============================================================================
 
 # GNOME Terminal
-apply_gnome_terminal() {
+apply_tokyo_night_gnome() {
     local path=$1
     gsettings set "$path" visible-name "Tokyo Night" 2>/dev/null
     gsettings set "$path" background-color '#1A1B26' 2>/dev/null
@@ -17,7 +17,7 @@ apply_gnome_terminal() {
 }
 
 # Kitty
-get_kitty_config() {
+get_kitty_theme_tokyo_night() {
     cat << 'KITTY_EOF'
 foreground #c0caf5
 background #1a1b26
@@ -43,7 +43,7 @@ KITTY_EOF
 }
 
 # Alacritty
-get_alacritty_config() {
+get_alacritty_theme_tokyo_night() {
     cat << 'ALACRITTY_EOF'
 colors:
   primary:
@@ -71,7 +71,7 @@ ALACRITTY_EOF
 }
 
 # Tmux
-get_tmux_config() {
+get_tmux_theme_tokyo_night() {
     cat << 'TMUX_EOF'
 set -g status-style bg='#1a1b26',fg='#c0caf5'
 set -g window-status-current-style bg='#7aa2f7',fg='#1a1b26'
