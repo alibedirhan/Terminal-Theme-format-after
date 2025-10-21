@@ -109,6 +109,17 @@ install_theme_gnome() {
         return 1
     fi
     
+    # Tema dosyasını yükle (ÖNCELİKLE!)
+    local theme_file="themes/${theme}.sh"
+    if [[ -f "$theme_file" ]]; then
+        # shellcheck source=/dev/null
+        source "$theme_file"
+        log_debug "Tema dosyası yüklendi: $theme_file"
+    else
+        log_error "Tema dosyası bulunamadı: $theme_file"
+        return 1
+    fi
+    
     local PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d \')
     
     if [[ -z "$PROFILE" ]]; then
@@ -137,6 +148,17 @@ install_theme_kitty() {
     
     if ! command -v kitty &> /dev/null; then
         log_warning "Kitty terminal bulunamadı"
+        return 1
+    fi
+    
+    # Tema dosyasını yükle (ÖNCELİKLE!)
+    local theme_file="themes/${theme}.sh"
+    if [[ -f "$theme_file" ]]; then
+        # shellcheck source=/dev/null
+        source "$theme_file"
+        log_debug "Tema dosyası yüklendi: $theme_file"
+    else
+        log_error "Tema dosyası bulunamadı: $theme_file"
         return 1
     fi
     
@@ -199,6 +221,17 @@ install_theme_alacritty() {
     
     if ! command -v alacritty &> /dev/null; then
         log_warning "Alacritty terminal bulunamadı"
+        return 1
+    fi
+    
+    # Tema dosyasını yükle (ÖNCELİKLE!)
+    local theme_file="themes/${theme}.sh"
+    if [[ -f "$theme_file" ]]; then
+        # shellcheck source=/dev/null
+        source "$theme_file"
+        log_debug "Tema dosyası yüklendi: $theme_file"
+    else
+        log_error "Tema dosyası bulunamadı: $theme_file"
         return 1
     fi
     
