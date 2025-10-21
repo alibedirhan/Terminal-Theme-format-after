@@ -1,9 +1,9 @@
-# 🎨 Terminal Customization Suite v3.2.9
+# 🎨 Terminal Customization Suite v3.3.0
 
-> Format sonrası terminal özelleştirmelerini tek komutla geri yükleyin - Artık **7 tema** ve **akıllı asistan** ile!
+> Format sonrası terminal özelleştirmelerini tek komutla geri yükleyin - Artık **7 tema**, **modüler yapı** ve **akıllı asistan** ile!
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-3.2.1-blue.svg)](https://github.com/alibedirhan/Theme-after-format/releases)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/alibedirhan/Theme-after-format/releases)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://github.com/alibedirhan/Theme-after-format)
 
 Format attıktan sonra terminal özelleştirmelerini tek tek kurmaktan sıkıldınız mı? Bu suite tam size göre!
@@ -23,13 +23,13 @@ Format attıktan sonra terminal özelleştirmelerini tek tek kurmaktan sıkıld�
 - ✅ **Zsh + Oh My Zsh** - Güçlü shell deneyimi
 - ✅ **Powerlevel10k** - Hızlı ve özelleştirilebilir tema
 - ✅ **Akıllı Plugins** - Auto-suggestions, Syntax Highlighting
-- ✅ **Terminal Araçları** - FZF, Zoxide, Exa, Bat
+- ✅ **Terminal Araçları** - FZF, Zoxide, Exa, Bat (14 araç)
 - ✅ **Tmux Desteği** - Multiplexer ile tema entegrasyonu
 - 🤖 **Akıllı Sorun Giderme Asistanı** - Otomatik teşhis ve çözüm
 - 🏥 **Sistem Sağlık Kontrolü** - Kurulum öncesi tarama
 - 💾 **Otomatik Yedekleme** - Güvenli geri dönüş
 - 🔄 **Otomatik Güncelleme** - Her zaman en son versiyon
-- 🔒 **Lock Mekanizması** - Çakışma önleme
+- 🏗️ **Modüler Mimari** - Kolay bakım ve genişletme
 
 ### 🖥️ Çoklu Terminal Desteği
 - ✅ **GNOME Terminal** (Tam Destek)
@@ -58,13 +58,58 @@ chmod +x terminal-setup.sh
 ./terminal-setup.sh
 ```
 
+## 📁 Proje Yapısı
+
+v3.3.0'da **tamamen modüler** bir yapıya geçildi:
+
+```
+terminal-setup/
+├── core/                          # Ana kurulum modülleri
+│   ├── terminal-base.sh           # Zsh, Oh My Zsh, P10k, plugins (612 satır)
+│   ├── terminal-tools.sh          # 14 CLI aracı (977 satır)
+│   └── terminal-config.sh         # Tmux, tema uygulama (695 satır)
+│
+├── utils/                         # Yardımcı fonksiyonlar
+│   ├── helpers.sh                 # Logging, error handling (594 satır)
+│   ├── system.sh                  # Terminal detection, sistem kontrolleri (175 satır)
+│   └── config.sh                  # Config, backup, snapshot (536 satır)
+│
+├── themes/                        # Her tema ayrı dosyada
+│   ├── dracula.sh                 # Dracula tema tanımları
+│   ├── nord.sh                    # Nord tema tanımları
+│   ├── gruvbox.sh                 # Gruvbox tema tanımları
+│   ├── tokyo-night.sh             # Tokyo Night tema tanımları
+│   ├── catppuccin.sh              # Catppuccin tema tanımları
+│   ├── one-dark.sh                # One Dark tema tanımları
+│   └── solarized.sh               # Solarized tema tanımları
+│
+├── terminal-setup.sh              # Ana orkestrasyon (28K)
+├── terminal-ui.sh                 # Kullanıcı arayüzü (34K)
+├── terminal-assistant.sh          # Sorun giderme asistanı (37K)
+│
+└── docs/                          # Dokümantasyon
+    ├── README.md                  # Bu dosya
+    ├── INSTALL.md                 # Detaylı kurulum
+    ├── CONTRIBUTING.md            # Katkı rehberi
+    ├── CHANGELOG.md               # Değişiklik geçmişi
+    └── ...
+```
+
+### 💡 Modüler Yapının Avantajları
+
+- ✅ **Her dosya <1000 satır** - Kolay okunabilir ve bakımı yapılabilir
+- ✅ **Açık sorumluluklar** - Her modül tek bir görevi yapar
+- ✅ **Kolay genişletme** - Yeni tema/araç eklemek çok basit
+- ✅ **Git diff'leri** - Değişiklikler daha görünür
+- ✅ **Hata ayıklama** - Sorunları bulmak daha kolay
+
 ## 📋 Ana Menü
 
 Script'i çalıştırdığınızda interaktif menü açılır:
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║    Terminal Customization Suite v3.2.9                   ║
+║    Terminal Customization Suite v3.3.0                   ║
 ╚═══════════════════════════════════════════════════════════╝
 
 ┌──────────────────── TAM KURULUM ────────────────────────┐
@@ -79,13 +124,13 @@ Script'i çalıştırdığınızda interaktif menü açılır:
 │  6 │ ✨ Powerlevel10k Teması                             │
 │  7 │ 🎨 Renk Teması Değiştir                             │
 │  8 │ 🔌 Pluginler                                        │
-│  9 │ 🛠️  Terminal Araçları (FZF, Zoxide, Exa, Bat)      │
+│  9 │ 🛠️  Terminal Araçları (Gelişmiş Menü)              │
 │ 10 │ 📺 Tmux Kurulumu                                    │
 └──────────────────────────────────────────────────────────┘
 
 ┌───────────────────── YÖNETİM ───────────────────────────┐
 │ 11 │ 🏥 Sistem Sağlık Kontrolü                           │
-│ 12 │ 🤖 Akıllı Sorun Giderme Asistanı                    │
+│ 12 │ 🔧 Otomatik Teşhis                                   │
 │ 13 │ 💾 Yedekleri Göster                                 │
 │ 14 │ 🗑️  Tümünü Kaldır                                   │
 │ 15 │ ⚙️  Ayarlar                                         │
@@ -98,344 +143,225 @@ Script'i çalıştırdığınızda interaktif menü açılır:
 ### İlk Kez Kullanım
 ```bash
 ./terminal-setup.sh
-# Menüden 1-4 arası tema seçin (Tam kurulum)
-# Terminal'i kapatıp yeniden açın
-# Powerlevel10k wizard otomatik başlar
+# Seçenek 1 veya 2: Tam kurulum (Dracula/Nord)
 ```
 
-### Sadece Tema Değiştir
+### Sadece Tema Değiştirme
 ```bash
 ./terminal-setup.sh
-# Menüden 7'yi seçin
-# İstediğiniz temayı seçin
-# source ~/.zshrc
+# Seçenek 7: Renk Teması Değiştir
+# 7 tema arasından seçim yapın
 ```
 
-### Terminal Araçları Ekle
+### Terminal Araçları Kurulumu
 ```bash
 ./terminal-setup.sh
-# Menüden 9'u seçin
-# FZF, Zoxide, Exa, Bat kurulur
+# Seçenek 9: Terminal Araçları
+# 14 modern CLI aracı:
+# - fzf (fuzzy finder)
+# - zoxide (smart cd)
+# - exa (modern ls)
+# - bat (syntax highlighting cat)
+# - ripgrep, fd, delta, ve daha fazlası!
 ```
 
-### Sorun Giderme
+### Sorun mu Var?
 ```bash
 ./terminal-setup.sh
-# Menüden 12'yi seçin (Akıllı Asistan)
-# Veya 11'i seçin (Sistem Sağlık Kontrolü)
+# Seçenek 11: Sistem Sağlık Kontrolü
+# Seçenek 12: Otomatik Teşhis
 ```
 
-## 🎨 Tema Detayları
+## 🛠️ CLI Araçları
+
+Seçenek 9'dan erişilen **14 modern CLI aracı**:
+
+| Araç | Açıklama | Alternatif |
+|------|----------|-----------|
+| **fzf** | Fuzzy finder | - |
+| **zoxide** | Akıllı cd | cd, autojump |
+| **exa** | Modern ls | ls, lsd |
+| **bat** | Syntax highlighting cat | cat, less |
+| **ripgrep** | Hızlı grep | grep, ag |
+| **fd** | Modern find | find |
+| **delta** | Git diff enhancer | diff |
+| **dust** | Modern du | du, ncdu |
+| **duf** | Modern df | df |
+| **procs** | Modern ps | ps, htop |
+| **sd** | Modern sed | sed |
+| **bottom** | System monitor | top, htop |
+| **tldr** | Simplified man | man |
+| **httpie** | HTTP client | curl, wget |
+
+## 🎨 Tema Önizlemeleri
 
 ### Dracula
-- **Palet**: Mor, Pembe, Cyan
-- **Arka Plan**: `#282A36`
-- **Ön Plan**: `#F8F8F2`
-- **Kimler İçin**: Yüksek kontrast sevenler, gece çalışması
+![Dracula Theme](https://draculatheme.com/static/img/screenshots/terminal.png)
+- **Renk Paleti**: Mor (#BD93F9), Pembe (#FF79C6), Yeşil (#50FA7B)
+- **Kullanım**: Gece çalışması, yüksek kontrast severler
 
 ### Nord
-- **Palet**: Mavi, Gri, Cyan
-- **Arka Plan**: `#2E3440`
-- **Ön Plan**: `#D8DEE9`
-- **Kimler İçin**: Göz yorgunluğunu azaltmak, minimalist tasarım
+![Nord Theme](https://www.nordtheme.com/assets/images/ports/terminals/xtermjs.png)
+- **Renk Paleti**: Açık mavi (#88C0D0), Kar beyazı (#ECEFF4)
+- **Kullanım**: Gündüz çalışması, göz dostu
 
 ### Gruvbox
-- **Palet**: Turuncu, Sarı, Yeşil
-- **Arka Plan**: `#282828`
-- **Ön Plan**: `#EBDBB2`
-- **Kimler İçin**: Retro sevenler, sıcak tonları tercih edenler
+- **Renk Paleti**: Kahve (#282828), Turuncu (#FE8019), Sarı (#FABD2F)
+- **Kullanım**: Retro görünüm, sıcak tonlar
 
 ### Tokyo Night
-- **Palet**: Mavi, Mor, Cyan
-- **Arka Plan**: `#1A1B26`
-- **Ön Plan**: `#C0CAF5`
-- **Kimler İçin**: Modern tasarım sevenler
+- **Renk Paleti**: Lacivert (#1A1B26), Mavi (#7AA2F7), Mor (#BB9AF7)
+- **Kullanım**: Modern, koyu tema
 
-### Catppuccin
-- **Palet**: Pastel tonlar
-- **Arka Plan**: `#1E1E2E`
-- **Ön Plan**: `#CDD6F4`
-- **Kimler İçin**: Soft renkler sevenler
+## 🔧 Yapılandırma
 
-### One Dark
-- **Palet**: Atom editor renkleri
-- **Arka Plan**: `#282C34`
-- **Ön Plan**: `#ABB2BF`
-- **Kimler İçin**: VS Code/Atom kullanıcıları
-
-### Solarized
-- **Palet**: Klasik düşük kontrast
-- **Arka Plan**: `#002B36`
-- **Ön Plan**: `#839496`
-- **Kimler İçin**: Göz sağlığı önceliği olanlar
-
-## 🛠️ Terminal Araçları
-
-### FZF - Fuzzy Finder
+### Powerlevel10k'yi Yeniden Yapılandırma
 ```bash
-# Dosya ara
-Ctrl+T
-
-# Komut geçmişinde ara
-Ctrl+R
-
-# Dizin değiştir
-Alt+C
+p10k configure
 ```
 
-### Zoxide - Akıllı cd
+### Tema Değiştirme (Hızlı)
 ```bash
-# En çok kullanılan dizine git
-z projects
-
-# Etkileşimli seçim
-zi
+./terminal-setup.sh
+# Seçenek 7 → Tema seç → 5 saniye!
 ```
 
-### Exa - Modern ls
+### Plugin Ekleme
 ```bash
-# Renkli listeleme
-ls
+# ~/.zshrc dosyasını düzenle
+nano ~/.zshrc
 
-# Detaylı + icons
-ll
+# plugins satırına ekle:
+plugins=(
+  git
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+  colored-man-pages
+  # yeni plugin buraya
+)
 
-# Tüm dosyalar
-la
-
-# Tree görünümü
-lt
+# Yükle
+source ~/.zshrc
 ```
 
-### Bat - cat with syntax
+### Ayarlar
 ```bash
-# Syntax highlighting ile göster
-cat dosya.sh
+./terminal-setup.sh
+# Seçenek 15: Ayarlar
+# - Varsayılan tema
+# - Otomatik güncelleme
+# - Yedek sayısı
 ```
 
-## 📦 Kurulum Detayları
+## 📊 Performans
 
-### Gereksinimler
-- Ubuntu 20.04+ / Debian 10+ / Linux Mint 20+
-- Bash 4.0+
-- İnternet bağlantısı
-- sudo yetkisi
+### Kurulum Süreleri
+- **Tam Kurulum**: ~2-3 dakika
+- **Sadece Tema**: ~5 saniye
+- **Terminal Araçları**: ~1-2 dakika
 
-### Kurulum Adımları
-1. **Bağımlılık Kontrolü**: git, curl, wget
-2. **Zsh Kurulumu**: En güncel versiyon
-3. **Oh My Zsh**: Framework kurulumu
-4. **Powerlevel10k**: Tema motoru
-5. **Fontlar**: MesloLGS NF font ailesi
-6. **Pluginler**: Auto-suggestions, Syntax highlighting
-7. **Tema Uygulama**: Seçilen renk teması
-8. **Shell Değiştirme**: Zsh'i varsayılan yap
+### Disk Kullanımı
+- **Oh My Zsh**: ~50 MB
+- **Fontlar**: ~20 MB
+- **Toplam**: ~100 MB
 
-### Yedekleme
-Script otomatik yedekler:
-- `~/.bashrc`
-- `~/.zshrc`
-- `~/.p10k.zsh`
-- `~/.tmux.conf`
-- GNOME Terminal profil ayarları
-- Aktif shell bilgisi
+## 🔒 Güvenlik
 
-**Yedek Konumu**: `~/.terminal-setup/backups/`
+- ✅ **Root kontrolü** - Script root olarak çalışmaz
+- ✅ **Otomatik yedekleme** - Her işlem öncesi
+- ✅ **Güvenli cleanup** - Hata durumunda temizlik
+- ✅ **HTTPS indirme** - Tüm kaynaklar güvenli
+- ✅ **Input validation** - Tüm kullanıcı girdileri kontrol edilir
 
-## 🤖 Akıllı Asistan Özellikleri
+Detaylı güvenlik bilgisi için: [SECURITY.md](SECURITY.md)
 
-### Kurulum Öncesi Tarama
-- Çakışan shell konfigürasyonları
-- Önceki başarısız kurulum kalıntıları
-- Terminal emulator uyumluluğu
-- Locale sorunları
-- Disk alanı kontrolü
-- APT kilit kontrolü
+## 🐛 Sorun Giderme
 
-### Sorun Giderme Sihirbazı
-1. **Başlangıç Hatası** - Sudo, internet, dosya kontrolleri
-2. **Yarım Kalmış Kurulum** - Hangi adımda kaldığını tespit
-3. **Görsel Değişiklik Yok** - Shell, tema, font kontrolleri
-4. **Renkler/Fontlar Bozuk** - Terminal uyumluluk analizi
-5. **Shell Değişmedi** - Kapsamlı shell kontrolü
-6. **Geri Alma** - Güvenli rollback işlemleri
-7. **Otomatik Teşhis** - 7 adımlı tam sistem analizi
-
-## ⚙️ Gelişmiş Özellikler
-
-### Komut Satırı Parametreleri
-```bash
-./terminal-setup.sh --health     # Sistem sağlık kontrolü
-./terminal-setup.sh --scan       # Kurulum öncesi tarama
-./terminal-setup.sh --update     # Güncellemeleri kontrol et
-./terminal-setup.sh --debug      # Debug modu
-./terminal-setup.sh --verbose    # Detaylı çıktı
-./terminal-setup.sh --version    # Versiyon bilgisi
-./terminal-setup.sh --help       # Yardım
-```
-
-### Yapılandırma Dosyası
-Konum: `~/.terminal-setup/config/settings.conf`
-
-```bash
-DEFAULT_THEME="dracula"
-AUTO_UPDATE="true"
-BACKUP_COUNT="5"
-```
-
-### Log Sistemi
-Konum: `~/.terminal-setup/logs/terminal-setup.log`
-
-- Thread-safe yazma
-- Otomatik rotasyon (son 1000 satır)
-- Debug, Info, Warning, Error seviyeleri
-
-## 🔧 Sorun Giderme
-
-### Font Simgeleri Görünmüyor
-**Çözüm:**
-```bash
-# Terminal Preferences → Profile → Custom Font
-# "MesloLGS NF Regular" seçin
-```
+### Karakterler Bozuk Görünüyor
+**Çözüm**: Terminal ayarlarından **MesloLGS NF** fontunu seçin.
 
 ### Tema Uygulanmadı
-**Çözüm:**
-```bash
-source ~/.zshrc
-# veya
-exec zsh
-```
-
-### Shell Değişmedi
-**Çözüm:**
-```bash
-# Manuel shell değiştir
-sudo chsh -s $(which zsh) $USER
-
-# Oturumu kapat ve tekrar gir
-gnome-session-quit --logout
-```
-
-### Powerlevel10k Yavaş
-**Çözüm:**
-```bash
-# Performans analizi
-p10k debug
-
-# Instant prompt devre dışı
-nano ~/.zshrc
-# Instant prompt bloğunu yoruma al
-```
-
-## 📚 SSS
-
-**S: Format sonrası kullanabilir miyim?**  
-C: Evet, tam olarak bunun için tasarlandı. Tek komutla tüm özelleştirmeleri geri yükleyin.
-
-**S: Mevcut ayarlarım kaybolur mu?**  
-C: Hayır, script otomatik yedekleme yapar. İsterseniz geri dönebilirsiniz.
-
-**S: Root olarak çalıştırmalı mıyım?**  
-C: Hayır! Normal kullanıcı olarak çalıştırın. Gerektiğinde sudo isteyecektir.
-
-**S: Temaları karıştırabilir miyim?**  
-C: Evet, istediğiniz zaman tema değiştirebilirsiniz (Menü → 7).
-
-**S: Tmux ile tema nasıl çalışır?**  
-C: Menü → 10 ile Tmux kurun, tema otomatik entegre edilir.
-
-**S: Disk alanı ne kadar?**  
-C: ~100-150 MB (Oh My Zsh, tema, fontlar, araçlar dahil)
-
-**S: Hangi Linux dağıtımları destekleniyor?**  
-C: Ubuntu 20.04+, Debian 10+, Linux Mint 20+, Pop!_OS 20.04+
-
-**S: Terminal araçları opsiyonel mi?**  
-C: Evet, Menü → 9 ile isteğe bağlı kurabilirsiniz.
-
-## 🔄 Güncelleme
-
-### Otomatik
-```bash
-# Ayarlar → Otomatik Güncelleme: Açık
-# Her çalıştırmada kontrol edilir
-```
-
-### Manuel
-```bash
-cd Theme-after-format
-git pull origin main
-./terminal-setup.sh
-```
-
-## 🗑️ Kaldırma
-
-### Tam Kaldırma
+**Çözüm**: 
 ```bash
 ./terminal-setup.sh
-# Menü → 14: Tümünü Kaldır
-
-# Veya zorunlu mod:
-./terminal-setup.sh
-# Sorun Giderme → Geri Alma
+# Seçenek 11: Sistem Sağlık Kontrolü
 ```
 
-### Manuel Kaldırma
+### Zsh Çok Yavaş
+**Çözüm**:
 ```bash
-# Oh My Zsh kaldır
-rm -rf ~/.oh-my-zsh ~/.zshrc ~/.zsh_history ~/.p10k.zsh
-
-# Bash'e dön
-chsh -s $(which bash)
-
-# Zsh paketi (opsiyonel)
-sudo apt remove zsh
-sudo apt autoremove
+p10k configure
+# Instant prompt'u aktif tutun
 ```
+
+Daha fazla çözüm için: [INSTALL.md](INSTALL.md)
+
+## 📚 Dokümantasyon
+
+- [📖 INSTALL.md](INSTALL.md) - Detaylı kurulum rehberi
+- [🤝 CONTRIBUTING.md](CONTRIBUTING.md) - Katkı rehberi
+- [📝 CHANGELOG.md](CHANGELOG.md) - Değişiklik geçmişi
+- [⚡ HIZLI_REFERANS.md](HIZLI_REFERANS.md) - Hızlı komutlar
+- [🏗️ PROJE_OZETI.md](PROJE_OZETI.md) - Teknik detaylar
+- [🔒 SECURITY.md](SECURITY.md) - Güvenlik politikası
 
 ## 🤝 Katkıda Bulunma
 
-Katkılarınızı bekliyoruz! Lütfen [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun.
+Katkılar memnuniyetle karşılanır! Lütfen [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun.
 
-### Katkı Süreci
-1. Fork'layın
-2. Feature branch: `git checkout -b feature/YeniOzellik`
-3. Commit: `git commit -m 'Yeni özellik eklendi'`
-4. Push: `git push origin feature/YeniOzellik`
-5. Pull Request açın
+### Katkı Alanları
+- 🐛 Bug raporları
+- ✨ Yeni özellik önerileri
+- 🎨 Yeni tema ekleme
+- 📝 Dokümantasyon iyileştirmeleri
+- 🌍 Çeviri
+
+## 📈 Versiyon Geçmişi
+
+- **v3.3.0** (2024-10-21) - Modüler mimari, 13 dosyaya bölünme
+- **v3.2.7** (2024-10) - 7 tema desteği, akıllı asistan
+- **v3.2.4** (2024-10) - Terminal araçları menüsü
+- **v3.0.0** (2024-09) - İlk stabil sürüm
+
+Detaylı geçmiş için: [CHANGELOG.md](CHANGELOG.md)
+
+## 🎯 Yol Haritası
+
+### v3.4 (Yakında)
+- [ ] macOS desteği
+- [ ] Daha fazla tema (Ayu, Material)
+- [ ] Tema önizleme
+- [ ] GUI arayüzü (whiptail)
+
+### v4.0 (Uzun Vadeli)
+- [ ] Cross-platform (macOS, WSL)
+- [ ] Web UI
+- [ ] Topluluk tema paylaşımı
+
+## 📞 Destek
+
+- 🐛 **Bug Raporları**: [Issues](https://github.com/alibedirhan/Theme-after-format/issues)
+- 💬 **Soru & Cevap**: [Discussions](https://github.com/alibedirhan/Theme-after-format/discussions)
+- 📧 **E-posta**: [Profilinizden]
 
 ## 📄 Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır - detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Bu proje [MIT License](LICENSE) altında lisanslanmıştır.
 
 ## 🙏 Teşekkürler
 
-Bu proje şu harika projeleri kullanır:
-
-- [Oh My Zsh](https://ohmyz.sh/) - Zsh framework
-- [Powerlevel10k](https://github.com/romkatv/powerlevel10k) - Zsh teması
+Bu proje şu harika açık kaynak projelerden ilham almıştır:
+- [Oh My Zsh](https://ohmyz.sh/)
+- [Powerlevel10k](https://github.com/romkatv/powerlevel10k)
 - [Dracula Theme](https://draculatheme.com/)
 - [Nord Theme](https://www.nordtheme.com/)
-- [Gruvbox Theme](https://github.com/morhetz/gruvbox)
-- [Tokyo Night](https://github.com/enkia/tokyo-night-vscode-theme)
-- [Catppuccin](https://github.com/catppuccin/catppuccin)
-- [One Dark Theme](https://github.com/atom/atom/tree/master/packages/one-dark-ui)
-- [Solarized](https://ethanschoonover.com/solarized/)
-- [FZF](https://github.com/junegunn/fzf)
-- [Zoxide](https://github.com/ajeetdsouza/zoxide)
-- [Exa](https://github.com/ogham/exa)
-- [Bat](https://github.com/sharkdp/bat)
-- [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
-- [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)
 
-## 📞 İletişim
+## ⭐ Yıldız Geçmişi
 
-- **GitHub**: [@alibedirhan](https://github.com/alibedirhan)
-- **Issues**: [Proje Issues](https://github.com/alibedirhan/Theme-after-format/issues)
+[![Star History Chart](https://api.star-history.com/svg?repos=alibedirhan/Theme-after-format&type=Date)](https://star-history.com/#alibedirhan/Theme-after-format&Date)
 
 ---
 
-⭐ **Beğendiyseniz yıldız vermeyi unutmayın!**
+**Beğendiyseniz ⭐ vermeyi unutmayın!**
 
 Made with ❤️ by [Ali Bedirhan](https://github.com/alibedirhan)
