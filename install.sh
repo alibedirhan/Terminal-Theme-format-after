@@ -5,7 +5,7 @@
 # v3.3.0 - Quick Installation Script (Modular Architecture)
 # ============================================================================
 # Usage:
-#   wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh
+#   wget https://raw.githubusercontent.com/alibedirhan/Terminal-Theme-format-after/main/install.sh
 #   chmod +x install.sh
 #   ./install.sh
 # ============================================================================
@@ -22,7 +22,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # Configuration
-readonly REPO_URL="https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main"
+readonly REPO_URL="https://raw.githubusercontent.com/alibedirhan/Terminal-Theme-format-after/main"
 readonly INSTALL_DIR="$HOME/.terminal-setup-installer"
 readonly REQUIRED_FILES=(
     # Ana script'ler (3 dosya)

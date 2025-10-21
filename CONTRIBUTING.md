@@ -7,8 +7,8 @@ Terminal Setup projesine katkıda bulunmak istediğin için teşekkürler! Bu re
 Projeyi fork'la ve lokal'e clone'la:
 
 ```bash
-git clone https://github.com/SENIN-KULLANICI-ADIN/Theme-after-format.git
-cd Theme-after-format
+git clone https://github.com/SENIN-KULLANICI-ADIN/Terminal-Theme-format-after.git
+cd Terminal-Theme-format-after
 ```
 
 ## Proje Yapısı
