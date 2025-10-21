@@ -1,11 +1,8 @@
 #!/bin/bash
 
 # ============================================================================
-# Smart Release Manager - Interactive Release Update Tool
-# v1.0.0 - AI Assistant Mode
-# ============================================================================
-# GitHub release'lerini akıllıca günceller
-# Token yönetimi, interaktif menü, güzel UI!
+# Smart Release Manager v2.0
+# GitHub release'lerini yönet
 # ============================================================================
 
 set -euo pipefail
@@ -21,454 +18,528 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-# Emojiler
-ROBOT="🤖"
-ROCKET="🚀"
-SPARKLES="✨"
-KEY="🔑"
-MAGNIFY="🔍"
-WRENCH="🔧"
-CHECKMARK="✓"
-CROSSMARK="✗"
-WARNING="⚠"
-INFO="ℹ"
-
 # Config
-REPO="alibedirhan/Theme-after-format"
+REPO="alibedirhan/Terminal-Theme-format-after"
 
 # ============================================================================
-# BANNER
+# YARDIM
+# ============================================================================
+
+show_help() {
+    cat << 'EOF'
+Smart Release Manager v2.0
+
+KULLANIM:
+  ./smart-release-manager.sh [KOMUT] [VERSION]
+
+KOMUTLAR:
+  create VERSION       Yeni release oluştur
+  update VERSION       Mevcut release'i güncelle
+  delete VERSION       Release'i sil
+  list                 Tüm release'leri listele
+  view VERSION         Release detaylarını göster
+
+ÖRNEKLER:
+  # Yeni release oluştur (CHANGELOG'dan notes alır)
+  ./smart-release-manager.sh create v3.3.0
+  
+  # Release notes güncelle
+  ./smart-release-manager.sh update v3.3.0
+  
+  # Release'leri listele
+  ./smart-release-manager.sh list
+  
+  # Release sil
+  ./smart-release-manager.sh delete v3.2.5
+
+NOTLAR:
+  • CHANGELOG.md'den otomatik release notes oluşturur
+  • GitHub CLI (gh) gereklidir
+  • GitHub'a giriş yapılmış olmalı (gh auth login)
+
+KURULUM:
+  # GitHub CLI kur
+  Ubuntu/Debian:  sudo apt install gh
+  macOS:          brew install gh
+  
+  # GitHub'a giriş yap
+  gh auth login
+
+EOF
+}
+
+# ============================================================================
+# YARDIMCI FONKSİYONLAR
+# ============================================================================
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $*"; }
+log_error() { echo -e "${RED}[✗]${NC} $*" >&2; }
+log_warning() { echo -e "${YELLOW}[!]${NC} $*"; }
+
+check_gh_cli() {
+    if ! command -v gh &> /dev/null; then
+        log_error "GitHub CLI (gh) kurulu değil"
+        echo
+        echo "Kurulum:"
+        echo "  Ubuntu/Debian: sudo apt install gh"
+        echo "  macOS: brew install gh"
+        echo "  Diğer: https://cli.github.com/"
+        return 1
+    fi
+    return 0
+}
+
+check_auth() {
+    if ! gh auth status &> /dev/null; then
+        log_error "GitHub'a giriş yapılmamış"
+        echo
+        echo "Giriş yapmak için:"
+        echo "  gh auth login"
+        echo
+        echo "Veya bu script otomatik başlatabilir:"
+        echo -ne "Giriş yapmak ister misiniz? (e/h): "
+        read -r choice
+        
+        if [[ "$choice" =~ ^[eE]$ ]]; then
+            gh auth login
+        else
+            return 1
+        fi
+    fi
+    
+    local username
+    username=$(gh api user --jq .login 2>/dev/null)
+    log_success "Giriş: $username"
+    return 0
+}
+
+extract_changelog_notes() {
+    local version=$1
+    version=${version#v}  # v3.3.0 → 3.3.0
+    
+    if [[ ! -f "CHANGELOG.md" ]]; then
+        log_warning "CHANGELOG.md bulunamadı"
+        echo "Release v${version}"
+        return
+    fi
+    
+    # CHANGELOG'dan ilgili versiyonun notlarını çıkar
+    local notes
+    notes=$(awk -v ver="$version" '
+        /^## \['"$version"'\]/ { found=1; next }
+        found && /^## \[/ { exit }
+        found && NF { print }
+    ' CHANGELOG.md)
+    
+    if [[ -n "$notes" ]]; then
+        echo "$notes"
+    else
+        log_warning "CHANGELOG'da v${version} bulunamadı"
+        echo "Release v${version}"
+    fi
+}
+
+# ============================================================================
+# KOMUTLAR
+# ============================================================================
+
+cmd_list() {
+    log_info "Release'ler listeleniyor..."
+    echo
+    
+    local releases
+    releases=$(gh release list --repo "$REPO" --limit 20 2>/dev/null)
+    
+    if [[ -z "$releases" ]]; then
+        log_warning "Henüz release yok"
+        return 0
+    fi
+    
+    # Tablo başlığı
+    printf "${BOLD}%-15s %-40s %-12s${NC}\n" "VERSION" "TITLE" "STATUS"
+    echo "─────────────────────────────────────────────────────────────────────"
+    
+    # Release'leri yazdır
+    echo "$releases" | while IFS=$'\t' read -r tag title status date; do
+        local color="${GREEN}"
+        [[ "$status" == "Draft" ]] && color="${YELLOW}"
+        [[ "$status" == "Pre-release" ]] && color="${CYAN}"
+        
+        printf "%-15s %-40s ${color}%-12s${NC}\n" "$tag" "${title:0:40}" "$status"
+    done
+    
+    echo
+}
+
+cmd_view() {
+    local version=$1
+    
+    if [[ -z "$version" ]]; then
+        log_error "Versiyon belirtilmedi"
+        echo "Kullanım: $0 view VERSION"
+        return 1
+    fi
+    
+    log_info "Release bilgileri: $version"
+    echo
+    
+    gh release view "$version" --repo "$REPO" 2>/dev/null || {
+        log_error "Release bulunamadı: $version"
+        return 1
+    }
+}
+
+cmd_create() {
+    local version=$1
+    
+    if [[ -z "$version" ]]; then
+        log_error "Versiyon belirtilmedi"
+        echo "Kullanım: $0 create VERSION"
+        return 1
+    fi
+    
+    log_info "Release oluşturuluyor: $version"
+    echo
+    
+    # CHANGELOG'dan notes al
+    local notes
+    notes=$(extract_changelog_notes "$version")
+    
+    # Önizleme
+    echo -e "${DIM}Release notes:${NC}"
+    echo "─────────────────────────────────────────────"
+    echo "$notes" | head -20
+    echo "─────────────────────────────────────────────"
+    echo
+    
+    echo -ne "Devam? (e/h): "
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[eE]$ ]]; then
+        log_warning "İptal edildi"
+        return 0
+    fi
+    
+    # Release oluştur
+    if gh release create "$version" \
+        --repo "$REPO" \
+        --title "Release $version" \
+        --notes "$notes" 2>/dev/null; then
+        
+        log_success "Release oluşturuldu!"
+        log_info "https://github.com/${REPO}/releases/tag/${version}"
+    else
+        log_error "Release oluşturulamadı"
+        log_info "Tag var mı kontrol edin: git tag"
+        return 1
+    fi
+}
+
+cmd_update() {
+    local version=$1
+    
+    if [[ -z "$version" ]]; then
+        log_error "Versiyon belirtilmedi"
+        echo "Kullanım: $0 update VERSION"
+        return 1
+    fi
+    
+    log_info "Release güncelleniyor: $version"
+    echo
+    
+    # Mevcut release var mı kontrol et
+    if ! gh release view "$version" --repo "$REPO" &>/dev/null; then
+        log_error "Release bulunamadı: $version"
+        log_info "Mevcut release'ler:"
+        cmd_list
+        return 1
+    fi
+    
+    # CHANGELOG'dan yeni notes al
+    local notes
+    notes=$(extract_changelog_notes "$version")
+    
+    # Önizleme
+    echo -e "${DIM}Yeni release notes:${NC}"
+    echo "─────────────────────────────────────────────"
+    echo "$notes" | head -20
+    echo "─────────────────────────────────────────────"
+    echo
+    
+    echo -ne "Güncelle? (e/h): "
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[eE]$ ]]; then
+        log_warning "İptal edildi"
+        return 0
+    fi
+    
+    # Güncelle
+    if gh release edit "$version" \
+        --repo "$REPO" \
+        --notes "$notes" 2>/dev/null; then
+        
+        log_success "Release güncellendi!"
+        log_info "https://github.com/${REPO}/releases/tag/${version}"
+    else
+        log_error "Güncelleme başarısız"
+        return 1
+    fi
+}
+
+cmd_delete() {
+    local version=$1
+    
+    if [[ -z "$version" ]]; then
+        log_error "Versiyon belirtilmedi"
+        echo "Kullanım: $0 delete VERSION"
+        return 1
+    fi
+    
+    log_warning "Release silinecek: $version"
+    echo
+    echo -ne "${RED}${BOLD}Emin misiniz? (e/h): ${NC}"
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[eE]$ ]]; then
+        log_info "İptal edildi"
+        return 0
+    fi
+    
+    if gh release delete "$version" --repo "$REPO" --yes 2>/dev/null; then
+        log_success "Release silindi"
+    else
+        log_error "Silme başarısız"
+        return 1
+    fi
+}
+
+# ============================================================================
+# İNTERAKTİF MOD
 # ============================================================================
 
 show_banner() {
     clear
     echo -e "${BOLD}${MAGENTA}"
-    cat << 'EOF'
-    ╔══════════════════════════════════════════════════════════╗
-    ║                                                          ║
-    ║    ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗     ║
-    ║    ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝     ║
-    ║    ██████╔╝█████╗  ██║     █████╗  ███████║███████╗     ║
-    ║    ██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║     ║
-    ║    ██║  ██║███████╗███████╗███████╗██║  ██║███████║     ║
-    ║    ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝     ║
-    ║                                                          ║
-    ║           Smart Release Manager v1.0.0                   ║
-    ║              AI-Powered Assistant                        ║
-    ║                                                          ║
-    ╚══════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
-    sleep 0.5
-}
-
-# ============================================================================
-# GITHUB CLI KONTROL VE KURULUM
-# ============================================================================
-
-check_gh_cli() {
-    if ! command -v gh &> /dev/null; then
-        echo -e "${YELLOW}${WARNING} GitHub CLI (gh) kurulu değil!${NC}"
-        echo
-        echo -e "${CYAN}GitHub CLI, release'leri yönetmek için gerekli.${NC}"
-        echo
-        echo -e "${BOLD}Kurulum seçenekleri:${NC}"
-        echo -e "  ${GREEN}1)${NC} Otomatik kur (önerilen)"
-        echo -e "  ${GREEN}2)${NC} Manuel kurulum talimatları"
-        echo -e "  ${GREEN}3)${NC} İptal"
-        echo
-        echo -ne "${BOLD}Seçiminiz (1-3):${NC} "
-        read -r install_choice
-        
-        case $install_choice in
-            1)
-                echo
-                echo -e "${CYAN}GitHub CLI kuruluyor...${NC}"
-                
-                if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-                    sudo apt update > /dev/null 2>&1
-                    sudo apt install -y gh > /dev/null 2>&1
-                    echo -e "${GREEN}${CHECKMARK} Kurulum başarılı!${NC}"
-                elif [[ "$OSTYPE" == "darwin"* ]]; then
-                    brew install gh > /dev/null 2>&1
-                    echo -e "${GREEN}${CHECKMARK} Kurulum başarılı!${NC}"
-                else
-                    echo -e "${RED}${CROSSMARK} Otomatik kurulum desteklenmiyor${NC}"
-                    echo -e "${CYAN}Manuel kurulum: https://cli.github.com/${NC}"
-                    exit 1
-                fi
-                ;;
-            2)
-                echo
-                echo -e "${CYAN}Manuel Kurulum:${NC}"
-                echo
-                echo -e "  ${BOLD}Ubuntu/Debian:${NC}"
-                echo -e "    ${DIM}sudo apt update${NC}"
-                echo -e "    ${DIM}sudo apt install gh${NC}"
-                echo
-                echo -e "  ${BOLD}macOS:${NC}"
-                echo -e "    ${DIM}brew install gh${NC}"
-                echo
-                echo -e "  ${BOLD}Diğer:${NC}"
-                echo -e "    ${DIM}https://cli.github.com/${NC}"
-                echo
-                exit 0
-                ;;
-            3)
-                echo -e "${YELLOW}İptal edildi.${NC}"
-                exit 0
-                ;;
-        esac
-    else
-        echo -e "${GREEN}${CHECKMARK} GitHub CLI kurulu${NC}"
-    fi
-}
-
-# ============================================================================
-# AUTHENTİCATİON KONTROL
-# ============================================================================
-
-check_authentication() {
-    echo -ne "${CYAN}${MAGNIFY}${NC} Authentication kontrol ediliyor... "
     
-    if gh auth status &> /dev/null; then
-        echo -e "${GREEN}${CHECKMARK}${NC}"
-        
-        # Kullanıcı bilgisi
-        local username=$(gh api user --jq .login 2>/dev/null)
-        echo -e "${DIM}  Giriş yapılan kullanıcı: ${BOLD}${username}${NC}"
-        return 0
-    else
-        echo -e "${YELLOW}${WARNING}${NC}"
-        echo
-        echo -e "${YELLOW}GitHub'a giriş yapmanız gerekiyor.${NC}"
-        echo
-        echo -e "${CYAN}GitHub CLI iki şekilde giriş yapmanızı sağlar:${NC}"
-        echo -e "  ${GREEN}•${NC} Browser üzerinden (kolay, güvenli)"
-        echo -e "  ${GREEN}•${NC} Token ile (gelişmiş kullanıcılar)"
-        echo
-        echo -ne "${BOLD}Giriş yapmak ister misiniz? (e/h):${NC} "
-        read -r login_choice
-        
-        if [[ "$login_choice" =~ ^[eE]$ ]]; then
-            echo
-            echo -e "${CYAN}Giriş başlatılıyor...${NC}"
-            echo -e "${DIM}(Browser açılacak, orada GitHub'a giriş yapın)${NC}"
-            echo
-            
-            if gh auth login; then
-                echo
-                echo -e "${GREEN}${CHECKMARK} Giriş başarılı!${NC}"
-                return 0
-            else
-                echo -e "${RED}${CROSSMARK} Giriş başarısız${NC}"
-                return 1
-            fi
-        else
-            echo -e "${YELLOW}Giriş yapılmadan devam edilemez.${NC}"
-            return 1
-        fi
-    fi
-}
-
-# ============================================================================
-# TOKEN YÖNETİMİ
-# ============================================================================
-
-manage_token() {
-    echo
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${KEY} ${BOLD}TOKEN YÖNETİMİ${NC}"
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo
+    # Banner çizgileri
+    local lines=(
+        "╔══════════════════════════════════════════════════════════════╗"
+        "║                                                              ║"
+        "║    ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗ ║"
+        "║    ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝ ║"
+        "║    ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗   ║"
+        "║    ██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝   ║"
+        "║    ██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗ ║"
+        "║    ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝ ║"
+        "║                                                              ║"
+        "║              Smart Release Manager v2.0                      ║"
+        "║              GitHub Release Yönetimi                         ║"
+        "║                                                              ║"
+        "╚══════════════════════════════════════════════════════════════╝"
+    )
     
-    # Mevcut durumu göster
-    if gh auth status &> /dev/null; then
-        local username=$(gh api user --jq .login 2>/dev/null)
-        echo -e "${GREEN}${CHECKMARK} Aktif oturum: ${BOLD}${username}${NC}"
-    else
-        echo -e "${YELLOW}${WARNING} Aktif oturum yok${NC}"
-    fi
-    
-    echo
-    echo -e "${BOLD}Ne yapmak istersiniz?${NC}"
-    echo
-    echo -e "  ${GREEN}1)${NC} Token'ı yenile (logout + login)"
-    echo -e "  ${GREEN}2)${NC} Farklı hesap ile giriş yap"
-    echo -e "  ${GREEN}3)${NC} Token durumunu göster"
-    echo -e "  ${GREEN}4)${NC} Logout yap"
-    echo -e "  ${GREEN}5)${NC} Geri dön"
-    echo
-    echo -ne "${BOLD}Seçiminiz (1-5):${NC} "
-    read -r token_choice
-    
-    case $token_choice in
-        1)
-            echo
-            echo -e "${CYAN}Token yenileniyor...${NC}"
-            gh auth logout > /dev/null 2>&1
-            echo -e "${YELLOW}${INFO} Logout yapıldı${NC}"
-            echo
-            echo -e "${CYAN}Yeni token ile giriş yapılıyor...${NC}"
-            if gh auth login; then
-                echo -e "${GREEN}${CHECKMARK} Token yenilendi!${NC}"
-            fi
-            ;;
-        2)
-            echo
-            echo -e "${CYAN}Farklı hesap ile giriş...${NC}"
-            gh auth logout > /dev/null 2>&1
-            if gh auth login; then
-                local new_user=$(gh api user --jq .login 2>/dev/null)
-                echo -e "${GREEN}${CHECKMARK} Giriş yapıldı: ${BOLD}${new_user}${NC}"
-            fi
-            ;;
-        3)
-            echo
-            gh auth status
-            ;;
-        4)
-            echo
-            echo -ne "${YELLOW}Logout yapmak istediğinizden emin misiniz? (e/h):${NC} "
-            read -r logout_confirm
-            if [[ "$logout_confirm" =~ ^[eE]$ ]]; then
-                gh auth logout
-                echo -e "${GREEN}${CHECKMARK} Logout yapıldı${NC}"
-            fi
-            ;;
-        5)
-            return 0
-            ;;
-    esac
-    
-    echo
-    read -p "Devam etmek için Enter'a basın..."
-}
-
-# ============================================================================
-# RELEASE LİSTELE
-# ============================================================================
-
-list_releases() {
-    echo
-    echo -e "${CYAN}${MAGNIFY} Release'ler listeleniyor...${NC}"
-    echo
-    
-    local releases=$(gh release list --repo "$REPO" --limit 10 2>/dev/null)
-    
-    if [[ -z "$releases" ]]; then
-        echo -e "${YELLOW}${WARNING} Release bulunamadı${NC}"
-        return 1
-    fi
-    
-    echo -e "${DIM}┌─────────────┬──────────────────────────────┬────────────┐${NC}"
-    echo -e "${DIM}│   Version   │            Title             │   Status   │${NC}"
-    echo -e "${DIM}├─────────────┼──────────────────────────────┼────────────┤${NC}"
-    
-    echo "$releases" | while IFS=$'\t' read -r tag title status _; do
-        local status_color="${GREEN}"
-        [[ "$status" == "Draft" ]] && status_color="${YELLOW}"
-        [[ "$status" == "Pre-release" ]] && status_color="${CYAN}"
-        
-        printf "${DIM}│${NC} %-11s ${DIM}│${NC} %-28s ${DIM}│${NC} ${status_color}%-10s${NC} ${DIM}│${NC}\n" \
-            "$tag" "${title:0:28}" "$status"
+    # Animasyonlu banner
+    for line in "${lines[@]}"; do
+        echo -e "$line"
+        sleep 0.03
     done
     
-    echo -e "${DIM}└─────────────┴──────────────────────────────┴────────────┘${NC}"
-    echo
-    
-    return 0
+    echo -e "${NC}"
 }
 
-# ============================================================================
-# RELEASE GÜNCELLE
-# ============================================================================
-
-update_release() {
-    local version=$1
-    
+show_help_interactive() {
+    clear
+    echo -e "${MAGENTA}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${MAGENTA}║${NC}                         ${BOLD}YARDIM${NC}                               ${MAGENTA}║${NC}"
+    echo -e "${MAGENTA}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo
-    echo -e "${WRENCH} ${CYAN}Release güncelleniyor: ${BOLD}${version}${NC}"
+    echo -e "${BOLD}Bu program ne yapar?${NC}"
+    echo "  GitHub release'lerini oluşturur, günceller ve yönetir."
+    echo "  CHANGELOG.md'den otomatik release notes oluşturur."
     echo
-    
-    # Release notes hazırla
-    cat > /tmp/release-notes.md << 'EOF'
-# 🎉 Theme After Format
-
-Terminal özelleştirme suite'inin yeni sürümü!
-
-## ✨ Özellikler
-
-- 🎨 7 farklı tema desteği
-- 🔧 Otomatik teşhis sistemi
-- 📦 Modern terminal araçları
-- 🖥️ Tmux tema desteği
-- ⚙️ Modüler yapı
-
-## 📥 Kurulum
-
-```bash
-wget https://raw.githubusercontent.com/alibedirhan/Theme-after-format/main/install.sh
-chmod +x install.sh
-./install.sh
-```
-
-## 📚 Dokümantasyon
-
-- [README](https://github.com/alibedirhan/Theme-after-format#readme)
-- [CHANGELOG](https://github.com/alibedirhan/Theme-after-format/blob/main/CHANGELOG.md)
-
-**Made with ❤️ by Ali Bedirhan**
-EOF
-    
-    # Güncelle
-    if gh release edit "$version" \
-        --repo "$REPO" \
-        --title "Release ${version} - Terminal Customization Suite" \
-        --notes-file /tmp/release-notes.md 2>/dev/null; then
-        
-        echo -e "${GREEN}${CHECKMARK} Release başarıyla güncellendi!${NC}"
-        echo
-        echo -e "${CYAN}Kontrol edin:${NC}"
-        echo -e "  ${DIM}https://github.com/${REPO}/releases/tag/${version}${NC}"
-        
-        rm -f /tmp/release-notes.md
-        return 0
-    else
-        echo -e "${RED}${CROSSMARK} Güncelleme başarısız${NC}"
-        rm -f /tmp/release-notes.md
-        return 1
-    fi
+    echo -e "${BOLD}Komut satırı kullanımı:${NC}"
+    echo -e "  ${CYAN}./smart-release-manager.sh list${NC}           → Release'leri listele"
+    echo -e "  ${CYAN}./smart-release-manager.sh create v3.3.0${NC}  → Yeni release oluştur"
+    echo -e "  ${CYAN}./smart-release-manager.sh update v3.3.0${NC}  → Release'i güncelle"
+    echo -e "  ${CYAN}./smart-release-manager.sh view v3.3.0${NC}    → Release detayları"
+    echo -e "  ${CYAN}./smart-release-manager.sh delete v3.2.5${NC}  → Release sil"
+    echo
+    echo -e "${BOLD}Gereksinimler:${NC}"
+    echo "  • GitHub CLI (gh) kurulu olmalı"
+    echo "  • GitHub'a giriş yapılmış olmalı (gh auth login)"
+    echo "  • CHANGELOG.md dosyası (release notes için)"
+    echo
+    echo -e "${BOLD}GitHub CLI Kurulumu:${NC}"
+    echo -e "  Ubuntu/Debian: ${DIM}sudo apt install gh${NC}"
+    echo -e "  macOS:         ${DIM}brew install gh${NC}"
+    echo -e "  Diğer:         ${DIM}https://cli.github.com/${NC}"
+    echo
+    echo -e "${BOLD}İpuçları:${NC}"
+    echo "  • CHANGELOG.md'de versiyon başlığı olmalı: ## [3.3.0]"
+    echo "  • Release oluşturmadan önce git tag oluşturun"
+    echo "  • Release notes önizleme yapılır, onaylamanız gerekir"
+    echo
+    echo -e "${DIM}Detaylı yardım: ./smart-release-manager.sh --help${NC}"
+    echo
 }
 
-# ============================================================================
-# ANA MENÜ
-# ============================================================================
-
-main_menu() {
+interactive_mode() {
     while true; do
-        clear
         show_banner
         
-        echo -e "${ROBOT} ${BOLD}Merhaba! Release yönetim asistanınızım.${NC}"
-        echo
+        # Kullanıcı bilgisi animasyonlu
+        echo -ne "${DIM}Kontrol ediliyor"
+        for i in {1..3}; do
+            sleep 0.1
+            echo -n "."
+        done
+        echo -ne "\r                    \r"
         
-        # Quick status
         if gh auth status &> /dev/null; then
-            local username=$(gh api user --jq .login 2>/dev/null)
-            echo -e "${GREEN}${CHECKMARK} Giriş yapıldı: ${BOLD}${username}${NC}"
+            local username
+            username=$(gh api user --jq .login 2>/dev/null)
+            echo -e "${GREEN}[✓]${NC} Giriş: ${BOLD}${username}${NC}"
         else
-            echo -e "${YELLOW}${WARNING} Giriş yapılmadı${NC}"
+            echo -e "${YELLOW}[!]${NC} Giriş yapılmadı"
         fi
-        echo
         
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo
+        echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
         echo -e "${BOLD}ANA MENÜ${NC}"
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
         echo
         echo -e "  ${GREEN}1)${NC} ${BOLD}Release'leri listele${NC}"
-        echo -e "  ${GREEN}2)${NC} ${BOLD}Release güncelle${NC}"
-        echo -e "  ${GREEN}3)${NC} ${BOLD}Token yönetimi${NC} ${DIM}(token değiştir/yenile)${NC}"
-        echo -e "  ${GREEN}4)${NC} ${BOLD}GitHub'a giriş/çıkış${NC}"
-        echo -e "  ${GREEN}5)${NC} ${BOLD}Yardım${NC}"
+        echo -e "  ${GREEN}2)${NC} ${BOLD}Yeni release oluştur${NC}"
+        echo -e "  ${GREEN}3)${NC} ${BOLD}Release güncelle${NC}"
+        echo -e "  ${GREEN}4)${NC} ${BOLD}Release detaylarını göster${NC}"
+        echo -e "  ${GREEN}5)${NC} ${BOLD}Release sil${NC}"
+        echo -e "  ${GREEN}6)${NC} ${BOLD}Yardım${NC} ${DIM}(nasıl kullanılır?)${NC}"
         echo -e "  ${GREEN}0)${NC} Çıkış"
         echo
-        echo -ne "${BOLD}Seçiminiz (0-5):${NC} "
-        read -r menu_choice
+        echo -ne "${BOLD}Seçim (0-6): ${NC}"
+        read -r choice
         
-        case $menu_choice in
-            1)
-                list_releases
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            2)
-                echo
-                list_releases
-                echo -ne "${BOLD}Güncellenecek versiyon (örn: v3.2.5):${NC} "
-                read -r version
-                
-                if [[ -n "$version" ]]; then
-                    update_release "$version"
-                fi
-                
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            3)
-                manage_token
-                ;;
-            4)
-                check_authentication
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
-            5)
-                show_help
-                read -p "Devam etmek için Enter'a basın..."
-                ;;
+        echo
+        
+        case $choice in
             0)
-                echo
-                echo -e "${CYAN}Hoşça kalın! ${SPARKLES}${NC}"
+                # Çıkış animasyonu
+                echo -ne "${CYAN}Çıkış yapılıyor"
+                for i in {1..3}; do
+                    sleep 0.2
+                    echo -n "."
+                done
+                echo -e "${NC}"
                 exit 0
                 ;;
+            1)
+                cmd_list
+                echo
+                read -p "Devam için Enter'a basın..."
+                ;;
+            2)
+                echo -ne "Versiyon (örn: v3.3.0): "
+                read -r version
+                echo
+                cmd_create "$version"
+                echo
+                read -p "Devam için Enter'a basın..."
+                ;;
+            3)
+                cmd_list
+                echo
+                echo -ne "Güncellenecek versiyon: "
+                read -r version
+                echo
+                cmd_update "$version"
+                echo
+                read -p "Devam için Enter'a basın..."
+                ;;
+            4)
+                echo -ne "Versiyon: "
+                read -r version
+                echo
+                cmd_view "$version"
+                echo
+                read -p "Devam için Enter'a basın..."
+                ;;
+            5)
+                cmd_list
+                echo
+                echo -ne "Silinecek versiyon: "
+                read -r version
+                echo
+                cmd_delete "$version"
+                echo
+                read -p "Devam için Enter'a basın..."
+                ;;
+            6)
+                show_help_interactive
+                read -p "Devam için Enter'a basın..."
+                ;;
             *)
-                echo -e "${RED}${CROSSMARK} Geçersiz seçim${NC}"
+                log_error "Geçersiz seçim!"
                 sleep 1
                 ;;
         esac
     done
 }
 
-show_help() {
-    clear
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BOLD}YARDIM${NC}"
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo
-    echo -e "${BOLD}Smart Release Manager Nedir?${NC}"
-    echo -e "GitHub release'lerini interaktif bir şekilde yönetmenizi sağlar."
-    echo
-    echo -e "${BOLD}Token Nasıl Değiştirilir?${NC}"
-    echo -e "  1. Ana menüden '3) Token yönetimi' seçin"
-    echo -e "  2. '1) Token'ı yenile' seçin"
-    echo -e "  3. Browser'da yeni token ile giriş yapın"
-    echo
-    echo -e "${BOLD}Güvenli mi?${NC}"
-    echo -e "  ${GREEN}${CHECKMARK}${NC} Token şifreli tutuluyor"
-    echo -e "  ${GREEN}${CHECKMARK}${NC} GitHub CLI resmi araç"
-    echo -e "  ${GREEN}${CHECKMARK}${NC} Açık kaynak"
-    echo
-    echo -e "${BOLD}Daha Fazla Bilgi:${NC}"
-    echo -e "  GitHub CLI: https://cli.github.com"
-    echo -e "  Repository: https://github.com/${REPO}"
-    echo
-}
-
 # ============================================================================
-# MAIN
+# ANA PROGRAM
 # ============================================================================
 
 main() {
-    show_banner
-    
-    echo -e "${ROBOT} ${BOLD}Hoş geldiniz!${NC}"
-    echo
-    sleep 0.5
+    # --help kontrolü
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+        show_help
+        exit 0
+    fi
     
     # GitHub CLI kontrol
-    check_gh_cli
-    echo
-    sleep 0.5
+    if ! check_gh_cli; then
+        exit 1
+    fi
     
-    # Authentication kontrol
-    if ! check_authentication; then
+    # Auth kontrol
+    if ! check_auth; then
         exit 1
     fi
     
     echo
-    sleep 0.5
     
-    # Ana menüye geç
-    main_menu
+    # Komut parse
+    local command=${1:-}
+    local version=${2:-}
+    
+    case $command in
+        list)
+            cmd_list
+            ;;
+        view)
+            cmd_view "$version"
+            ;;
+        create)
+            cmd_create "$version"
+            ;;
+        update)
+            cmd_update "$version"
+            ;;
+        delete)
+            cmd_delete "$version"
+            ;;
+        "")
+            interactive_mode
+            ;;
+        *)
+            log_error "Bilinmeyen komut: $command"
+            echo
+            echo "Yardım: $0 --help"
+            exit 1
+            ;;
+    esac
 }
 
-# Run
 main "$@"
