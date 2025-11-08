@@ -1,10 +1,61 @@
 # Changelog
 
-Bu dosya projedeki önemli değişiklikleri takip eder.
+Tüm önemli değişiklikler bu dosyada belgelenir.
 
-## [3.3.0] - 2025-10-21
+Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardına uygundur.
 
-### Değişiklikler
+## [4.3.0] - 2024-11-08
+
+### ✨ Yeni Özellikler (Added)
+
+#### Aliases Şablon Sistemi
+- `aliases/.aliases` örnek dosyası eklendi
+- Navigation, Git, Exa, sistem aliasları içeriyor
+- Kullanıcı dosyası yoksa şablon oluşturma seçeneği
+- Otomatik `.zshrc` entegrasyonu
+- **Etkilenen dosyalar:** `aliases/.aliases`, `core/terminal-config.sh`
+
+#### Gelişmiş Hata Loglaması
+- FZF kurulum hatalarını gösterme ve log'a kaydetme
+- Zoxide kurulum hatalarını gösterme
+- Manuel kurulum talimatları eklendi
+- **Etkilenen dosya:** `core/terminal-tools.sh`
+
+#### Otomatik Source (Opsiyonel)
+- Terminal araçları kurulumundan sonra `.zshrc` otomatik yükleme seçeneği
+- Kullanıcıya sorarak yapılıyor
+- **Etkilenen dosya:** `terminal-setup.sh`
+
+### ✅ Düzeltilen Hatalar (Fixed)
+
+#### FZF Kurulum Hatası
+- **Sorun:** `--all` ve `--no-bash` parametreleri çelişiyordu
+- **Çözüm:** `--key-bindings --completion --no-update-rc --no-bash --no-fish` kullanıldı
+- **Etkilenen dosya:** `core/terminal-tools.sh`
+
+#### Zoxide Kurulum Hatası
+- **Sorun:** `retry_command` ile `eval` pipe çalışmıyordu
+- **Çözüm:** Direkt `bash -c` ile curl pipe kullanıldı
+- Gerçek hata mesajı artık gösteriliyor
+- **Etkilenen dosya:** `core/terminal-tools.sh`
+
+#### Menü 5 Eksiklikleri
+- **Sorun:** Menü 5 (Zsh + Oh My Zsh) fontlar, pluginler ve aliases kurmuyor
+- **Çözüm:** Menü 1-4 ile aynı bileşenler eklendi
+- Artık tam paket: Fontlar + Pluginler + Aliases
+- **Etkilenen dosyalar:** `terminal-setup.sh`, `terminal-ui.sh`
+
+### 🔄 Değişiklikler (Changed)
+
+- Menü 5 açıklaması güncellendi: "Zsh + Oh My Zsh (Tema hariç, tam paket)"
+- Kurulum adım sayısı 4'ten 6'ya çıktı (fontlar + pluginler eklendi)
+- Terminal araçları kurulumunda daha detaylı ilerleme gösterimi
+
+---
+
+## [3.3.0] - 2024-10-21
+
+### ✨ Yeni Özellikler
 
 #### Modüler Mimari
 Kod tabanı tamamen yeniden düzenlendi. 3 büyük dosya (4000+ satır) yerine artık 13 küçük modüle bölündü:
@@ -22,70 +73,75 @@ Kod tabanı tamamen yeniden düzenlendi. 3 büyük dosya (4000+ satır) yerine a
 **Themes** (7 dosya):
 Her tema artık ayrı dosyada, fonksiyon isimleri çakışmayacak şekilde düzenlendi.
 
-#### Düzeltilen Hatalar
+#### Powerlevel10k Wizard Entegrasyonu
+- Tam kurulum sonrası otomatik P10k wizard
+- Menü 5 sonrası otomatik P10k wizard
+- Wizard tamamlandıktan sonra ana menüye dönüş
+- **Etkilenen dosya:** `terminal-setup.sh`
+
+#### Tam Kaldırma Sistemi (19 Adım)
+- Plugin config dosyaları temizleme (`~/.fzf.zsh`, `~/.config/atuin`)
+- Zsh plugin dizinleri silme
+- Script kendi dizinlerini temizleme (`~/.terminal-setup`)
+- Zsh paketi `--purge` ile kaldırılıyor
+- **Etkilenen dosya:** `core/terminal-config.sh`
+
+### ✅ Düzeltilen Hatalar
+
 - install.sh artık modüler yapıyı destekliyor (16 dosya indirir)
 - Tema fonksiyonlarında isim çakışması giderildi
 - macOS disk space kontrolü düzeltildi
 - Internet check birden fazla host deniyor (8.8.8.8 bazen bloklanıyor)
 
-#### Neden?
-- Her dosya 1000 satırın altında, daha kolay okunuyor
-- Bir şey değiştirirken sadece ilgili modüle bakıyorsun
-- Git diff'leri daha anlamlı
-- Yeni özellik eklemek çok daha basit
-
-#### Breaking Changes
-Eğer eski terminal-core.sh, terminal-utils.sh veya terminal-themes.sh'yi doğrudan import ediyordunuz, artık çalışmayacak. Yeni modül yapısını kullanın.
-
 ---
 
-## [3.2.9] - 2025-10-15
+## [3.2.9] - 2024-10-15
 
-### Eklenenler
+### ✨ Yeni Özellikler
 - Smart version manager scripti
 - Smart release manager scripti
 - Otomatik versiyon senkronizasyonu
 
-### Düzeltmeler
+### ✅ Düzeltmeler
 - Bazı terminallerde renk temaları düzgün uygulanmıyordu, düzeltildi
 
 ---
 
-## [3.2.7] - 2025-10-10
+## [3.2.7] - 2024-10-10
 
-### Eklenenler
+### ✨ Yeni Özellikler
 - 7 farklı tema desteği (Dracula, Nord, Gruvbox, Tokyo Night, Catppuccin, One Dark, Solarized)
 - Kitty ve Alacritty terminal desteği
 - Terminal otomatik detection
 
-### Düzeltmeler
+### ✅ Düzeltmeler
 - GNOME Terminal'de bazı renkler yanlış görünüyordu
 - Oh My Zsh kurulumu bazen fail ediyordu
 
 ---
 
-## [3.2.0] - 2025-09-25
+## [3.2.0] - 2024-09-25
 
-### Eklenenler
+### ✨ Yeni Özellikler
 - Tmux kurulumu ve konfigürasyonu
 - 14 CLI aracı kurulum seçeneği
 - Diagnostic (sağlık kontrolü) sistemi
 
 ---
 
-## [3.1.0] - 2025-09-10
+## [3.1.0] - 2024-09-10
 
-### Eklenenler
+### ✨ Yeni Özellikler
 - Powerlevel10k teması
 - Font kurulumu (Nerd Fonts)
 - Plugin sistemi (zsh-autosuggestions, zsh-syntax-highlighting)
 
 ---
 
-## [3.0.0] - 2025-08-20
+## [3.0.0] - 2024-08-20
 
-### Değişiklikler
-İlk majör release. Terminal setup'ı tamamen yeniden yazıldı.
+### 🎯 İlk Majör Release
+Terminal setup'ı tamamen yeniden yazıldı.
 
 - Zsh + Oh My Zsh kurulumu
 - İnteraktif menü sistemi
@@ -94,19 +150,23 @@ Eğer eski terminal-core.sh, terminal-utils.sh veya terminal-themes.sh'yi doğru
 
 ---
 
-## [2.x] - Eski Versiyonlar
+## Commit Formatı
 
-2.x serisindeki değişiklikler için git geçmişine bakın.
+Bu proje [Conventional Commits](https://www.conventionalcommits.org/) standardını kullanır:
 
----
+- `feat:` Yeni özellik
+- `fix:` Hata düzeltmesi
+- `docs:` Dokümantasyon değişikliği
+- `style:` Kod formatı (işlevselliği etkilemeyen)
+- `refactor:` Yeniden yapılandırma
+- `test:` Test ekleme/düzeltme
+- `chore:` Bakım işleri
 
-## Format
+### Örnekler
 
-Bu changelog [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) formatını takip eder ve proje [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
-
-- **Added** - Yeni özellikler
-- **Changed** - Mevcut özelliklerdeki değişiklikler
-- **Deprecated** - Yakında kaldırılacak özellikler
-- **Removed** - Kaldırılan özellikler
-- **Fixed** - Hata düzeltmeleri
-- **Security** - Güvenlik ile ilgili değişiklikler
+```bash
+feat: FZF kurulum sistemi ekle
+fix: Zoxide pipe hatası düzelt
+docs: README güncelle
+refactor: Menü sistemi iyileştir
+```

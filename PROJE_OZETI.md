@@ -1,38 +1,49 @@
-# Proje Özeti - Terminal Setup v3.3.0
+# Proje Özeti - Terminal Setup v4.3.0
 
-Son güncelleme: 21 Ekim 2025
+Son güncelleme: 8 Kasım 2024
 
 ## Genel Bakış
 
-Terminal Setup, Linux/macOS terminalini tek komutla konfigüre eden bir script koleksiyonu. Zsh, Oh My Zsh, Powerlevel10k, CLI araçları ve temalar dahil.
+Terminal Setup, Ubuntu terminalini tek komutla konfigüre eden modüler script koleksiyonu. Zsh, Oh My Zsh, Powerlevel10k, 14 CLI aracı ve 7 tema dahil.
 
 **Ana özellikler:**
 - Otomatik kurulum (bağımlılıklar, fontlar, temalar)
 - 7 farklı renk teması
 - 14 CLI aracı seçeneği
 - GNOME Terminal, Kitty, Alacritty desteği
+- Aliases şablon sistemi
 - Backup/restore mekanizması
-- Uninstall özelliği
+- Tam kaldırma (19 adım)
 
 ## Mimari
 
-### v3.3.0 Değişiklikleri
+### v4.3.0 Yapısı
 
-Önceden 3 büyük dosya vardı (~4000 satır). Artık 13 modüle bölündü:
+Modüler mimari - 13 modül:
 
 ```
-Önce:
-- terminal-core.sh (2271 satır)
-- terminal-utils.sh (1288 satır)  
-- terminal-themes.sh (527 satır)
-
-Sonra:
-- core/ (3 dosya, ~2300 satır)
-- utils/ (3 dosya, ~1300 satır)
-- themes/ (7 dosya, her biri ~100 satır)
+Terminal-Setup/
+├── core/ (3 dosya, ~2400 satır)
+│   ├── terminal-base.sh      - Zsh, Oh My Zsh, P10k
+│   ├── terminal-tools.sh     - 14 CLI aracı
+│   └── terminal-config.sh    - Tema, tmux, kaldırma
+│
+├── utils/ (3 dosya, ~1300 satır)
+│   ├── helpers.sh            - Logging, error handling
+│   ├── system.sh             - Terminal detection
+│   └── config.sh             - Backup, snapshot
+│
+└── themes/ (7 dosya, ~700 satır)
+    ├── dracula.sh
+    ├── nord.sh
+    ├── gruvbox.sh
+    ├── tokyo-night.sh
+    ├── catppuccin.sh
+    ├── one-dark.sh
+    └── solarized.sh
 ```
 
-Her dosya artık 1000 satırın altında. Git diff'leri daha anlamlı, değişiklik yapmak daha kolay.
+Her dosya 1000 satırın altında. Git diff'leri daha anlamlı, değişiklik yapmak daha kolay.
 
 ## Dosya Yapısı
 
@@ -74,40 +85,38 @@ CLI araçları:
 - `install_delta()` - Git diff
 - `install_lazygit()` - Git TUI
 - `install_btop()` - System monitor
+- `install_dust()` - Disk kullanımı
+- `install_duf()` - Disk bilgisi
+- `install_procs()` - Modern ps
+- `install_atuin()` - Shell history
 - `install_tldr()` - Man pages özeti
-- `install_neovim()` - Vim alternatifi
-- `install_tmux()` - Terminal multiplexer
-- `install_starship()` - Cross-shell prompt
-- `install_zellij()` - Modern tmux
 
 **core/terminal-config.sh** (695 satır)
 Konfigürasyon:
-- `install_theme()` - Tema dispatcher (hangi tema hangi fonksiyon)
+- `install_theme()` - Tema dispatcher
 - `install_theme_gnome()` - GNOME Terminal renkleri
 - `install_theme_kitty()` - Kitty config
 - `install_theme_alacritty()` - Alacritty config
 - `install_tmux()` - Tmux kurulum
-- `configure_tmux()` - Tmux config yazma
-- `uninstall_all()` - Her şeyi kaldır
+- `migrate_bash_aliases()` - Aliases yönetimi
+- `uninstall_all()` - Tam kaldırma (19 adım)
 
 ### Utils Modülü
 
 **utils/helpers.sh** (594 satır)
 Yardımcı fonksiyonlar:
-- Logging sistemi (log_info, log_success, log_error, vb.)
+- Logging sistemi (log_info, log_success, log_error)
 - `show_error()` - Hata mesajları
 - `run_with_error_handling()` - Try-catch benzeri
 - `retry_command()` - Başarısız komutları tekrar dene
 - `safe_download()` - Güvenli wget/curl
 - `ask_yes_no()` - Kullanıcıdan onay al
-- Transaction sistemi (rollback için)
 
 **utils/system.sh** (175 satır)
 Sistem kontrolleri:
-- `detect_terminal()` - Hangi terminal kullanılıyor (10+ terminal desteği)
-- `check_gnome_terminal()` - GNOME var mı
-- `check_internet()` - İnternet bağlantısı (birden fazla host dener)
-- `test_internet_speed()` - Hız testi
+- `detect_terminal()` - Terminal detection (10+ terminal)
+- `check_gnome_terminal()` - GNOME kontrolü
+- `check_internet()` - İnternet bağlantısı
 - `check_system_resources()` - Disk ve RAM kontrolü
 
 **utils/config.sh** (536 satır)
@@ -115,8 +124,6 @@ Konfigürasyon yönetimi:
 - `load_config()` - Config dosyası oku
 - `save_config()` - Config dosyası yaz
 - `validate_config()` - Config doğrula
-- `check_for_updates()` - GitHub'dan güncelleme kontrol et
-- `update_script()` - Script'i güncelle
 - `create_snapshot()` - Backup oluştur
 - `restore_snapshot()` - Backup'tan geri yükle
 
@@ -141,69 +148,56 @@ get_tmux_theme_dracula()        # Tmux config
 - one-dark.sh - Atom editörün teması
 - solarized.sh - Klasik, hassas renkler
 
-**Önemli**: Her tema benzersiz fonksiyon isimlerine sahip. `apply_gnome_terminal()` yerine `apply_dracula_gnome()` kullanıyoruz. Yoksa temalar birbiriyle çakışır.
+### Aliases Klasörü
 
-## Modül Yükleme Sırası
-
-terminal-setup.sh modülleri şu sırayla yükler:
-
-1. utils/helpers.sh - Logging (diğerleri buna bağımlı)
-2. utils/system.sh - Sistem kontrolleri
-3. utils/config.sh - Config yönetimi
-4. terminal-ui.sh - UI
-5. core/terminal-base.sh - Zsh, Oh My Zsh
-6. core/terminal-tools.sh - CLI araçları
-7. core/terminal-config.sh - Tema, tmux
-8. terminal-assistant.sh - Diagnostic
-
-Tema dosyaları başta yüklenmiyor. Kullanıcı seçtiğinde dinamik olarak yüklenir (lazy loading).
+**aliases/.aliases** (~100 satır)
+Örnek alias dosyası:
+- Navigation kısayolları (.., ..., cd -)
+- Git aliasları (gs, ga, gc, gp)
+- Modern CLI araçları (exa, bat, btop)
+- Sistem yönetimi (update, clean)
+- Docker aliasları (eğer kuruluysa)
 
 ## Kurulum Akışı
 
 ```
-1. install.sh çalışır
-   ├─> 16 dosyayı GitHub'dan indirir
-   ├─> Dizinleri oluşturur (core/, utils/, themes/)
-   └─> terminal-setup.sh'yi başlatır
+1. Repository klonla
+   git clone https://github.com/alibedirhan/Terminal-Theme-format-after.git
 
-2. terminal-setup.sh
+2. terminal-setup.sh çalıştır
    ├─> Modülleri yükler
    ├─> Config okur (~/.terminal-setup.conf)
    └─> Ana menüyü gösterir
 
 3. Kullanıcı seçim yapar
-   ├─> "1) Full Install" -> Her şeyi kur
-   ├─> "2) Base Install" -> Sadece Zsh + Oh My Zsh
-   ├─> "3) Temalar" -> Tema seç ve uygula
-   ├─> "9) CLI Araçları" -> Araçları seç
-   └─> "11) Sağlık Kontrolü" -> Diagnostic çalıştır
+   ├─> "1-4) Tema Kurulumları" -> Tema dahil tam kurulum
+   ├─> "5) Zsh + Oh My Zsh" -> Tema hariç tam paket
+   ├─> "7) Tema Değiştir" -> Sadece renk değiştir
+   ├─> "9) Terminal Araçları" -> 14 araç seç
+   └─> "14) Tümünü Kaldır" -> 19 adımda temizlik
 ```
 
 ## Dosya Konumları
 
 **Script'ler:**
 ```
-~/.terminal-setup-installer/     # install.sh indirme dizini
+~/Desktop/GIT\ PROJELERİM/terminal-setup/
   ├── terminal-setup.sh
   ├── terminal-ui.sh
   ├── terminal-assistant.sh
   ├── core/
   ├── utils/
-  └── themes/
+  ├── themes/
+  └── aliases/
 ```
 
 **Kullanıcı dosyaları:**
 ```
-~/.terminal-setup.conf           # Config
-~/.terminal-setup/               # Log, cache
-~/.terminal-setup-backup/        # Backup'lar
-```
-
-**Zsh konfigürasyonu:**
-```
-~/.zshrc                         # Ana config
+~/.terminal-setup/               # Log, cache, backups
+~/.zshrc                         # Zsh config
 ~/.p10k.zsh                      # Powerlevel10k config
 ~/.oh-my-zsh/                    # Oh My Zsh dizini
+~/.aliases                       # Kullanıcı aliasları
 ```
 
 ## Bağımlılıklar
@@ -212,93 +206,64 @@ Tema dosyaları başta yüklenmiyor. Kullanıcı seçtiğinde dinamik olarak yü
 - bash 4.0+
 - curl veya wget
 - git
-- sudo yetkisi (paket kurulumu için)
+- sudo yetkisi
 
 **Desteklenen platformlar:**
 - Ubuntu 20.04+
 - Debian 10+
-- Fedora 35+
-- Arch Linux
-- macOS 11.0+ (Big Sur ve üstü)
+- Linux Mint 20+
+- Pop!_OS 20.04+
 
-## Önemli Notlar
+## v4.3.0 Yenilikler
 
-### Tema Fonksiyon İsimlendirmesi
+### ✨ Yeni Özellikler
+- **Aliases şablon sistemi** - Örnek `.aliases` dosyası
+- **Detaylı hata logları** - FZF ve Zoxide için
+- **Menü 5 tam paket** - Fontlar + Pluginler + Aliases
 
-❌ Yanlış:
-```bash
-# Her temada aynı isim - ÇAKIŞMA!
-apply_gnome_terminal() { ... }
-```
+### ✅ Düzeltmeler
+- FZF kurulum hatası (--all ve --no-bash çelişkisi)
+- Zoxide kurulum hatası (pipe sorunu)
+- Menü 5 eksiklikleri giderildi
 
-✅ Doğru:
-```bash
-# Her tema kendi ismi
-apply_dracula_gnome() { ... }
-apply_nord_gnome() { ... }
-```
-
-### Logging Kullanımı
-
-Direkt echo yerine logging fonksiyonları kullan:
-
-```bash
-# Yanlış
-echo "Kurulum başladı"
-
-# Doğru
-log_info "Kurulum başladı"
-```
-
-### Error Handling
-
-Her fonksiyon return code döndürmeli:
-
-```bash
-install_something() {
-    if ! command; then
-        log_error "Hata"
-        return 1
-    fi
-    return 0
-}
-```
+### 📖 Dokümantasyon
+- README tam güncelleme
+- CHANGELOG v4.3.0 entry
+- Proje özeti güncelleme
 
 ## İstatistikler
 
-**v3.3.0:**
-- Toplam: 16 dosya
+**v4.3.0:**
+- Toplam: 16 dosya + aliases
 - Ana script'ler: 3 dosya (~600 satır)
-- Core: 3 dosya (~2300 satır)
+- Core: 3 dosya (~2400 satır)
 - Utils: 3 dosya (~1300 satır)
 - Themes: 7 dosya (~700 satır)
 
 **Karşılaştırma:**
 
-| Metrik | v3.2.x | v3.3.0 |
+| Metrik | v3.2.x | v4.3.0 |
 |--------|--------|--------|
-| Dosya sayısı | 6 (monolitik) | 16 (modüler) |
+| Dosya sayısı | 6 | 17 |
 | En büyük dosya | 2271 satır | 977 satır |
-| Bakım | Zor | Kolay |
-| Yeni özellik | Karmaşık | Basit |
+| Aliases desteği | Yok | Var ✅ |
+| Hata logları | Basit | Detaylı ✅ |
 
 ## Bilinen Sorunlar
 
-1. **macOS Catalina ve öncesi:** Bazı Nerd Font'lar düzgün görünmeyebilir
-2. **WSL1:** Terminal detection çalışmayabilir (WSL2 öneririz)
-3. **ARM Linux:** Bazı CLI araçları binary'si olmayabilir
+1. **WSL1:** Terminal detection çalışmayabilir (WSL2 önerilir)
+2. **ARM Linux:** Bazı CLI araçları binary'si olmayabilir
 
 ## Gelecek Planlar
 
 - [ ] Fish shell desteği
-- [ ] Windows Terminal desteği (WSL dışında)
+- [ ] Windows Terminal desteği
 - [ ] Tema önizleme sistemi
 - [ ] Plugin ekleme/kaldırma UI'ı
-- [ ] Remote kurulum (SSH üzerinden)
 
 ## Geliştirme
 
-Katkıda bulunmak için CONTRIBUTING.md'ye bak.
+Katkıda bulunmak için CONTRIBUTING.md'ye bakın.
 
 Test etmek için:
 ```bash
@@ -309,4 +274,10 @@ bash -x terminal-setup.sh  # Debug mode
 
 ## Lisans
 
-MIT License - Detaylar için LICENSE dosyasına bak.
+MIT License - Detaylar için LICENSE dosyasına bakın.
+
+---
+
+**Proje Sahibi:** Ali Bedirhan  
+**GitHub:** [@alibedirhan](https://github.com/alibedirhan)  
+**Repository:** [Terminal-Theme-format-after](https://github.com/alibedirhan/Terminal-Theme-format-after)
