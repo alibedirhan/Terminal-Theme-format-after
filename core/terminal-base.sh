@@ -332,18 +332,37 @@ _install_oh_my_zsh_impl() {
     
     # Oh My Zsh install script'ini indir ve çalıştır (retry ile)
     local install_script_url="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+    local max_attempts=3
+    local attempt=1
+    local delay=2
     
-    # 3 deneme, 120 saniye timeout
-    if ! retry_command 3 30 sh -c "$(curl -fsSL $install_script_url)" "" --unattended; then
-        log_error "Oh My Zsh kurulumu başarısız!"
+    while [ $attempt -le $max_attempts ]; do
+        log_debug "Oh My Zsh kurulum denemesi: $attempt/$max_attempts"
         
-        # Network hatası olabilir
-        if ! check_internet; then
-            handle_network_error "Oh My Zsh kurulumu"
+        if curl -fsSL "$install_script_url" | RUNZSH=no CHSH=no sh -s -- --unattended &>> "$LOG_FILE"; then
+            # Başarılı
+            log_debug "Oh My Zsh kurulumu başarılı (Deneme: $attempt)"
+            break
+        else
+            # Başarısız
+            if [ $attempt -lt $max_attempts ]; then
+                log_warning "Deneme $attempt başarısız, $delay saniye sonra tekrar..."
+                sleep $delay
+                delay=$((delay * 2))  # Exponential backoff (2, 4, 8...)
+            else
+                log_error "Oh My Zsh kurulumu başarısız! Tüm denemeler tükendi."
+                
+                # Network hatası olabilir
+                if ! check_internet; then
+                    handle_network_error "Oh My Zsh kurulumu"
+                fi
+                
+                return 1
+            fi
         fi
         
-        return 1
-    fi
+        ((attempt++))
+    done
     
     # Kurulumu doğrula
     if ! verify_file_exists "$HOME/.oh-my-zsh/oh-my-zsh.sh" "Oh My Zsh"; then
