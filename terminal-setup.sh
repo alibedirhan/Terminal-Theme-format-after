@@ -187,9 +187,26 @@ perform_full_install() {
     
     # Otomatik Zsh'e geçiş
     if show_switch_shell_prompt; then
-        exec zsh
+        # P10k wizard kontrolü
+        if [[ ! -f ~/.p10k.zsh ]]; then
+            echo
+            echo -e "${CYAN}Powerlevel10k yapılandırması başlatılıyor...${NC}"
+            echo -e "${DIM}Görsel tercihlerinizi seçin, sonra menüye döneceksiniz.${NC}"
+            sleep 2
+            # P10k configure'u çalıştır
+            zsh -c "source ~/.zshrc && p10k configure"
+            echo
+            echo -e "${GREEN}✓ Yapılandırma tamamlandı${NC}"
+        else
+            echo
+            echo -e "${GREEN}✓ Powerlevel10k zaten yapılandırılmış${NC}"
+            echo -e "${YELLOW}Tekrar yapılandırmak için Zsh'te: ${CYAN}p10k configure${NC}"
+        fi
+        echo
+        sleep 1
     fi
     
+    read -p "Devam etmek için Enter'a basın..."
     return 0
 }
 
@@ -529,24 +546,54 @@ while true; do
             echo -e "${CYAN}║   ${BOLD}ZSH + OH MY ZSH KURULUMU${NC}             ${CYAN}║${NC}"
             echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
             
-            show_section 1 3 "Zsh kuruluyor"
+            show_section 1 6 "Zsh kuruluyor"
             install_zsh
             
-            show_section 2 3 "Oh My Zsh kuruluyor"
+            show_section 2 6 "Oh My Zsh kuruluyor"
             install_oh_my_zsh
             
-            show_section 3 3 "Shell değiştiriliyor"
+            show_section 3 6 "Fontlar kuruluyor"
+            install_fonts
+            
+            show_section 4 6 "Powerlevel10k kuruluyor"
+            install_powerlevel10k
+            
+            show_section 5 6 "Pluginler kuruluyor"
+            install_plugins
+            
+            show_section 6 6 "Shell değiştiriliyor"
             change_default_shell
+            
+            # Aliases kontrolü
+            echo
+            echo -e "${CYAN}┌──── ALIASES KONTROLÜ ────┐${NC}"
+            migrate_bash_aliases
             
             echo
             echo -e "${GREEN}✓ Tamamlandı${NC}"
             
             # Zsh'e geçiş öner
             if show_switch_shell_prompt; then
-                exec zsh
-            else
-                read -p "Devam etmek için Enter'a basın..."
+                # P10k wizard kontrolü
+                if [[ ! -f ~/.p10k.zsh ]]; then
+                    echo
+                    echo -e "${CYAN}Powerlevel10k yapılandırması başlatılıyor...${NC}"
+                    echo -e "${DIM}Görsel tercihlerinizi seçin, sonra menüye döneceksiniz.${NC}"
+                    sleep 2
+                    # P10k configure'u çalıştır
+                    zsh -c "source ~/.zshrc && p10k configure"
+                    echo
+                    echo -e "${GREEN}✓ Yapılandırma tamamlandı${NC}"
+                else
+                    echo
+                    echo -e "${GREEN}✓ Powerlevel10k zaten yapılandırılmış${NC}"
+                    echo -e "${YELLOW}Tekrar yapılandırmak için Zsh'te: ${CYAN}p10k configure${NC}"
+                fi
+                echo
+                sleep 1
             fi
+            
+            read -p "Devam etmek için Enter'a basın..."
             ;;
         6)
             # Bağımlılık kontrolü

@@ -32,11 +32,25 @@ install_fzf() {
         fi
     fi
     
-    # Install (retry ile)
-    if ! retry_command 3 30 ~/.fzf/install --all --no-bash --no-fish; then
+    # Install (retry ile) - DÜZELTME: --all ve --no-bash çelişkisi giderildi
+    log_info "FZF install scripti çalıştırılıyor..."
+    
+    # Verbose mode ile çalıştır ve log'a kaydet
+    local install_output
+    install_output=$(~/.fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish 2>&1)
+    local install_exit=$?
+    
+    # Log'a yaz
+    echo "$install_output" | tee -a "$LOG_FILE" >/dev/null
+    
+    if [[ $install_exit -ne 0 ]]; then
         log_error "FZF kurulumu başarısız!"
+        log_info "Hata çıktısı: ${install_output:0:200}"
+        log_info "Manuel kurulum: cd ~/.fzf && ./install --all"
         return 1
     fi
+    
+    log_success "FZF install scripti başarılı"
     
     # PATH'e ekle
     export PATH="$HOME/.fzf/bin:$PATH"
@@ -77,10 +91,13 @@ install_zoxide() {
         fi
     fi
     
-    # Kurulum scripti (retry ile)
-    local install_cmd='curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash'
-    if ! retry_command 3 30 bash -c "$install_cmd"; then
+    # Kurulum scripti - DÜZELTME: Direkt bash -c ile çalıştır (retry yok, pipe sorunlu)
+    log_info "Zoxide indiriliyor ve kuruluyor..."
+    if curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash 2>&1 | tee -a "$LOG_FILE" | grep -q "zoxide"; then
+        log_success "Zoxide kurulum scripti başarılı"
+    else
         log_error "Zoxide kurulumu başarısız!"
+        log_info "Manuel kurulum: curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash"
         return 1
     fi
     
@@ -974,4 +991,3 @@ install_extra_tools() {
 # ============================================================================
 # TMUX
 # ============================================================================
-

@@ -313,7 +313,7 @@ show_menu() {
     echo -e "${YELLOW}└───────────────────────────────────────────────────────────┘${NC}"
     echo
     echo -e "${YELLOW}┌───────────────────── MODÜLER KURULUM ─────────────────────┐${NC}"
-    echo -e "${WHITE}│  5 │${NC} ⚙️  ${GREEN}Zsh + Oh My Zsh${NC}                                   ${YELLOW}│${NC}"
+    echo -e "${WHITE}│  5 │${NC} ⚙️  ${GREEN}Zsh + Oh My Zsh (Tema hariç, tam paket)${NC}           ${YELLOW}│${NC}"
     echo -e "${WHITE}│  6 │${NC} ✨ ${GREEN}Powerlevel10k Teması${NC}                              ${YELLOW}│${NC}"
     echo -e "${WHITE}│  7 │${NC} 🎨 ${GREEN}Renk Teması Değiştir${NC}                              ${YELLOW}│${NC}"
     echo -e "${WHITE}│  8 │${NC} 🔌 ${GREEN}Pluginler${NC}                                          ${YELLOW}│${NC}"

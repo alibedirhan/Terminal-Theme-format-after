@@ -388,8 +388,16 @@ _change_default_shell_impl() {
     
     show_step_info "Shell değiştiriliyor: $CURRENT_SHELL → $ZSH_PATH"
     
+    # Şifre uyarısı
+    echo
+    echo -e "${YELLOW}┌───────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│${NC} ${BOLD}Shell değiştirmek için şifre gerekli${NC}"
+    echo -e "${YELLOW}│${NC} Lütfen kullanıcı şifrenizi girin:"
+    echo -e "${YELLOW}└───────────────────────────────────────────┘${NC}"
+    echo
+    
     # chsh komutu ile shell değiştir
-    if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+    if chsh -s "$ZSH_PATH" 2>&1 | tee -a "$LOG_FILE"; then
         show_step_success "Sistem shell'i Zsh olarak ayarlandı"
         
         # Doğrulama: Gerçekten değişti mi?
@@ -400,7 +408,7 @@ _change_default_shell_impl() {
             # Başarısız, sudo ile dene
             show_step_info "sudo ile deneniyor..."
             
-            if ! sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+            if ! sudo chsh -s "$ZSH_PATH" "$USER" 2>&1 | tee -a "$LOG_FILE"; then
                 log_error "Shell değiştirilemedi"
                 
                 # Permission hatası olabilir
@@ -555,13 +563,24 @@ uninstall_all() {
     fi
     
     if [[ "$force_mode" == false ]]; then
-        show_user_prompt "TÜM ÖZELLEŞTİRMELER KALDIRILACAK" \
-            "• Tüm Zsh ayarlarını silecek" \
-            "• Oh My Zsh'i kaldıracak" \
-            "• Terminal renklerini varsayılana döndürecek" \
-            "• Fontları silecek" \
-            "• Kurulu araçları kaldıracak (opsiyonel)" \
-            ""
+        echo
+        echo -e "${RED}╔═══════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║${NC}  ${BOLD}TÜM ÖZELLEŞTİRMELER KALDIRILACAK${NC}      ${RED}║${NC}"
+        echo -e "${RED}╚═══════════════════════════════════════════╝${NC}"
+        echo
+        echo -e "${YELLOW}Bu işlem şunları kaldıracak:${NC}"
+        echo "  • Zsh paketi (--purge ile)"
+        echo "  • Oh My Zsh ve Powerlevel10k"
+        echo "  • Tüm Zsh config dosyaları"
+        echo "  • FZF, Zoxide, Exa, Bat"
+        echo "  • Ripgrep, fd, delta, lazygit"
+        echo "  • TLDR, btop, dust, duf, procs, atuin"
+        echo "  • MesloLGS fontları"
+        echo "  • Tmux ve yapılandırmaları"
+        echo "  • Terminal renk ayarları"
+        echo
+        echo -e "${RED}${BOLD}Bu işlem GERİ ALINMAZ!${NC}"
+        echo
         echo -n "Emin misiniz? (e/h): "
         read -r confirm
         
@@ -576,10 +595,11 @@ uninstall_all() {
     echo -e "${CYAN}║${NC}   TAM KALDIRMA İŞLEMİ BAŞLIYOR           ${CYAN}║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
     
-    local total_steps=11
+    local total_steps=19
     local current_step=0
     local errors=0
     
+    # 1. Terminal profil ayarları
     echo
     show_section $((++current_step)) $total_steps "Terminal profil ayarları sıfırlanıyor"
     if reset_terminal_profile; then
@@ -589,120 +609,161 @@ uninstall_all() {
         ((errors++))
     fi
     
-    show_section $((++current_step)) $total_steps "Orijinal sistem durumuna dönülüyor"
-    if restore_original_state; then
-        show_step_success "Orijinal durum geri yüklendi"
-    else
-        show_step_info "Orijinal durum dosyası yok, manuel geri yükleme yapılacak"
+    # 2. Shell'i bash'e döndür
+    show_section $((++current_step)) $total_steps "Shell Bash'e döndürülüyor"
+    if command -v bash &> /dev/null; then
+        local bash_path
+        bash_path=$(which bash)
         
-        if command -v bash &> /dev/null; then
-            local bash_path
-            bash_path=$(which bash)
-            
-            if [[ "$SHELL" == "$bash_path" ]]; then
-                show_step_skip "Zaten Bash kullanılıyor"
+        if [[ "$SHELL" == "$bash_path" ]]; then
+            show_step_skip "Zaten Bash kullanılıyor"
+        else
+            show_step_info "Bash'e geçiliyor..."
+            if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
+                show_step_success "Shell başarıyla Bash olarak ayarlandı"
             else
-                show_step_info "Bash'e geçiliyor..."
-                if sudo chsh -s "$bash_path" "$USER" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-                    show_step_success "Shell başarıyla değiştirildi"
-                else
-                    log_error "Shell değiştirilemedi"
-                    ((errors++))
-                fi
+                log_error "Shell değiştirilemedi"
+                ((errors++))
             fi
         fi
     fi
     
-    show_section $((++current_step)) $total_steps "Oh My Zsh kaldırılıyor"
+    # 3. Oh My Zsh ve Powerlevel10k
+    show_section $((++current_step)) $total_steps "Oh My Zsh ve Powerlevel10k kaldırılıyor"
     if [[ -d ~/.oh-my-zsh ]]; then
-        if rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-            show_step_success "Oh My Zsh kaldırıldı"
-        else
-            log_error "Silinemedi"
-            ((errors++))
-        fi
+        rm -rf ~/.oh-my-zsh 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Oh My Zsh kaldırıldı"
     else
-        show_step_skip "Zaten yok"
+        show_step_skip "Oh My Zsh zaten yok"
     fi
     
+    # 4. Zsh config dosyaları
     show_section $((++current_step)) $total_steps "Zsh konfigürasyon dosyaları siliniyor"
-    local zsh_files=("~/.zshrc" "~/.zsh_history" "~/.p10k.zsh" "~/.zshenv" "~/.zprofile" "~/.zlogin")
+    local zsh_files=("~/.zshrc" "~/.zsh_history" "~/.p10k.zsh" "~/.zshenv" "~/.zprofile" "~/.zlogin" "~/.zcompdump"*)
+    local removed_count=0
     for file in "${zsh_files[@]}"; do
         local expanded_file="${file/#\~/$HOME}"
-        if [[ -f "$expanded_file" ]]; then
-            if rm "$expanded_file" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-                show_step_success "Silindi: $file"
-            else
-                log_error "Silinemedi: $file"
-                ((errors++))
-            fi
+        if [[ -f "$expanded_file" ]] || [[ "$expanded_file" == *"*"* ]]; then
+            rm -f $expanded_file 2>/dev/null && ((removed_count++))
         fi
     done
+    [[ $removed_count -gt 0 ]] && show_step_success "$removed_count dosya silindi" || show_step_skip "Silinecek dosya yok"
     
-    show_section $((++current_step)) $total_steps "Yedeklerden geri yükleniyor"
-    if [[ -d "$BACKUP_DIR" ]]; then
-        local latest_bashrc
-        latest_bashrc=$(ls -t "$BACKUP_DIR"/bashrc_* 2>/dev/null | head -1)
-        if [[ -f "$latest_bashrc" ]]; then
-            if cp "$latest_bashrc" ~/.bashrc 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-                show_step_success ".bashrc geri yüklendi"
-            else
-                log_error ".bashrc geri yüklenemedi"
-                ((errors++))
-            fi
-        fi
-        
-        local latest_tmux
-        latest_tmux=$(ls -t "$BACKUP_DIR"/tmux_* 2>/dev/null | head -1)
-        if [[ -f "$latest_tmux" ]]; then
-            if cp "$latest_tmux" ~/.tmux.conf 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
-                show_step_success ".tmux.conf geri yüklendi"
-            else
-                log_error ".tmux.conf geri yüklenemedi"
-                ((errors++))
-            fi
-        fi
+    # 5. Tmux kaldır
+    show_section $((++current_step)) $total_steps "Tmux kaldırılıyor"
+    if command -v tmux &> /dev/null; then
+        sudo apt remove --purge -y tmux 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Tmux kaldırıldı"
     else
-        show_step_skip "Yedek bulunamadı"
+        show_step_skip "Tmux zaten yok"
+    fi
+    [[ -f ~/.tmux.conf ]] && rm -f ~/.tmux.conf && show_step_success ".tmux.conf silindi"
+    
+    # 6. FZF
+    show_section $((++current_step)) $total_steps "FZF kaldırılıyor"
+    if [[ -d ~/.fzf ]]; then
+        rm -rf ~/.fzf && show_step_success "FZF kaldırıldı"
+    else
+        show_step_skip "FZF zaten yok"
     fi
     
-    echo
-    echo -e "${CYAN}═════════════════════════════════════════${NC}"
-    
-    if [[ "$force_mode" == true ]]; then
-        log_info "Zorlamalı mod: Tüm paketler otomatik kaldırılıyor..."
-        
-        show_section $((++current_step)) $total_steps "FZF kaldırılıyor"
-        [[ -d ~/.fzf ]] && rm -rf ~/.fzf && show_step_success "FZF kaldırıldı"
-        
-        show_section $((++current_step)) $total_steps "Zoxide kaldırılıyor"
-        if command -v zoxide &> /dev/null; then
-            local zoxide_bin
-            zoxide_bin=$(which zoxide)
-            [[ -f "$zoxide_bin" ]] && sudo rm -f "$zoxide_bin" && show_step_success "Zoxide kaldırıldı"
-        fi
-        
-        show_section $((++current_step)) $total_steps "Fontlar kaldırılıyor"
-        local FONT_DIR=~/.local/share/fonts
-        if [[ -d "$FONT_DIR" ]]; then
-            rm -f "$FONT_DIR"/MesloLGS*.ttf 2>/dev/null
-            command -v fc-cache &> /dev/null && fc-cache -f "$FONT_DIR" > /dev/null 2>&1
-            show_step_success "Fontlar kaldırıldı"
-        fi
-        
-        show_section $((++current_step)) $total_steps "Tmux kaldırılıyor"
-        if command -v tmux &> /dev/null; then
-            sudo apt remove -y tmux &>/dev/null && show_step_success "Tmux kaldırıldı"
-        fi
-        
-        show_section $((++current_step)) $total_steps "Zsh paketi kaldırılıyor"
-        sudo apt remove -y zsh &>/dev/null && show_step_success "Zsh paketi kaldırıldı"
-        sudo apt autoremove -y &>/dev/null
-        
-        show_section $((++current_step)) $total_steps "Sistem araçları kaldırılıyor"
-        sudo apt remove -y exa bat &>/dev/null && show_step_success "Exa ve Bat kaldırıldı"
-        sudo apt autoremove -y &>/dev/null
+    # 7. Zoxide
+    show_section $((++current_step)) $total_steps "Zoxide kaldırılıyor"
+    if command -v zoxide &> /dev/null; then
+        local zoxide_bin
+        zoxide_bin=$(which zoxide)
+        sudo rm -f "$zoxide_bin" 2>/dev/null && show_step_success "Zoxide kaldırıldı"
+    else
+        show_step_skip "Zoxide zaten yok"
     fi
+    
+    # 8. Exa ve Bat
+    show_section $((++current_step)) $total_steps "Exa ve Bat kaldırılıyor"
+    sudo apt remove --purge -y exa bat 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Exa ve Bat kaldırıldı"
+    
+    # 9. Ripgrep
+    show_section $((++current_step)) $total_steps "Ripgrep kaldırılıyor"
+    if command -v rg &> /dev/null; then
+        sudo apt remove --purge -y ripgrep 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Ripgrep kaldırıldı"
+    else
+        show_step_skip "Ripgrep zaten yok"
+    fi
+    
+    # 10. fd-find
+    show_section $((++current_step)) $total_steps "fd-find kaldırılıyor"
+    if command -v fd &> /dev/null || command -v fdfind &> /dev/null; then
+        sudo apt remove --purge -y fd-find 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "fd-find kaldırıldı"
+    else
+        show_step_skip "fd-find zaten yok"
+    fi
+    
+    # 11. Git-delta, Lazygit
+    show_section $((++current_step)) $total_steps "Git araçları kaldırılıyor"
+    [[ -f /usr/local/bin/delta ]] && sudo rm -f /usr/local/bin/delta && show_step_success "Delta kaldırıldı"
+    [[ -f /usr/local/bin/lazygit ]] && sudo rm -f /usr/local/bin/lazygit && show_step_success "Lazygit kaldırıldı"
+    
+    # 12. Sistem araçları (btop, dust, duf, procs)
+    show_section $((++current_step)) $total_steps "Sistem araçları kaldırılıyor"
+    sudo apt remove --purge -y btop dust duf 2>&1 | tee -a "$LOG_FILE" >/dev/null
+    [[ -f /usr/local/bin/procs ]] && sudo rm -f /usr/local/bin/procs
+    show_step_success "Sistem araçları kaldırıldı"
+    
+    # 13. TLDR ve Atuin
+    show_section $((++current_step)) $total_steps "TLDR ve Atuin kaldırılıyor"
+    sudo apt remove --purge -y tldr 2>&1 | tee -a "$LOG_FILE" >/dev/null
+    [[ -f /usr/local/bin/atuin ]] && sudo rm -f /usr/local/bin/atuin
+    [[ -d ~/.local/share/atuin ]] && rm -rf ~/.local/share/atuin
+    show_step_success "TLDR ve Atuin kaldırıldı"
+    
+    # 14. Fontlar
+    show_section $((++current_step)) $total_steps "Fontlar kaldırılıyor"
+    local FONT_DIR=~/.local/share/fonts
+    if [[ -d "$FONT_DIR" ]]; then
+        rm -f "$FONT_DIR"/MesloLGS*.ttf 2>/dev/null
+        command -v fc-cache &> /dev/null && fc-cache -f "$FONT_DIR" > /dev/null 2>&1
+        show_step_success "MesloLGS fontları kaldırıldı"
+    else
+        show_step_skip "Font klasörü yok"
+    fi
+    
+    # 15. Zsh paketi (--purge ile)
+    show_section $((++current_step)) $total_steps "Zsh paketi kaldırılıyor"
+    sudo apt remove --purge -y zsh 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Zsh paketi tamamen kaldırıldı"
+    
+    # 16. Plugin config dosyaları
+    show_section $((++current_step)) $total_steps "Plugin config dosyaları siliniyor"
+    local plugin_files=("~/.fzf.zsh" "~/.config/atuin" "~/.local/share/atuin")
+    local plugin_removed=0
+    for pfile in "${plugin_files[@]}"; do
+        local expanded="${pfile/#\~/$HOME}"
+        if [[ -e "$expanded" ]]; then
+            rm -rf "$expanded" 2>/dev/null && ((plugin_removed++))
+        fi
+    done
+    [[ $plugin_removed -gt 0 ]] && show_step_success "$plugin_removed config silindi" || show_step_skip "Config yok"
+    
+    # 17. Zsh plugin dizinleri
+    show_section $((++current_step)) $total_steps "Zsh plugin dizinleri siliniyor"
+    local plugin_dirs=(
+        "~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+        "~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+        "~/.oh-my-zsh/custom/plugins/fast-syntax-highlighting"
+    )
+    for pdir in "${plugin_dirs[@]}"; do
+        local expanded="${pdir/#\~/$HOME}"
+        [[ -d "$expanded" ]] && rm -rf "$expanded" 2>/dev/null
+    done
+    show_step_success "Plugin dizinleri temizlendi"
+    
+    # 18. Script'in kendi dizinleri
+    show_section $((++current_step)) $total_steps "Script dizinleri siliniyor"
+    if [[ -d "$BASE_DIR" ]]; then
+        rm -rf "$BASE_DIR" 2>/dev/null && show_step_success "~/.terminal-setup silindi"
+    else
+        show_step_skip "Script dizini yok"
+    fi
+    
+    # 19. Autoremove
+    show_section $((++current_step)) $total_steps "Gereksiz paketler temizleniyor"
+    sudo apt autoremove -y 2>&1 | tee -a "$LOG_FILE" >/dev/null && show_step_success "Sistem temizlendi"
     
     echo
     echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
